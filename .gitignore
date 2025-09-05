@@ -1,0 +1,153 @@
+# -----------------------------
+# OS cruft
+# -----------------------------
+.DS_Store
+.DS_Store?
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# -----------------------------
+# Python (project + tooling)
+# -----------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+
+# virtual envs
+.venv/
+venv/
+ENV/
+env/
+env.bak/
+venv.bak/
+
+# env/config files (keep if you intentionally commit)
+.env
+.envrc
+
+# packaging / build outputs
+build/
+dist/
+*.egg-info/
+pip-wheel-metadata/
+
+# test & type-check caches
+.pytest_cache/
+.mypy_cache/
+.pyright/
+.ruff_cache/
+.dmypy.json
+.pyre/
+.pytype/
+coverage.xml
+.coverage*
+htmlcov/
+
+# -----------------------------
+# LaTeX / BibTeX / Biber / latexmk
+# (based on GitHub’s TeX.gitignore + common extras)
+# -----------------------------
+## Core LaTeX auxiliaries
+*.aux
+*.lof
+*.log
+*.lot
+*.fls
+*.out
+*.toc
+*.fmt
+*.fot
+*.cb
+*.cb2
+.*.lb
+
+## Device/engine outputs
+*.dvi
+*.xdv
+*.pdfsync
+
+## BibTeX / biber
+*.bbl
+*.bcf
+*.blg
+*-blx.aux
+*-blx.bib
+*.run.xml
+
+## latexmk
+*.fdb_latexmk
+
+## SyncTeX
+*.synctex
+*.synctex(busy)
+*.synctex.gz
+*.synctex.gz(busy)
+
+## Beamer
+*.nav
+*.snm
+*.vrb
+
+## Glossaries / makeindex / nomencl
+*.acn
+*.acr
+*.alg
+*.glg
+*.glo
+*.gls
+*.glsdefs
+*.ist
+*.maf
+*.mtc*
+*.nlo
+*.nls
+*.idx
+*.ilg
+*.ind
+
+## TikZ/pgf externalization
+*.dpth
+*.md5
+*.auxlock
+
+## minted / pygments
+_minted-*/
+
+## latexmk build directories (if you use them)
+latex/**/build/
+tex/**/build/
+
+# -----------------------------
+# Project-specific generated artifacts
+# -----------------------------
+
+# Generated BibTeX/exports
+bib/generated/
+
+# CSL-JSON ad-hoc outputs (keep schema/samples committed)
+csl/out/
+csl/**/out/
+
+# Example PDFs—built by CI, not tracked
+latex/examples/**/*.pdf
+tex/biblatex-yj/examples/**/*.pdf
+
+# Optional: if you generate amsrefs .ltb databases for demos
+latex/examples/**/library.ltb
+
+# l3build outputs for your style bundle
+tex/biblatex-yj/build/
+
+# -----------------------------
+# Editor junk (keep VS Code settings by default)
+# -----------------------------
+# .vscode/              # uncomment to ignore the entire folder
+# !.vscode/settings.json
+# !.vscode/extensions.json
+# !.vscode/launch.json
+
+# JetBrains (uncomment if you ever use it)
+# .idea/

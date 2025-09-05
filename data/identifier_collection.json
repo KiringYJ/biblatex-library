@@ -1,0 +1,1172 @@
+{
+    "hatcher-2002-0b6a9847": {
+        "main_identifier": "isbn",
+        "identifiers": {
+            "isbn": "9780521795401"
+        }
+    },
+    "maclane-1998-c5f6a645": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1007/978-1-4757-4721-8"
+        }
+    },
+    "junghenn-2018-d94170ff": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1201/9781315151601"
+        }
+    },
+    "givant-2009-c022117a": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1007/978-0-387-68436-9"
+        }
+    },
+    "letac-1995-84cfbdad": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1007/978-1-4612-4212-3"
+        }
+    },
+    "friedberg-2018-cf092ab0": {
+        "main_identifier": "isbn",
+        "identifiers": {
+            "isbn": "9780134860244"
+        }
+    },
+    "serre-1977-22e5b7e0": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1007/978-1-4684-9458-7"
+        }
+    },
+    "dummit-2004-4c68cd4b": {
+        "main_identifier": "isbn",
+        "identifiers": {
+            "isbn": "9780471433347"
+        }
+    },
+    "macdonald-1995-76e228ac": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1093/oso/9780198534891.001.0001"
+        }
+    },
+    "huybrechts-2005-96b06937": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1007/b137952"
+        }
+    },
+    "mitchell-1965-63ecd94e": {
+        "main_identifier": "isbn",
+        "identifiers": {
+            "isbn": "9780080873299"
+        }
+    },
+    "klein-2016-acdb8fa1": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1007/978-3-662-49445-5"
+        }
+    },
+    "altman-2013-5d76accb": {
+        "main_identifier": "isbn",
+        "identifiers": {
+            "isbn": "9780988557215"
+        }
+    },
+    "panchenko-2019-32f12b75": {
+        "main_identifier": "isbn",
+        "identifiers": {
+            "isbn": "9781999419042"
+        }
+    },
+    "etingof-2011-d09b058d": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1090/stml/059"
+        }
+    },
+    "chang-2020-85763768": {
+        "main_identifier": "isbn",
+        "identifiers": {
+            "isbn": "9789863504061"
+        }
+    },
+    "diestel-2017-3915813b": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1007/978-3-662-53622-3"
+        }
+    },
+    "west-1996-c500d258": {
+        "main_identifier": "isbn",
+        "identifiers": {
+            "isbn": "9780132278287"
+        }
+    },
+    "arnold-1992-d457603c": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1070/RM1992v047n01ABEH000861"
+        }
+    },
+    "aluffi-2009-65ecfeda": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1090/gsm/104"
+        }
+    },
+    "deng-2008-92359148": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1090/surv/150"
+        }
+    },
+    "demailly-2012-c47184e8": {
+        "main_identifier": "isbn",
+        "identifiers": {
+            "isbn": "9781571462343"
+        }
+    },
+    "krantz-2004-3875b000": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.5948/UPO9780883859681"
+        }
+    },
+    "peters-2008-ef764f4d": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1007/978-3-540-77017-6"
+        }
+    },
+    "eisenbud-2000-b4a503cc": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1007/b97680"
+        }
+    },
+    "jimbo-1981-883c46bc": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1016/0167-2789(81)90013-0"
+        }
+    },
+    "wells-2008-c6e9fad6": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1007/978-0-387-73892-5"
+        }
+    },
+    "lax-2007-47392fbd": {
+        "main_identifier": "isbn",
+        "identifiers": {
+            "isbn": "9780471751564"
+        }
+    },
+    "martinlof-1984-d16472ae": {
+        "main_identifier": "isbn",
+        "identifiers": {
+            "isbn": "9788870881059"
+        }
+    },
+    "jech-2003-ee102113": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1007/3-540-44761-X"
+        }
+    },
+    "thompson-1991-272b7159": {
+        "main_identifier": "isbn",
+        "identifiers": {
+            "isbn": "9780201416671"
+        }
+    },
+    "lipovaca-2011-d4167110": {
+        "main_identifier": "isbn",
+        "identifiers": {
+            "isbn": "9781593272838"
+        }
+    },
+    "troelstra-1988-05c5469a": {
+        "main_identifier": "isbn",
+        "identifiers": {
+            "isbn": "9780444702661"
+        }
+    },
+    "ebbinghaus-2021-c5300397": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1007/978-3-030-73839-6"
+        }
+    },
+    "courant-1999-933bc8f6": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1007/978-3-642-58604-0"
+        }
+    },
+    "hori-2003-9bfd3cef": {
+        "main_identifier": "isbn",
+        "identifiers": {
+            "isbn": "9780821829554"
+        }
+    },
+    "rose-2015-38f649b3": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1007/978-1-4939-2830-9_8"
+        }
+    },
+    "hoffman-1971-38f649b3": {
+        "main_identifier": "isbn",
+        "identifiers": {
+            "isbn": "9780135367971"
+        }
+    },
+    "bredon-1993-7908a921": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1007/978-1-4757-6848-0"
+        }
+    },
+    "dubrovin-1985-b24c3982": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1007/978-1-4612-1100-6"
+        }
+    },
+    "guillemin-2010-f0277b0b": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1090/chel/370"
+        }
+    },
+    "morita-2001-8d2a1e9e": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1090/mmono/201"
+        }
+    },
+    "whitney-1936-264a4787": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.2307/1968482"
+        }
+    },
+    "whitney-1944-86cccd6e": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.2307/1969265"
+        }
+    },
+    "massey-1991-67a54658": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1007/978-1-4939-9063-4"
+        }
+    },
+    "spanier-1995-609bf294": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1007/978-1-4684-9322-1"
+        }
+    },
+    "knapp-2016-7caa1969": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.3792/euclid/9781429799980"
+        }
+    },
+    "jacobson-1985-0796af2d": {
+        "main_identifier": "isbn",
+        "identifiers": {
+            "isbn": "9780716714804"
+        }
+    },
+    "jacobson-1989-f9aea7e2": {
+        "main_identifier": "isbn",
+        "identifiers": {
+            "isbn": "9780716719335"
+        }
+    },
+    "wheeden-2015-a61367be": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1201/b18361"
+        }
+    },
+    "cohn-2013-9e1fffb9": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1007/978-1-4614-6956-8"
+        }
+    },
+    "junghenn-2015-89421d2e": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1201/b18085"
+        }
+    },
+    "broughton-1977-9f8688fb": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1080/00029890.1977.11994413"
+        }
+    },
+    "malliavin-1995-54243875": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1007/978-1-4612-4202-4"
+        }
+    },
+    "atiyah-1969-d3c12db4": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1201/9780429493638"
+        }
+    },
+    "matsumura-1989-6550f824": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1017/cbo9781139171762"
+        }
+    },
+    "hartshorne-1977-0654f378": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1007/978-1-4757-3849-0"
+        }
+    },
+    "kassel-2008-d81199a7": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1007/978-0-387-68548-9"
+        }
+    },
+    "gonzalezmeneses-2011-5cac6c9a": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.5802/ambp.293"
+        }
+    },
+    "loeb-2015-cad029a0": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1007/978-94-017-7327-0"
+        }
+    },
+    "stein-2005-db7b4b2e": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1515/9781400835560"
+        }
+    },
+    "bugeaud-2012-82d8a38f": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1017/cbo9781139017732"
+        }
+    },
+    "apostol-1974-2bc30ae8": {
+        "main_identifier": "isbn",
+        "identifiers": {
+            "isbn": "9780201002881"
+        }
+    },
+    "harris-1992-291d2572": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1007/978-1-4757-2189-8"
+        }
+    },
+    "bourn-2004-fc2f7a23": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1017/cbo9781107340985.007"
+        }
+    },
+    "atiyah-2002-b3a6628c": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1112/S0024609301008566"
+        }
+    },
+    "grothendieck-2023-ea8685f0": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.14375/NP.9782073004796"
+        }
+    },
+    "behrend-2013-320da17e": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1007/s00222-012-0408-1"
+        }
+    },
+    "feit-1960-1c38330c": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1215/s0012-7094-60-02709-5"
+        }
+    },
+    "reineke-2003-3b26ff30": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1007/s00222-002-0273-4"
+        }
+    },
+    "bridgeland-2012-cd3c9faf": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1007/s00222-011-0329-4"
+        }
+    },
+    "axler-2020-3da4112f": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1007/978-3-030-33143-6"
+        }
+    },
+    "davidson-2010-64bc6e3a": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1007/978-0-387-98098-0"
+        }
+    },
+    "carter-2005-18cbbfe6": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1017/cbo9780511614910"
+        }
+    },
+    "tao-2011-11812a84": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1090/gsm/126"
+        }
+    },
+    "bridgeland-2013-7556de59": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1515/crelle-2012-0046"
+        }
+    },
+    "gevay-2014-b34d3181": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.26493/1855-3974.270.daa"
+        }
+    },
+    "huybrechts-2006-7003d34d": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1093/acprof:oso/9780199296866.001.0001"
+        }
+    },
+    "ringel-2013-edcb1390": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1090/s0002-9939-2012-11296-1"
+        }
+    },
+    "bollobas-1998-37b9ebae": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1007/978-1-4612-0619-4"
+        }
+    },
+    "fulton-1991-83cdb18e": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1007/978-1-4612-0979-9"
+        }
+    },
+    "chen-2020-306f200b": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1007/s00229-019-01111-2"
+        }
+    },
+    "gruson-2018-fa8651da": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1007/978-3-319-98271-7"
+        }
+    },
+    "lee-2023-ac7a791e": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1007/s10711-023-00773-3"
+        }
+    },
+    "gortz-2020-417b5663": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1007/978-3-658-30733-2"
+        }
+    },
+    "cutkosky-2018-debd49af": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1090/gsm/188"
+        }
+    },
+    "griffiths-1994-ea28c97a": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1002/9781118032527"
+        }
+    },
+    "may-2001-b7af8344": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1006/aima.2001.1995"
+        }
+    },
+    "bergh-2013-8f0d6123": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.2140/agt.2013.13.2405"
+        }
+    },
+    "neeman-1996-58587a0d": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1090/s0894-0347-96-00174-9"
+        }
+    },
+    "neeman-2001-6204e16d": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1515/9781400837212"
+        }
+    },
+    "gross-2010-0b6f3356": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.4171/pm/1865"
+        }
+    },
+    "ringel-1984-ad4a56ee": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1007/bfb0072870"
+        }
+    },
+    "drozd-1980-db825991": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1007/BFb0088467"
+        }
+    },
+    "leinster-2004-f6bbfe61": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1017/cbo9780511525896"
+        }
+    },
+    "dimitrov-2019-f5e5c4a7": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1016/j.aim.2019.05.032"
+        }
+    },
+    "szendroi-2008-e708f099": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.2140/gt.2008.12.1171"
+        }
+    },
+    "serre-1973-90ce3162": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1007/978-1-4684-9884-4"
+        }
+    },
+    "dimofte-2010-76cd35e7": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1007/s11005-009-0357-9"
+        }
+    },
+    "reineke-2024-b393265c": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.5802/art.12"
+        }
+    },
+    "bridgeland-2012-f03a1f85": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1016/j.aim.2011.09.003"
+        }
+    },
+    "cassels-2010-61faea98": {
+        "main_identifier": "isbn",
+        "identifiers": {
+            "isbn": "9780950273426"
+        }
+    },
+    "reineke-2013-bbbafe6b": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1007/s00208-012-0778-0"
+        }
+    },
+    "reineke-2012-d87a2ed6": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.2140/gt.2012.16.2097"
+        }
+    },
+    "filippini-2015-4707362c": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1112/s0010437x14007994"
+        }
+    },
+    "filippini-2016-e3aad9b7": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1142/s0129167x1640005x"
+        }
+    },
+    "bousseau-2019-124febd0": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1007/s00222-018-0823-z"
+        }
+    },
+    "gross-2010-3a324378": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1215/00127094-2010-025"
+        }
+    },
+    "bousseau-2020-b27abe5e": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.2140/gt.2020.24.1297"
+        }
+    },
+    "maclagan-2015-fec23db4": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1090/gsm/161"
+        }
+    },
+    "maclagan-2012-87d252b5": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1090/conm/580/11494"
+        }
+    },
+    "mozgovoy-2013-abd0d57b": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.4171/125-1/6"
+        }
+    },
+    "neukirch-1999-43e738b6": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1007/978-3-662-03983-0"
+        }
+    },
+    "bousseau-2020-8746d58a": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1112/s0010437x19007760"
+        }
+    },
+    "fantini-2024-0733078c": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1007/s40574-023-00385-5"
+        }
+    },
+    "kontsevich-2003-4de793d0": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1023/b:math.0000027508.00421.bf"
+        }
+    },
+    "kontsevich-2001-6a0e4594": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1023/a:1017957408559"
+        }
+    },
+    "fantini-2022-3f384740": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.4310/atmp.2022.v26.n6.a4"
+        }
+    },
+    "chan-2016-4c59d863": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1515/coma-2016-0002"
+        }
+    },
+    "chan-2022-b4170c4d": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.4171/jems/1100"
+        }
+    },
+    "ono-2024-5c016075": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.2140/pjm.2024.330.283"
+        }
+    },
+    "bridgeland-2007-319b6424": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.4007/annals.2007.166.317"
+        }
+    },
+    "cheung-2020-a11d8747": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1007/s00029-020-00580-8"
+        }
+    },
+    "bayer-2021-371ad1b6": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1007/s10240-021-00124-6"
+        }
+    },
+    "gaiotto-2017-81cce0a6": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.5802/cml.40"
+        }
+    },
+    "kodaira-2005-8e40cc6c": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1007/b138372"
+        }
+    },
+    "martinengo-2012-b44ca2d1": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1142/s0129167x1250053x"
+        }
+    },
+    "hinich-2001-fff7ebaa": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1016/s0022-4049(00)00121-3"
+        }
+    },
+    "tian-1987-e459cd1b": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1142/9789812798411_0029"
+        }
+    },
+    "leung-2021-3d7833ed": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1093/imrn/rnz220"
+        }
+    },
+    "bridgeland-2017-de822c60": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.14231/ag-2017-027"
+        }
+    },
+    "chan-2012-02f8b000": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.4310/jdg/1335230845"
+        }
+    },
+    "chen-2023-53dcf4f5": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1201/9781003304135"
+        }
+    },
+    "chan-2023-9a22ddbf": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.4310/jdg/1695236591"
+        }
+    },
+    "clader-2025-1f80ee12": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1007/978-3-031-88819-9"
+        }
+    },
+    "chan-2025-cbbd051d": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1017/fmp.2024.32"
+        }
+    },
+    "hain-1987-6f9f8efb": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1090/pspum/046.2/927984"
+        }
+    },
+    "weibel-1994-1883fe32": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1017/cbo9781139644136"
+        }
+    },
+    "milnor-1997-d7193761": {
+        "main_identifier": "isbn",
+        "identifiers": {
+            "isbn": "9780691048338"
+        }
+    },
+    "vakil-2025-0ec0f69b": {
+        "main_identifier": "isbn",
+        "identifiers": {
+            "isbn": "9780691268668"
+        }
+    },
+    "prawitz-2006-7e1f3a08": {
+        "main_identifier": "isbn",
+        "identifiers": {
+            "isbn": "9780486446554"
+        }
+    },
+    "costello-2011-9712903d": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1090/surv/170"
+        }
+    },
+    "mandel-2023-5c52a36e": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1093/imrn/rnab332"
+        }
+    },
+    "apostol-1976-d9a070bb": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1007/978-1-4757-5579-4"
+        }
+    },
+    "nederpelt-2014-c8303c70": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1017/cbo9781139567725"
+        }
+    },
+    "barendregt-1992-322678db": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1093/oso/9780198537618.003.0002"
+        }
+    },
+    "barendregt-1991-205219ba": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1017/s0956796800020025"
+        }
+    },
+    "manin-2010-024a2adf": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1007/978-1-4419-0615-1"
+        }
+    },
+    "huth-2004-c71993ff": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1017/cbo9780511810275"
+        }
+    },
+    "bauer-2017-4625c6a8": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1090/bull/1556"
+        }
+    },
+    "reid-1996-9d132f00": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1007/978-1-4612-0739-9"
+        }
+    },
+    "bertot-2004-719dbd97": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1007/978-3-662-07964-5"
+        }
+    },
+    "fukaya-2003-ee28381d": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1201/9781420034295-8"
+        }
+    },
+    "henneaux-1992-729e4abd": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1515/9780691213866"
+        }
+    },
+    "costello-2021-06da2240": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1017/9781316678664"
+        }
+    },
+    "losev-2024-fb24daf2": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.3842/sigma.2024.072"
+        }
+    },
+    "chuang-2025-741da84d": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1007/s11005-025-01965-6"
+        }
+    },
+    "carl-2024-a204f490": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1007/s10114-024-2295-y"
+        }
+    },
+    "jensen-2016-fe9d76d7": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.1007/s10801-015-0627-9"
+        }
+    },
+    "abramovich-2025-d32c7cc3": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "doi": "10.4171/mems/15"
+        }
+    },
+    "chou-2024-24fb3c0a": {
+        "main_identifier": "arxiv",
+        "identifiers": {
+            "arxiv": "2411.19768"
+        }
+    },
+    "broomhead-2022-c52c1f9c": {
+        "main_identifier": "arxiv",
+        "identifiers": {
+            "arxiv": "2208.03173"
+        }
+    },
+    "kontsevich-2008-72eac7f9": {
+        "main_identifier": "arxiv",
+        "identifiers": {
+            "arxiv": "0811.2435"
+        }
+    },
+    "chan-2022-5a699110": {
+        "main_identifier": "arxiv",
+        "identifiers": {
+            "arxiv": "2205.01394"
+        }
+    },
+    "legrignou-2024-a51ff325": {
+        "main_identifier": "arxiv",
+        "identifiers": {
+            "arxiv": "2306.07227"
+        }
+    },
+    "zhang-2008-97ace88c": {
+        "main_identifier": "arxiv",
+        "identifiers": {
+            "arxiv": "0711.2400"
+        }
+    },
+    "mnev-2017-45226950": {
+        "main_identifier": "arxiv",
+        "identifiers": {
+            "arxiv": "1707.08096"
+        }
+    },
+    "iacovino-2024-9aa5ac07": {
+        "main_identifier": "arxiv",
+        "identifiers": {
+            "arxiv": "2412.04230"
+        }
+    },
+    "mcauley-2019-ad578962": {
+        "main_identifier": "url",
+        "identifiers": {
+            "url": "https://etheses.whiterose.ac.uk/id/eprint/26649/"
+        }
+    },
+    "zhang-2022-5ddb276b": {
+        "main_identifier": "doi",
+        "identifiers": {
+            "url": "10.6342/NTU202201144"
+        }
+    },
+    "fahr-2008-2fd900e0": {
+        "main_identifier": "url",
+        "identifiers": {
+            "url": "https://pub.uni-bielefeld.de/record/2302435"
+        }
+    },
+    "fantini-2020-9d738089": {
+        "main_identifier": "hdl",
+        "identifiers": {
+            "hdl": "20.500.11767/115819"
+        }
+    },
+    "huang-2024-88e18244": {
+        "main_identifier": "url",
+        "identifiers": {
+            "url": "https://spectrum.library.concordia.ca/id/eprint/993955/"
+        }
+    },
+    "kontsevich-2007-b6849b98": {
+        "main_identifier": "url",
+        "identifiers": {
+            "url": "https://www.math.ksu.edu/~soibel/Book-vol1.ps"
+        }
+    },
+    "porta-2013-eebf04a5": {
+        "main_identifier": "url",
+        "identifiers": {
+            "url": "https://www.math.u-bordeaux.fr/~ybilu/algant/documents/theses/porta.pdf"
+        }
+    },
+    "alper-2023-cb13da78": {
+        "main_identifier": "url",
+        "identifiers": {
+            "url": "https://sites.math.washington.edu/~jarod/moduli.pdf"
+        }
+    },
+    "stacks-2018-7627557c": {
+        "main_identifier": "url",
+        "identifiers": {
+            "url": "https://stacks.math.columbia.edu"
+        }
+    },
+    "ringel-2012-fc187612": {
+        "main_identifier": "url",
+        "identifiers": {
+            "url": "https://www.math.uni-bielefeld.de/~sek/kau/"
+        }
+    },
+    "hubery-2016-9fd00f41": {
+        "main_identifier": "url",
+        "identifiers": {
+            "url": "https://www.math.uni-bielefeld.de/birep/activities/rhalg2016/Kronecker.pdf"
+        }
+    },
+    "lmfdb-2016-9e768d50": {
+        "main_identifier": "url",
+        "identifiers": {
+            "url": "https://www.lmfdb.org"
+        }
+    },
+    "oi-2025-59d01c18": {
+        "main_identifier": "url",
+        "identifiers": {
+            "url": "https://masaooi.github.io/LLC.pdf"
+        }
+    },
+    "lin-2024-9061b0e1": {
+        "main_identifier": "url",
+        "identifiers": {
+            "url": "https://homepage.ntu.edu.tw/~hsuehyunglin/Modern_Algebra_II.pdf"
+        }
+    },
+    "oeis-1996-38c337c8": {
+        "main_identifier": "url",
+        "identifiers": {
+            "url": "https://oeis.org"
+        }
+    },
+    "kontsevich-1994-944a9097": {
+        "main_identifier": "url",
+        "identifiers": {
+            "url": "https://www.ihes.fr/~maxim/TEXTS/Lectures%20on%20deformation%20theory,%20notes%20by%20Fuchs.pdf"
+        }
+    },
+    "lurie-2011-0d4373c2": {
+        "main_identifier": "url",
+        "identifiers": {
+            "url": "https://people.math.harvard.edu/~lurie/papers/DAG-X.pdf"
+        }
+    },
+    "kontsevich-2010-6ea0d58e": {
+        "main_identifier": "url",
+        "identifiers": {
+            "url": "https://math.berkeley.edu/~reshetik/CSRL/Yan-Berkeley-2010-2.pdf"
+        }
+    },
+    "leung-2022-c16d9232": {
+        "main_identifier": "url",
+        "identifiers": {
+            "url": "https://stringmath2022.fuw.edu.pl/wp-content/uploads/sites/70/2022/07/Leung.pdf"
+        }
+    },
+    "riedel-2020-974ec0a0": {
+        "main_identifier": "url",
+        "identifiers": {
+            "url": "https://pnp.mathematik.uni-stuttgart.de/iadm/Riedel/egorychev.html"
+        }
+    },
+    "mikhalkin-2018-4734c1c1": {
+        "main_identifier": "url",
+        "identifiers": {
+            "url": "https://www.math.uni-tuebingen.de/user/jora/downloads/main.pdf"
+        }
+    },
+    "knuth-1994-9d10f937": {
+        "main_identifier": "acmdl",
+        "identifiers": {
+            "acmdl": "10.5555/197600.197619"
+        }
+    },
+    "arentzhansen-2016-fe3e92cf": {
+        "main_identifier": "mrnumber",
+        "identifiers": {
+            "mrnumber": "3513963"
+        }
+    },
+    "shoji-2004-fe4d5d31": {
+        "main_identifier": "isbn",
+        "identifiers": {
+            "isbn": "9784254110999"
+        }
+    },
+    "manetti-2004-31b274d5": {
+        "main_identifier": "mrnumber",
+        "identifiers": {
+            "mrnumber": "2130146"
+        }
+    },
+    "li-2019-b37ede15": {
+        "main_identifier": "mrnumber",
+        "identifiers": {
+            "mrnumber": "3971878"
+        }
+    },
+    "univalent-2013-547bacad": {
+        "main_identifier": "url",
+        "identifiers": {
+            "url": "https://homotopytypetheory.org/book"
+        }
+    }
+}

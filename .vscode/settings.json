@@ -1,0 +1,108 @@
+// .vscode/settings.json
+{
+    // --- LaTeX Workshop tools ---
+    "latex-workshop.latex.tools": [
+        { // XeLaTeX+biber via latexmk (auto-detects biblatex/biber)
+            "name": "latexmk-xelatex-biber",
+            "command": "latexmk",
+            "args": [
+                "-xelatex",
+                "-pdf",
+                "-synctex=1",
+                "-interaction=nonstopmode",
+                "-file-line-error",
+                "%DOC%"
+            ]
+        },
+        { // Force BibTeX (for amsrefs with .bib)
+            "name": "latexmk-xelatex-bibtex",
+            "command": "latexmk",
+            "args": [
+                "-xelatex",
+                "-pdf",
+                "-synctex=1",
+                "-interaction=nonstopmode",
+                "-file-line-error",
+                "-bibtex",
+                "%DOC%"
+            ]
+        },
+        { // Your Python pre-step (e.g., convert biblatex -> BibTeX)
+            // Tip: set python.defaultInterpreterPath below so "python" resolves to your venv
+            "name": "blx-convert",
+            "command": "python",
+            "args": [
+                "-m",
+                "biblib.cli",
+                "convert",
+                "biblatex-to-bibtex",
+                "--in",
+                "${workspaceFolder}/bib/library.bib",
+                "--out",
+                "${workspaceFolder}/bib/generated/library-bibtex.bib"
+            ]
+        },
+        { // (kept) direct chain without latexmk if you want it
+            "name": "xelatex",
+            "command": "xelatex",
+            "args": [
+                "-synctex=1",
+                "-interaction=nonstopmode",
+                "%DOC%"
+            ]
+        },
+        {
+            "name": "biber",
+            "command": "biber",
+            "args": [
+                "%DOCFILE%"
+            ]
+        },
+        {
+            "name": "bibtex",
+            "command": "bibtex",
+            "args": [
+                "%DOCFILE%"
+            ]
+        }
+    ],
+    // --- Recipes you can pick from the TeX badge ---
+    "latex-workshop.latex.recipes": [
+        {
+            "name": "latexmk (XeLaTeX+biber) — default",
+            "tools": [
+                "latexmk-xelatex-biber"
+            ]
+        },
+        {
+            "name": "XeLaTeX → biber → XeLaTeX ×2",
+            "tools": [
+                "xelatex",
+                "biber",
+                "xelatex",
+                "xelatex"
+            ]
+        },
+        {
+            "name": "amsrefs (BibTeX, via latexmk)",
+            "tools": [
+                "latexmk-xelatex-bibtex"
+            ]
+        },
+        {
+            "name": "blx convert → amsrefs (BibTeX)",
+            "tools": [
+                "blx-convert",
+                "latexmk-xelatex-bibtex"
+            ]
+        }
+    ],
+    "latex-workshop.latex.recipe.default": "latexmk (XeLaTeX+biber) — default",
+    "latex-workshop.latex.autoBuild.run": "onSave",
+    "latex-workshop.view.pdf.viewer": "tab",
+    "latex-workshop.formatting.latex": "tex-fmt",
+    // --- Python: point VS Code to your venv interpreter (so recipes find "python") ---
+    // Windows example:
+    "python.defaultInterpreterPath": "${workspaceFolder}\\.venv\\Scripts\\python.exe"
+    // macOS/Linux: "${workspaceFolder}/.venv/bin/python"
+}

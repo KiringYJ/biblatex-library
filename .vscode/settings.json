@@ -1,4 +1,3 @@
-// .vscode/settings.json
 {
     // --- LaTeX Workshop tools ---
     "latex-workshop.latex.tools": [
@@ -103,6 +102,15 @@
     "latex-workshop.formatting.latex": "tex-fmt",
     // --- Python: point VS Code to your venv interpreter (so recipes find "python") ---
     // Windows example:
-    "python.defaultInterpreterPath": "${workspaceFolder}\\.venv\\Scripts\\python.exe"
+    "python.defaultInterpreterPath": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
     // macOS/Linux: "${workspaceFolder}/.venv/bin/python"
+    "python.analysis.typeCheckingMode": "strict",
+    "[python]": {
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "charliermarsh.ruff",
+        "editor.codeActionsOnSave": {
+            "source.fixAll": "explicit",
+            "source.organizeImports": "explicit"
+        }
+    }
 }

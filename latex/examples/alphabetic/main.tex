@@ -1,0 +1,21 @@
+\documentclass[12pt, a4paper]{article}
+% Load biblatex with alphabetic style
+\usepackage[
+  backend=biber,
+  style=alphabetic
+]{biblatex}
+\usepackage{hyperref}
+\usepackage[margin=1in]{geometry}
+
+% Point to the main bibliography
+\addbibresource{../../../bib/library.bib}
+
+\title{Alphabetic Style Example}
+\author{biblatex-library}
+\date{\today}
+
+\begin{document}
+% Include all entries from the bibliography
+\nocite{*}
+\printbibliography
+\end{document}

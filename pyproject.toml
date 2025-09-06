@@ -26,14 +26,20 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.3", "pytest-cov>=4.1", "ruff>=0.5.0", "pip-tools>=7.5"]
+dev = [
+    "pytest>=8.3",
+    "pytest-cov>=4.1",
+    "ruff>=0.5.0",
+    "pip-tools>=7.5",
+    "check-jsonschema>=0.33,<0.34",
+]
 
 [project.scripts]
 blx = "biblib.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/<your-user-or-org>/biblatex-library"
-Repository = "https://github.com/<your-user-or-org>/biblatex-library"
+Homepage = "https://github.com/KiringYJ/biblatex-library"
+Repository = "https://github.com/KiringYJ/biblatex-library"
 
 [tool.setuptools]
 package-dir = { "" = "src" }

@@ -1,0 +1,268 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://example.org/identifier_collection.schema.json",
+    "title": "Identifier Collection",
+    "type": "object",
+    "description": "Maps entry keys (e.g., hatcher-2002-0b6a9847) to a chosen main_identifier and one or more identifiers.",
+    "patternProperties": {
+        "^[a-z0-9][a-z0-9-]*-[0-9a-f]{8}$": {
+            "$ref": "#/$defs/entry"
+        }
+    },
+    "additionalProperties": false,
+    "$defs": {
+        "entry": {
+            "type": "object",
+            "required": [
+                "main_identifier",
+                "identifiers"
+            ],
+            "additionalProperties": false,
+            "properties": {
+                "main_identifier": {
+                    "type": "string",
+                    "enum": [
+                        "doi",
+                        "isbn13",
+                        "arxiv",
+                        "url",
+                        "mrnumber",
+                        "zbl",
+                        "hdl",
+                        "acmdl_doi"
+                    ]
+                },
+                "identifiers": {
+                    "type": "object",
+                    "description": "One or more identifier properties. The property named by main_identifier is required.",
+                    "minProperties": 1,
+                    "additionalProperties": false,
+                    "properties": {
+                        "doi": {
+                            "$ref": "#/$defs/doi"
+                        },
+                        "acmdl_doi": {
+                            "$ref": "#/$defs/doi"
+                        },
+                        "isbn13": {
+                            "$ref": "#/$defs/isbn13"
+                        },
+                        "arxiv": {
+                            "$ref": "#/$defs/arxiv"
+                        },
+                        "url": {
+                            "$ref": "#/$defs/url"
+                        },
+                        "mrnumber": {
+                            "$ref": "#/$defs/mrnumber"
+                        },
+                        "zbl": {
+                            "type": "string",
+                            "pattern": "^[0-9]+\\.?[0-9]*\\.?[0-9]*$"
+                        },
+                        "hdl": {
+                            "$ref": "#/$defs/hdl"
+                        }
+                    }
+                }
+            },
+            "allOf": [
+                {
+                    "if": {
+                        "properties": {
+                            "main_identifier": {
+                                "const": "doi"
+                            }
+                        },
+                        "required": [
+                            "main_identifier"
+                        ]
+                    },
+                    "then": {
+                        "properties": {
+                            "identifiers": {
+                                "required": [
+                                    "doi"
+                                ]
+                            }
+                        }
+                    }
+                },
+                {
+                    "if": {
+                        "properties": {
+                            "main_identifier": {
+                                "const": "acmdl_doi"
+                            }
+                        },
+                        "required": [
+                            "main_identifier"
+                        ]
+                    },
+                    "then": {
+                        "properties": {
+                            "identifiers": {
+                                "required": [
+                                    "acmdl_doi"
+                                ]
+                            }
+                        }
+                    }
+                },
+                {
+                    "if": {
+                        "properties": {
+                            "main_identifier": {
+                                "const": "isbn13"
+                            }
+                        },
+                        "required": [
+                            "main_identifier"
+                        ]
+                    },
+                    "then": {
+                        "properties": {
+                            "identifiers": {
+                                "required": [
+                                    "isbn13"
+                                ]
+                            }
+                        }
+                    }
+                },
+                {
+                    "if": {
+                        "properties": {
+                            "main_identifier": {
+                                "const": "arxiv"
+                            }
+                        },
+                        "required": [
+                            "main_identifier"
+                        ]
+                    },
+                    "then": {
+                        "properties": {
+                            "identifiers": {
+                                "required": [
+                                    "arxiv"
+                                ]
+                            }
+                        }
+                    }
+                },
+                {
+                    "if": {
+                        "properties": {
+                            "main_identifier": {
+                                "const": "url"
+                            }
+                        },
+                        "required": [
+                            "main_identifier"
+                        ]
+                    },
+                    "then": {
+                        "properties": {
+                            "identifiers": {
+                                "required": [
+                                    "url"
+                                ]
+                            }
+                        }
+                    }
+                },
+                {
+                    "if": {
+                        "properties": {
+                            "main_identifier": {
+                                "const": "mrnumber"
+                            }
+                        },
+                        "required": [
+                            "main_identifier"
+                        ]
+                    },
+                    "then": {
+                        "properties": {
+                            "identifiers": {
+                                "required": [
+                                    "mrnumber"
+                                ]
+                            }
+                        }
+                    }
+                },
+                {
+                    "if": {
+                        "properties": {
+                            "main_identifier": {
+                                "const": "zbl"
+                            }
+                        },
+                        "required": [
+                            "main_identifier"
+                        ]
+                    },
+                    "then": {
+                        "properties": {
+                            "identifiers": {
+                                "required": [
+                                    "zbl"
+                                ]
+                            }
+                        }
+                    }
+                },
+                {
+                    "if": {
+                        "properties": {
+                            "main_identifier": {
+                                "const": "hdl"
+                            }
+                        },
+                        "required": [
+                            "main_identifier"
+                        ]
+                    },
+                    "then": {
+                        "properties": {
+                            "identifiers": {
+                                "required": [
+                                    "hdl"
+                                ]
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "doi": {
+            "type": "string",
+            "description": "Raw DOI without resolver (e.g., 10.1000/xyz123).",
+            "pattern": "^10\\.[0-9]{4,9}/[-._;()/:A-Za-z0-9]+$"
+        },
+        "isbn13": {
+            "type": "string",
+            "description": "De-hyphenated ISBN-13, 13 digits only.",
+            "pattern": "^[0-9]{13}$"
+        },
+        "arxiv": {
+            "type": "string",
+            "description": "arXiv ID: modern (YYMM.NNNNN[vN]) or legacy (archive/YYMMNNN[vN]).",
+            "pattern": "^(?:\\d{4}\\.\\d{4,5}(?:v\\d+)?|[A-Za-z-]+/\\d{7}(?:v\\d+)?)$"
+        },
+        "url": {
+            "type": "string",
+            "format": "uri"
+        },
+        "mrnumber": {
+            "type": "string",
+            "pattern": "^\\d+$"
+        },
+        "hdl": {
+            "type": "string",
+            "pattern": "^\\S+/\\S+$"
+        }
+    }
+}

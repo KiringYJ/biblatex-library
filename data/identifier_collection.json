@@ -1,8 +1,8 @@
 {
     "hatcher-2002-0b6a9847": {
-        "main_identifier": "isbn",
+        "main_identifier": "isbn13",
         "identifiers": {
-            "isbn": "9780521795401"
+            "isbn13": "9780521795401"
         }
     },
     "maclane-1998-c5f6a645": {
@@ -30,9 +30,9 @@
         }
     },
     "friedberg-2018-cf092ab0": {
-        "main_identifier": "isbn",
+        "main_identifier": "isbn13",
         "identifiers": {
-            "isbn": "9780134860244"
+            "isbn13": "9780134860244"
         }
     },
     "serre-1977-22e5b7e0": {
@@ -42,9 +42,9 @@
         }
     },
     "dummit-2004-4c68cd4b": {
-        "main_identifier": "isbn",
+        "main_identifier": "isbn13",
         "identifiers": {
-            "isbn": "9780471433347"
+            "isbn13": "9780471433347"
         }
     },
     "macdonald-1995-76e228ac": {
@@ -60,9 +60,9 @@
         }
     },
     "mitchell-1965-63ecd94e": {
-        "main_identifier": "isbn",
+        "main_identifier": "isbn13",
         "identifiers": {
-            "isbn": "9780080873299"
+            "isbn13": "9780080873299"
         }
     },
     "klein-2016-acdb8fa1": {
@@ -72,15 +72,15 @@
         }
     },
     "altman-2013-5d76accb": {
-        "main_identifier": "isbn",
+        "main_identifier": "isbn13",
         "identifiers": {
-            "isbn": "9780988557215"
+            "isbn13": "9780988557215"
         }
     },
     "panchenko-2019-32f12b75": {
-        "main_identifier": "isbn",
+        "main_identifier": "isbn13",
         "identifiers": {
-            "isbn": "9781999419042"
+            "isbn13": "9781999419042"
         }
     },
     "etingof-2011-d09b058d": {
@@ -90,9 +90,9 @@
         }
     },
     "chang-2020-85763768": {
-        "main_identifier": "isbn",
+        "main_identifier": "isbn13",
         "identifiers": {
-            "isbn": "9789863504061"
+            "isbn13": "9789863504061"
         }
     },
     "diestel-2017-3915813b": {
@@ -102,9 +102,9 @@
         }
     },
     "west-1996-c500d258": {
-        "main_identifier": "isbn",
+        "main_identifier": "isbn13",
         "identifiers": {
-            "isbn": "9780132278287"
+            "isbn13": "9780132278287"
         }
     },
     "arnold-1992-d457603c": {
@@ -126,9 +126,9 @@
         }
     },
     "demailly-2012-c47184e8": {
-        "main_identifier": "isbn",
+        "main_identifier": "isbn13",
         "identifiers": {
-            "isbn": "9781571462343"
+            "isbn13": "9781571462343"
         }
     },
     "krantz-2004-3875b000": {
@@ -162,15 +162,15 @@
         }
     },
     "lax-2007-47392fbd": {
-        "main_identifier": "isbn",
+        "main_identifier": "isbn13",
         "identifiers": {
-            "isbn": "9780471751564"
+            "isbn13": "9780471751564"
         }
     },
     "martinlof-1984-d16472ae": {
-        "main_identifier": "isbn",
+        "main_identifier": "isbn13",
         "identifiers": {
-            "isbn": "9788870881059"
+            "isbn13": "9788870881059"
         }
     },
     "jech-2003-ee102113": {
@@ -180,21 +180,21 @@
         }
     },
     "thompson-1991-272b7159": {
-        "main_identifier": "isbn",
+        "main_identifier": "isbn13",
         "identifiers": {
-            "isbn": "9780201416671"
+            "isbn13": "9780201416671"
         }
     },
     "lipovaca-2011-d4167110": {
-        "main_identifier": "isbn",
+        "main_identifier": "isbn13",
         "identifiers": {
-            "isbn": "9781593272838"
+            "isbn13": "9781593272838"
         }
     },
     "troelstra-1988-05c5469a": {
-        "main_identifier": "isbn",
+        "main_identifier": "isbn13",
         "identifiers": {
-            "isbn": "9780444702661"
+            "isbn13": "9780444702661"
         }
     },
     "ebbinghaus-2021-c5300397": {
@@ -210,9 +210,9 @@
         }
     },
     "hori-2003-9bfd3cef": {
-        "main_identifier": "isbn",
+        "main_identifier": "isbn13",
         "identifiers": {
-            "isbn": "9780821829554"
+            "isbn13": "9780821829554"
         }
     },
     "rose-2015-38f649b3": {
@@ -222,9 +222,9 @@
         }
     },
     "hoffman-1971-38f649b3": {
-        "main_identifier": "isbn",
+        "main_identifier": "isbn13",
         "identifiers": {
-            "isbn": "9780135367971"
+            "isbn13": "9780135367971"
         }
     },
     "bredon-1993-7908a921": {
@@ -282,15 +282,15 @@
         }
     },
     "jacobson-1985-0796af2d": {
-        "main_identifier": "isbn",
+        "main_identifier": "isbn13",
         "identifiers": {
-            "isbn": "9780716714804"
+            "isbn13": "9780716714804"
         }
     },
     "jacobson-1989-f9aea7e2": {
-        "main_identifier": "isbn",
+        "main_identifier": "isbn13",
         "identifiers": {
-            "isbn": "9780716719335"
+            "isbn13": "9780716719335"
         }
     },
     "wheeden-2015-a61367be": {
@@ -372,9 +372,9 @@
         }
     },
     "apostol-1974-2bc30ae8": {
-        "main_identifier": "isbn",
+        "main_identifier": "isbn13",
         "identifiers": {
-            "isbn": "9780201002881"
+            "isbn13": "9780201002881"
         }
     },
     "harris-1992-291d2572": {
@@ -606,9 +606,9 @@
         }
     },
     "cassels-2010-61faea98": {
-        "main_identifier": "isbn",
+        "main_identifier": "isbn13",
         "identifiers": {
-            "isbn": "9780950273426"
+            "isbn13": "9780950273426"
         }
     },
     "reineke-2013-bbbafe6b": {
@@ -828,21 +828,21 @@
         }
     },
     "milnor-1997-d7193761": {
-        "main_identifier": "isbn",
+        "main_identifier": "isbn13",
         "identifiers": {
-            "isbn": "9780691048338"
+            "isbn13": "9780691048338"
         }
     },
     "vakil-2025-0ec0f69b": {
-        "main_identifier": "isbn",
+        "main_identifier": "isbn13",
         "identifiers": {
-            "isbn": "9780691268668"
+            "isbn13": "9780691268668"
         }
     },
     "prawitz-2006-7e1f3a08": {
-        "main_identifier": "isbn",
+        "main_identifier": "isbn13",
         "identifiers": {
-            "isbn": "9780486446554"
+            "isbn13": "9780486446554"
         }
     },
     "costello-2011-9712903d": {
@@ -1016,7 +1016,7 @@
     "zhang-2022-5ddb276b": {
         "main_identifier": "doi",
         "identifiers": {
-            "url": "10.6342/NTU202201144"
+            "doi": "10.6342/NTU202201144"
         }
     },
     "fahr-2008-2fd900e0": {
@@ -1134,9 +1134,9 @@
         }
     },
     "knuth-1994-9d10f937": {
-        "main_identifier": "acmdl",
+        "main_identifier": "acmdl_doi",
         "identifiers": {
-            "acmdl": "10.5555/197600.197619"
+            "acmdl_doi": "10.5555/197600.197619"
         }
     },
     "arentzhansen-2016-fe3e92cf": {
@@ -1146,9 +1146,9 @@
         }
     },
     "shoji-2004-fe4d5d31": {
-        "main_identifier": "isbn",
+        "main_identifier": "isbn13",
         "identifiers": {
-            "isbn": "9784254110999"
+            "isbn13": "9784254110999"
         }
     },
     "manetti-2004-31b274d5": {

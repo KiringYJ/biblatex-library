@@ -1,0 +1,6 @@
+- repo: https://github.com/python-jsonschema/check-jsonschema
+  rev: 0.33.3
+  hooks:
+    - id: check-jsonschema
+      args: ["--schemafile", "data/identifier_collection.schema.json"]
+      files: ^data/identifier_collection\.json$

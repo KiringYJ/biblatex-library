@@ -14,7 +14,8 @@ repos:
     rev: v1.1.405
     hooks:
       - id: pyright
-        additional_dependencies: [bibtexparser]  # Add project dependencies needed for type checking
+        additional_dependencies: ["bibtexparser>=2.0.0b8,<3.0.0"]  # Match project dependency version
+        args: ["--project", "."]  # Explicitly use local pyrightconfig.json
 
   # Validate your JSON against schemas (e.g., identifier_collection)
   - repo: https://github.com/python-jsonschema/check-jsonschema

@@ -88,7 +88,7 @@ def _sort_library_bib(library_path: Path, citekey_order: list[str]) -> None:
     library = bibtexparser.parse_file(str(library_path))  # type: ignore[arg-type]
 
     # Create a mapping from citekey to entry for efficient lookup
-    entry_map = {entry.key: entry for entry in library.entries}
+    entry_map: dict[str, Any] = {entry.key: entry for entry in library.entries}  # type: ignore[attr-defined]
 
     # Build sorted entries list based on citekey_order
     sorted_entries: list[Any] = []
@@ -101,17 +101,17 @@ def _sort_library_bib(library_path: Path, citekey_order: list[str]) -> None:
             logger.warning(f"Citekey '{citekey}' not found in library.bib")
 
     # Add any entries that weren't in the order list (shouldn't happen in well-maintained data)
-    for entry in library.entries:
-        if entry.key not in citekey_order:
+    for entry in library.entries:  # type: ignore[attr-defined]
+        if entry.key not in citekey_order:  # type: ignore[attr-defined]
             missing_entries.append(entry)
-            logger.warning(f"Entry '{entry.key}' found in library.bib but not in citekey order")
+            logger.warning(f"Entry '{entry.key}' found in library.bib but not in citekey order")  # type: ignore[attr-defined]
 
     # Create a new library with the sorted entries and other blocks
     sorted_blocks: list[Any] = []
 
     # Add non-entry blocks (comments, preambles, strings) first
-    for block in library.blocks:
-        if block not in library.entries:
+    for block in library.blocks:  # type: ignore[attr-defined]
+        if block not in library.entries:  # type: ignore[attr-defined]
             sorted_blocks.append(block)
 
     # Add sorted entries
@@ -123,7 +123,7 @@ def _sort_library_bib(library_path: Path, citekey_order: list[str]) -> None:
     # Write back to file with explicit UTF-8 encoding
     bibtex_str = bibtexparser.write_string(new_library)  # type: ignore[arg-type]
     with open(library_path, "w", encoding="utf-8") as f:
-        f.write(bibtex_str)
+        f.write(str(bibtex_str))  # Ensure we write a string
 
     logger.info(f"Updated {library_path} with {len(sorted_entries)} sorted entries")
 

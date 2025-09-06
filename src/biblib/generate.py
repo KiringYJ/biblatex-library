@@ -123,7 +123,7 @@ def parse_bib_entries(bib_path: Path) -> dict[str, dict[str, str]]:
         entries: dict[str, dict[str, str]] = {}
         for entry in lib.entries:  # type: ignore[attr-defined]
             entry_key = entry.key  # type: ignore[attr-defined]
-            entry_data = {
+            entry_data: dict[str, str] = {
                 "type": entry.entry_type,  # type: ignore[attr-defined]
                 "key": entry_key,
                 "author": "",

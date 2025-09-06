@@ -448,7 +448,7 @@ uv run python -m biblib.cli validate
 
 **Copilot policy (enforced)**: Use **Copilot Code Actions/Chat** to fix lint and type issues **before** running tests or any script. Re‑run steps (1)–(3) until clean.
 
-**Pre‑commit (required)**: Run **Ruff lint with **`--fix`** before the Ruff formatter**, then the type‑checker hook, then LaTeX compilation tests. This avoids churn, since lint fixes may require reformatting. Pre-commit also validates LaTeX examples compile successfully (matching CI behavior).
+**Pre‑commit (required)**: Run **Ruff lint with **`--fix`** before the Ruff formatter**, then the type‑checker hook, then LaTeX compilation tests. This avoids churn, since lint fixes may require reformatting. Pre-commit also validates LaTeX examples compile successfully (matching CI behavior). Pre-commit hooks now use UV for faster execution.
 
 ---
 

@@ -33,8 +33,8 @@ repos:
     hooks:
       - id: validate-citekey-consistency
         name: Validate citekey consistency and labels
-        entry: .venv/Scripts/python.exe
-        args: ["-m", "biblib.cli", "validate"]
+        entry: uv
+        args: ["run", "python", "-m", "biblib.cli", "validate"]
         language: system
         files: ^(bib/library\.bib|data/add_order\.json|data/identifier_collection\.json)$
         pass_filenames: false

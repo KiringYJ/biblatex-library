@@ -20,37 +20,34 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Install UV
+        uses: astral-sh/setup-uv@v4
         with:
-          python-version: "3.12"
-          cache: "pip"              # speed up reinstalls
-      # setup-python supports pip caching natively. :contentReference[oaicite:0]{index=0}
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install 3.12
 
       - name: Install project and dependencies
-        run: |
-          python -m pip install -U pip
-          python -m pip install -e ".[dev]"
-        # Install project with all dev dependencies from pyproject.toml
+        run: uv sync --dev
+        # UV automatically creates venv and installs all dependencies
 
       - name: Run pre-commit (all hooks)
-        uses: pre-commit/action@v3.0.1
-        # Runs hooks configured in .pre-commit-config.yaml (ruff, check-jsonschema, etc.)
-        # The action wires up pre-commit caches automatically. :contentReference[oaicite:1]{index=1}
+        run: uv run pre-commit run --all-files
+        # Use UV to run pre-commit with proper environment
 
       - name: Extra JSON Schema validation (explicit)
         run: |
-          check-jsonschema --schemafile data/identifier_collection.schema.json \
-                           data/identifier_collection.json
-        # CLI usage: --schemafile <schema> <instances...>. :contentReference[oaicite:2]{index=2}
+          uv run check-jsonschema --schemafile data/identifier_collection.schema.json \
+                                  data/identifier_collection.json
+        # CLI usage: --schemafile <schema> <instances...>
 
       - name: Custom validation (citekey consistency & labels)
-        run: |
-          python -m src.biblib.cli validate
+        run: uv run python -m biblib.cli validate
         # Validates that citekeys are consistent across all files and match generated labels
 
       - name: Type check (pyright)
-        run: pyright
+        run: uv run pyright
 
   tests:
     name: Unit tests
@@ -58,17 +55,21 @@ jobs:
     needs: [lint_and_validate]
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+
+      - name: Install UV
+        uses: astral-sh/setup-uv@v4
         with:
-          python-version: "3.12"
-          cache: "pip"
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install 3.12
+
       - name: Install project (dev)
-        run: |
-          python -m pip install -U pip
-          python -m pip install -e ".[dev]"
+        run: uv sync --dev
+
       - name: Run pytest (if tests/ exists)
         if: ${{ hashFiles('tests/**') != '' }}
-        run: pytest -q
+        run: uv run pytest -q
 
   latex_examples:
     name: Build LaTeX examples

@@ -8,6 +8,7 @@ from pathlib import Path
 
 from .generate import generate_labels
 from .sort import sort_alphabetically, sort_by_add_order
+from .sync import sync_identifiers_to_library
 from .validate import fix_citekey_labels, validate_citekey_consistency, validate_citekey_labels
 
 
@@ -171,11 +172,56 @@ def cmd_sort(args: argparse.Namespace) -> None:
         sys.exit(1)
 
 
+def cmd_sync(args: argparse.Namespace) -> None:
+    """Sync identifier fields from identifier collection to library.bib."""
+    workspace = Path(args.workspace)
+
+    # Default paths based on standard repository layout
+    bib_path = workspace / "bib" / "library.bib"
+    identifier_path = workspace / "data" / "identifier_collection.json"
+
+    logger = logging.getLogger(__name__)
+
+    # Parse fields to sync if provided
+    fields_to_sync = None
+    if args.fields:
+        fields_to_sync = set(field.strip() for field in args.fields.split(","))
+        logger.info("Syncing specific fields: %s", ", ".join(sorted(fields_to_sync)))
+
+    try:
+        success, changes = sync_identifiers_to_library(
+            bib_path=bib_path,
+            identifier_path=identifier_path,
+            dry_run=args.dry_run,
+            fields_to_sync=fields_to_sync,
+        )
+
+        if success:
+            if args.dry_run:
+                logger.info("✓ Dry run completed: %d potential changes", len(changes))
+                if changes:
+                    logger.info("Changes that would be made:")
+                    for change in changes[:10]:  # Show first 10 changes
+                        logger.info("  %s", change)
+                    if len(changes) > 10:
+                        logger.info("  ... and %d more changes", len(changes) - 10)
+            else:
+                logger.info("✓ Sync completed: %d changes applied", len(changes))
+            sys.exit(0)
+        else:
+            logger.error("✗ Sync failed")
+            sys.exit(1)
+
+    except (FileNotFoundError, ValueError) as e:
+        logger.error("Sync error: %s", e)
+        sys.exit(1)
+
+
 def create_parser() -> argparse.ArgumentParser:
     """Create the argument parser for the CLI."""
     parser = argparse.ArgumentParser(
         prog="blx",
-        description="Tools for a curated biblatex library: validate, sort, enrich.",
+        description="Tools for a curated biblatex library: validate, sort, sync, enrich.",
     )
 
     parser.add_argument(
@@ -226,6 +272,22 @@ def create_parser() -> argparse.ArgumentParser:
         "'add-order' sorts to match add_order.json sequence",
     )
     sort_parser.set_defaults(func=cmd_sort)
+
+    # sync subcommand
+    sync_parser = subparsers.add_parser(
+        "sync", help="Sync identifier fields from identifier collection to library.bib"
+    )
+    sync_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show what changes would be made without actually making them",
+    )
+    sync_parser.add_argument(
+        "--fields",
+        type=str,
+        help="Comma-separated list of fields to sync (default: isbn,doi,url,arxiv,mrnumber,zbl)",
+    )
+    sync_parser.set_defaults(func=cmd_sync)
 
     return parser
 

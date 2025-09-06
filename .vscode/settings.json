@@ -73,6 +73,19 @@
     "latex-workshop.latex.autoBuild.run": "onSave",
     "latex-workshop.view.pdf.viewer": "tab",
     "latex-workshop.formatting.latex": "tex-fmt",
+    // --- BibTeX Auto-formatting ---
+    "latex-workshop.bibtex-format.tab": "tab",
+    "latex-workshop.bibtex-format.align-equal.enabled": false,
+    "latex-workshop.bibtex-fields.sort.enabled": false,
+    "latex-workshop.bibtex-format.case": "lowercase",
+    "latex-workshop.bibtex-format.surround": "Curly braces",
+    "latex-workshop.bibtex-format.trailingComma": false,
+    "latex-workshop.bibtex-format.sort.enabled": false,
+    // Auto-format BibTeX files
+    "[bibtex]": {
+        "editor.tabSize": 4,
+        "editor.insertSpaces": false
+    },
     // --- Python: point VS Code to your venv interpreter (so recipes find "python") ---
     // Windows example:
     "python.defaultInterpreterPath": "${workspaceFolder}\\.venv\\Scripts\\python.exe",

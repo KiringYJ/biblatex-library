@@ -6,7 +6,7 @@ import logging
 import re
 import unicodedata
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import bibtexparser  # type: ignore[import-untyped]
 
@@ -120,7 +120,7 @@ def parse_bib_entries(bib_path: Path) -> dict[str, dict[str, str]]:
             failed_keys = [str(block) for block in lib.failed_blocks]  # type: ignore[attr-defined]
             raise ValueError(f"Failed to parse {len(lib.failed_blocks)} blocks: {failed_keys}")  # type: ignore[attr-defined]
 
-        entries = {}
+        entries: dict[str, dict[str, str]] = {}
         for entry in lib.entries:  # type: ignore[attr-defined]
             entry_key = entry.key  # type: ignore[attr-defined]
             entry_data = {
@@ -182,13 +182,15 @@ def load_identifier_collection(identifier_path: Path) -> dict[str, Any]:
 
     try:
         with open(identifier_path, encoding="utf-8") as f:
-            data: Any = json.load(f)
+            data = json.load(f)
 
         if not isinstance(data, dict):
             raise ValueError(f"Expected object, got {type(data).__name__}")
 
-        logger.debug("Loaded %d identifiers", len(data))
-        return data
+        # Type assertion after runtime check
+        data_dict = cast(dict[str, Any], data)
+        logger.debug("Loaded %d identifiers", len(data_dict))
+        return data_dict
 
     except json.JSONDecodeError as e:
         raise ValueError(f"Invalid JSON in {identifier_path}: {e}") from e
@@ -214,7 +216,7 @@ def generate_labels(bib_path: Path, identifier_path: Path) -> dict[str, str]:
     entries = parse_bib_entries(bib_path)
     identifier_collection = load_identifier_collection(identifier_path)
 
-    labels = {}
+    labels: dict[str, str] = {}
 
     for entry_key, entry_data in entries.items():
         # Extract lastname and year - use author if available, otherwise editor

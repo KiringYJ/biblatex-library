@@ -219,6 +219,24 @@ pytest
 blx validate
 ```
 
+### Type Checking Configuration
+
+This project uses **strict type checking** to ensure code quality:
+
+- **pyright** and **Pylance** are configured to use `strict` mode
+- Both tools use identical strictness settings to avoid inconsistencies
+- Configuration files:
+  - `pyrightconfig.json` - pyright/Pylance settings
+  - `.vscode/settings.json` - VS Code workspace settings
+
+**Key type checking rules:**
+- `reportUnknownArgumentType: error` - Catch untyped function arguments
+- `reportUnknownVariableType: error` - Catch variables with unknown types
+- `reportUnusedImport: error` - Remove unused imports
+- `reportUnusedVariable: error` - Remove unused variables
+
+This ensures **consistent type checking** across different development environments and tools.
+
 ### Testing
 
 ```bash

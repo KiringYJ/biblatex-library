@@ -104,6 +104,11 @@
     // Windows example:
     "python.defaultInterpreterPath": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
     // macOS/Linux: "${workspaceFolder}/.venv/bin/python"
+    // --- Python Language Server (Pylance) Configuration ---
+    "python.analysis.typeCheckingMode": "strict",
+    "python.analysis.autoImportCompletions": true,
+    "python.analysis.diagnosticMode": "workspace",
+    // --- Python Formatting and Linting ---
     "[python]": {
         "editor.formatOnSave": true,
         "editor.defaultFormatter": "charliermarsh.ruff",

@@ -16,8 +16,19 @@
     "venvPath": ".",
     "venv": ".venv",
     "pythonVersion": "3.12",
-    // Overall strictness (you can raise to "strict" later)
-    "typeCheckingMode": "standard",
+    // Overall strictness - strict mode for better type safety
+    "typeCheckingMode": "strict",
+    // Specific type checking rules to match Pylance
+    "reportUnknownArgumentType": "error",
+    "reportUnknownVariableType": "error",
+    "reportUnknownMemberType": "warning",
+    "reportMissingTypeStubs": "warning",
+    "reportImportCycles": "error",
+    "reportUnusedImport": "error",
+    "reportUnusedClass": "error",
+    "reportUnusedFunction": "error",
+    "reportUnusedVariable": "error",
+    "reportDuplicateImport": "error",
     // Make "src" imports work without relative dots
     "executionEnvironments": [
         {

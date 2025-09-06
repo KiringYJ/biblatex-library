@@ -3,7 +3,7 @@
 import json
 import logging
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import bibtexparser  # type: ignore[import-untyped]
 
@@ -64,13 +64,14 @@ def extract_citekeys_from_add_order(add_order_path: Path) -> set[str]:
 
     try:
         with open(add_order_path, encoding="utf-8") as f:
-            data: Any = json.load(f)
+            data = json.load(f)
 
         if not isinstance(data, list):
             raise ValueError(f"Expected array, got {type(data).__name__}")
 
         # Convert to set, ensuring all items are strings
-        citekeys = {str(item) for item in data}
+        data_list = cast(list[Any], data)
+        citekeys = {str(item) for item in data_list}
         logger.debug("Found %d citekeys in %s", len(citekeys), add_order_path.name)
 
         return citekeys
@@ -105,7 +106,8 @@ def extract_citekeys_from_identifier_collection(identifier_path: Path) -> set[st
             raise ValueError(f"Expected object, got {type(data).__name__}")
 
         # Convert keys to set of strings
-        citekeys = {str(key) for key in data.keys()}
+        data_dict = cast(dict[str, Any], data)
+        citekeys = {str(key) for key in data_dict.keys()}
         logger.debug("Found %d citekeys in %s", len(citekeys), identifier_path.name)
 
         return citekeys

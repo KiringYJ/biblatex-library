@@ -362,6 +362,66 @@ uv run python -m biblib.cli validate
 
 ---
 
+## 6b) Encoding Best Practices (UTF-8 Always)
+
+**The Problem: CP950/Unicode Errors**
+
+During sync operations, we encountered this error:
+```
+'cp950' codec can't encode character '\u5b66' in position 1855: illegal multibyte sequence
+```
+
+**Root Cause**
+- `\u5b66` is the Chinese character **学** (meaning "study/learn") in bibliography entries
+- CP950 is a legacy Windows encoding for Traditional Chinese that can't represent all Unicode characters
+- `bibtexparser.write_file()` uses system default encoding (CP950 on Chinese Windows) instead of UTF-8
+- Academic bibliographies contain international characters that require UTF-8
+
+**Solution: Explicit UTF-8 Control**
+
+**ALWAYS specify encoding explicitly in all file operations:**
+
+```python
+# ✅ CORRECT - Always specify UTF-8
+with open(file_path, "r", encoding="utf-8") as f:
+    content = f.read()
+
+with open(file_path, "w", encoding="utf-8") as f:
+    f.write(content)
+
+# ❌ WRONG - Relies on system default (may be CP950)
+with open(file_path, "r") as f:
+    content = f.read()
+```
+
+**For bibtexparser specifically:**
+
+```python
+# ❌ PROBLEMATIC - Uses system encoding
+btp.write_file(str(bib_path), library)
+
+# ✅ CORRECT - Explicit UTF-8 control
+bibtex_string = btp.write_string(library)
+with open(bib_path, "w", encoding="utf-8") as f:
+    f.write(bibtex_string)
+```
+
+**JSON handling:**
+
+```python
+# ✅ CORRECT - UTF-8 with international characters preserved
+with open("data.json", "w", encoding="utf-8") as f:
+    json.dump(data, f, ensure_ascii=False, indent=2)
+```
+
+**Policy**
+- **ALL** file I/O operations MUST specify `encoding="utf-8"`
+- **NO exceptions** for academic content with international characters
+- Test with bibliographies containing Chinese/Arabic/Cyrillic characters
+- Set `PYTHONIOENCODING=utf-8` environment variable as additional safety
+
+---
+
 ## 7) Recording “added order” (without touching `library.bib`)
 
 **Ledger**

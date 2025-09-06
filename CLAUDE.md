@@ -139,6 +139,43 @@ biblatex-library/
 
 ---
 
+## 4a) Data Consistency Rules (Critical)
+
+**Three-file synchronization requirement**
+
+When working with citekeys/labels, **ALWAYS** update these three files simultaneously:
+
+1. `bib/library.bib` - Bibliographic entries with `@type{citekey, ...}`
+2. `data/identifier_collection.json` - Identifier mappings with citekey as top-level keys
+3. `data/add_order.json` - Entry order array containing citekeys
+
+**Why this matters**
+
+- The `blx validate` command checks consistency across all three files
+- Inconsistencies will cause validation failures and block CI
+- Manual partial updates create data integrity issues
+
+**Required operations for citekey changes**
+
+- **Adding entries**: Add to all three files
+- **Removing entries**: Remove from all three files  
+- **Renaming citekeys**: Update in all three files (use `blx validate --fix` for automated fixing)
+- **Reordering**: Only affects `data/add_order.json`
+
+**Automation available**
+
+- Use `blx validate --fix` to automatically fix citekey mismatches across all files
+- Use `blx validate` to check consistency before committing
+- Always run validation after manual citekey changes
+
+**Merge blocker**
+
+- **Any inconsistency** between these three files is a hard merge blocker
+- CI will fail if `blx validate` reports inconsistencies
+- Manual fixes must be applied or `--fix` option used before commit
+
+---
+
 ## 5) Build & run quickstart
 
 ### Python

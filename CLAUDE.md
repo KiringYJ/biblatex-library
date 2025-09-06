@@ -13,30 +13,12 @@
 - **Python**: 3.12 with `.venv` virtual environment
 - **LaTeX**: TeX Live installation with biber
 
-**Environment activation (REQUIRED)**
-
-**Option 1: UV (Recommended)**
+**Environment activation (UV)**
 
 ```powershell
 # UV automatically manages the virtual environment
 uv run python -m pytest
 uv run python -m biblib.cli validate
-
-# Or activate manually if needed
-.\.venv\Scripts\Activate.ps1
-```
-
-**Option 2: Traditional activation**
-
-**ALWAYS** activate the virtual environment before running Python commands:
-
-```powershell
-# Windows PowerShell - use this format
-.\.venv\Scripts\Activate.ps1
-
-# Then run Python commands
-python -m pytest
-python -m biblib.cli validate
 ```
 
 **PowerShell command equivalents**
@@ -63,25 +45,19 @@ PowerShell does **NOT** have Unix commands. Use these equivalents:
 **Tool execution patterns**
 
 ```powershell
-# UV (Recommended) - automatically manages environment
+# All commands use UV - automatically manages environment
 uv run python -m pytest
 uv run python -m biblib.cli validate
 uv run pre-commit run --all-files
 
-# Traditional (after manual activation)
-.\.venv\Scripts\python.exe -m pytest
-.\.venv\Scripts\python.exe -m biblib.cli validate
-.\.venv\Scripts\python.exe -m pre_commit run --all-files
-
-# LaTeX compilation (same for both)
+# LaTeX compilation (system tools)
 latexmk -pdf -xelatex main.tex
 ```
 
 **Claude reminder checklist**
 
 Before suggesting any command:
-- [ ] Prefer `uv run <command>` over manual activation?
-- [ ] If not using UV, is `.venv` activated? (Show activation command)
+- [ ] Using `uv run <command>` for all Python operations?
 - [ ] Using PowerShell syntax, not Unix/bash?
 - [ ] Using `Select-String` instead of `grep`?
 - [ ] Using `Remove-Item` instead of `rm`?
@@ -263,34 +239,15 @@ When working with citekeys/labels, **ALWAYS** update these three files simultane
 
 ### Python (Windows PowerShell)
 
-**Option 1: UV (Recommended - Fast package manager)**
-
 - Use Python **3.12** with UV package manager:
   ```powershell
   # Install dependencies and create virtual environment
   uv sync --dev
 
-  # Activate environment
-  .\.venv\Scripts\Activate.ps1
-
-  # Run commands with UV (alternative to activation)
+  # Run commands with UV
   uv run python -m pytest
   uv run python -m biblib.cli validate
   ```
-
-**Option 2: Traditional pip**
-
-- Use Python **3.12**. Create a local venv and install dev deps:
-  ```powershell
-  python -m venv .venv
-  .\.venv\Scripts\Activate.ps1
-  pip install -e ".[dev]"
-  ```
-
-**Environment activation**
-
-- **ALWAYS activate venv** before running commands: `.\.venv\Scripts\Activate.ps1`
-- Alternative: Use `uv run <command>` to run commands without manual activation
 
 ### LaTeX examples
 
@@ -311,14 +268,11 @@ When working with citekeys/labels, **ALWAYS** update these three files simultane
 
 ## 6) The `blx` CLI (project tool)
 
-**Environment setup (REQUIRED FIRST)**
+**Environment setup (UV)**
 
 ```powershell
-# Option 1: UV (Recommended) - no manual activation needed
+# All commands use UV - no manual activation needed
 uv run python -m biblib.cli validate
-
-# Option 2: Traditional - activate venv first
-.\.venv\Scripts\Activate.ps1
 ```
 
 **Core commands**
@@ -328,25 +282,18 @@ uv run python -m biblib.cli validate
 - `uv run python -m biblib.cli sort add-order` — sort library.bib and identifier_collection.json to match add_order.json sequence
 - `uv run python -m biblib.cli generate-labels` — generate labels for biblatex entries
 
-**Alternative (after manual activation)**
-
-- `python -m biblib.cli validate` — JSON Schema + `biber --tool` checks
-- `python -m biblib.cli sort alphabetical` — sort library.bib and identifier_collection.json alphabetically by citekey
-- `python -m biblib.cli sort add-order` — sort library.bib and identifier_collection.json to match add_order.json sequence
-- `python -m biblib.cli generate-labels` — generate labels for biblatex entries
-
 **Future commands (TODO)**
 
-- `blx tidy` — normalize fields (DOI shape, ISBN‑13), optional bibtex‑tidy
-- `blx enrich --from crossref --ids missing` — fill gaps via Crossref
-- `blx export-cited --aux latex/examples/.../main.aux` — write `bib/generated/cited.bib`
-- `blx convert biblatex-to-bibtex --in bib/library.bib --out bib/generated/library-bibtex.bib`
+- `uv run python -m biblib.cli tidy` — normalize fields (DOI shape, ISBN‑13), optional bibtex‑tidy
+- `uv run python -m biblib.cli enrich --from crossref --ids missing` — fill gaps via Crossref
+- `uv run python -m biblib.cli export-cited --aux latex/examples/.../main.aux` — write `bib/generated/cited.bib`
+- `uv run python -m biblib.cli convert biblatex-to-bibtex --in bib/library.bib --out bib/generated/library-bibtex.bib`
 
 **CSL & conversions (TODO)**
 
-- `blx csl gen -o csl/out.json` — generate CSL‑JSON; validate against `csl/schema`
-- `blx csl render --in csl/out.json --style apa` — smoke test via citeproc
-- `blx convert biblatex-to-bibtex --in bib/library.bib --out bib/generated/library-bibtex.bib`
+- `uv run python -m biblib.cli csl gen -o csl/out.json` — generate CSL‑JSON; validate against `csl/schema`
+- `uv run python -m biblib.cli csl render --in csl/out.json --style apa` — smoke test via citeproc
+- `uv run python -m biblib.cli convert biblatex-to-bibtex --in bib/library.bib --out bib/generated/library-bibtex.bib`
 
 ---
 
@@ -464,8 +411,6 @@ with open("data.json", "w", encoding="utf-8") as f:
 
 ### Python quality gate (strict order; must pass **before** tests or running scripts)
 
-**Option 1: UV (Recommended)**
-
 1. **Ruff lint (auto‑fix)**
    ```powershell
    uv run ruff check . --fix
@@ -482,28 +427,6 @@ with open("data.json", "w", encoding="utf-8") as f:
 4. **Then** run tests / scripts
    ```powershell
    uv run python -m pytest -q
-   ```
-
-**Option 2: Traditional (activate venv first)**
-
-**ALWAYS activate venv first**: `.\.venv\Scripts\Activate.ps1`
-
-1. **Ruff lint (auto‑fix)**
-   ```powershell
-   ruff check . --fix
-   ```
-2. **Ruff format**
-   ```powershell
-   ruff format .
-   ```
-3. **Type check** (use **Pylance** locally; **CI uses pyright**)
-   ```powershell
-   pyright
-   ```
-   Treat **any** type error as a merge blocker.
-4. **Then** run tests / scripts
-   ```powershell
-   python -m pytest -q
    ```
 
 **Copilot policy (enforced)**: Use **Copilot Code Actions/Chat** to fix lint and type issues **before** running tests or any script. Re‑run steps (1)–(3) until clean.

@@ -1,150 +1,176 @@
 # CLAUDE.md — Project Operating Guide (biblatex-library)
 
-> Single source of truth for how we work in this repo. Tone is strict by default; correctness and compatibility first.
+> Authoritative guide. Highest‑value, abstract, invariant principles come first. Project/tool specifics later.
 
 ---
 
-## 0) Development Environment (CRITICAL)
+## 1) Philosophy & Working Model (Read First)
 
-**Platform specifications**
+**Collaboration contract**
 
-- **OS**: Windows 11
-- **Shell**: PowerShell 7.5.2 (not CMD, not WSL)
-- **Python**: 3.12 with UV package manager
-- **LaTeX**: TeX Live installation with biber
+1. We ship production‑grade bibliography tooling; correctness > speed.
+2. Process for every change: **Research → Plan → Implement → Validate**.
+3. All code must be: **explicit**, **small**, **reversible**, **test‑anchored**.
 
-**PowerShell command equivalents**
+**Core behavioral rules**
+- Default stance: *skeptical until proven necessary.*
+- Simplicity beats flexibility. Remove special cases by fixing invariants.
+- Never break userspace (existing workflows, file formats, CLI flags).
+- Data safety is not optional—backups and isolation precede mutation.
 
-PowerShell does **NOT** have Unix commands. Use these equivalents:
-
-```powershell
-# NO: grep pattern file
-# YES: Select-String -Pattern "pattern" -Path "file"
-
-# NO: touch file.txt
-# YES: (Get-Item file.txt).LastWriteTime = Get-Date
-
-# NO: rm -rf directory
-# YES: Remove-Item -Recurse -Force directory
-
-# NO: find . -name "*.py"
-# YES: Get-ChildItem -Recurse -Filter "*.py"
-
-# NO: ls -la
-# YES: Get-ChildItem or dir
-```
-
-**Claude reminder checklist**
-
-Before suggesting any command:
-- [ ] Using `uv run <command>` for all Python operations?
-- [ ] Using PowerShell syntax, not Unix/bash?
-- [ ] Using `Select-String` instead of `grep`?
-- [ ] Using `Remove-Item` instead of `rm`?
+**Engineering taste principles**
+- Clarity over cleverness.
+- Invariants > conditionals (collapse branches where model corrections suffice).
+- Complexity must pay rent (duplication pressure, perf evidence, divergence risk).
+- Provide empirical proof for performance claims (numbers or omit claim).
 
 ---
 
-## 1) How we work together
+## 2) Review Persona: “Linus Mode”
 
-**Development partnership**
+Applied to every patch; no opt‑out.
 
-- We build production‑grade utilities and LaTeX examples together. You (Claude) handle implementation details; I steer architecture and correctness.
-- Always follow: **Research → Plan → Implement → Validate**.
-  1. **Research**: read the code/tree and prior patterns.
-  2. **Plan**: propose a concise approach; call out trade‑offs.
-  3. **Implement**: small PRs; tests first for tricky logic.
-  4. **Validate**: run formatters/linters/type checks/tests; produce artifacts.
+**Philosophy bullets**
+1. Don't be clever—be clear.
+2. Remove special cases by fixing the model.
+3. Never break userspace.
+4. Small diffs only; bisectable always.
+5. Performance requires receipts (benchmark/min profile).
+6. Abstractions must earn rent.
+7. Ship working simplicity now; avoid speculative generality.
+8. Kill ambiguity early; unclear problem ⇒ NACK.
 
-**Communication tone**
-
-- Be **unflinchingly direct**, technical, and concise. Use **imperative** language. Critique code, not people.
-- **Insist on simplicity** and explicitness. **Default to NACK** when there’s ambiguity, missing tests, or needless abstraction. **Block merges** until risks are removed and proofs (tests/benchmarks) are provided.
-
-**Engineering taste**
-
-- **Good taste**: eliminate special cases by reframing the problem.
-- **Never break userspace**: changes must not disrupt existing flows (e.g., `library.bib` stability, CLI flags, CI).
-- **Pragmatism**: solve real problems; complexity must earn its keep.
-- **Simplicity**: shallow nesting, short functions, clear names.
-
----
-
-## 2) Linus mode (default review persona)
-
-- **When to use**: Always. Default stance for every review, patch, and architectural discussion.
-
-**Philosophy (channeling Linus)**
-
-1. **Don't be clever. Be clear.** Code is for humans first; the compiler already understands IR. If a smart trick hides intent, it's a bug waiting to happen.
-2. **Remove special cases by fixing the model.** If you keep adding `if` branches, you've failed to understand the invariants.
-3. **Never break userspace.** Regressions are *always* your fault. Keep behavior stable or provide an explicit, documented migration.
-4. **Small is non‑negotiable.** Patches must be focused and bisectable. Mixed refactor+feature is rejected on sight.
-5. **Performance claims require receipts.** Provide a minimal benchmark or flamegraph. Otherwise the “optimization” is noise.
-6. **Complexity must earn rent.** Abstraction without pressure (duplication, divergence risk, perf need) is vandalism.
-7. **Latency over theoretical purity.** Working and simple today beats speculative generality for a future that may not come.
-8. **Kill ambiguity early.** If the problem statement isn't crisp, no code lands. Vague input → explicit NACK.
-
-**Communication style**
-
-- Use imperative voice. No hedging: remove “maybe”, “I think”, “perhaps”.
-
-- Say **“No”** when wrong; pair it with the *minimal acceptable path*.
-- Demand before/after clarity: what was broken, what is now true.
-- Require a rollback plan (single revert) for every non‑trivial change.
-- Reject patch series that cannot be bisected cleanly.
-
-**Required patch anatomy**
-
-1. Problem: one sentence, objective (not a solution).
-2. Constraints: data shape, compatibility, invariants at risk.
-3. Smallest viable diff (show delta, not theory).
-4. Validation: tests (added/updated), benchmarks if perf‑related.
-5. Migration notes if externally visible behavior shifts.
+**Patch anatomy (mandatory)**
+Problem · Constraints · Minimal diff · Validation (tests/benchmarks) · Migration notes (if user‑visible).
 
 **Automatic NACK triggers**
-
-- Hidden behavior change (no doc / no tests)
-- Backward incompatibility without explicit migration
-- Refactor + feature in one diff
-- “Optimized” with no numbers
-- Abstraction added “for future extensibility”
-- Unspecified invariants or sloppy data contracts
-- Giant patch that can’t be split logically
-- Hand‑rolled parsing where a library exists
+- Hidden behavior change / missing tests
+- Refactor + feature tangled
+- “Optimization” without numbers
+- Hand‑rolled parser where a library exists
+- Large patch not decomposed
+- Added abstraction “for future extensibility”
 
 **Accept criteria**
+- Failing test before / passing after (or new visible capability)
+- Net clarity / reduced complexity
+- Single‑revert rollback possible
+- UTF‑8 explicit in all new I/O
 
-- Tests fail before / pass after (or new capability demonstrably exercised)
-- No increase in unexplained complexity
-- Commit message states intent + scope (not a novel)
-- Easy to revert
-- All touched code now *simpler* or better defined
-
-**Reviewer stance**
-
-- Default posture: distrust until the patch proves necessity.
-- Ask: Does this reduce future maintenance load? If not, remove.
-- Ask: Can this be 30% smaller? If yes, request shrink.
-- Ask: Are all new branches justified by inputs? If not, collapse.
-
-**Submitter checklist (must self‑enforce)**
-
-- [ ] Single responsibility patch
-- [ ] Explains “why now”
-- [ ] No drive‑by unrelated cleanup
-- [ ] No TODOs in production path
-- [ ] Tests cover changed control flow
-- [ ] Logging (if any) is structured + minimal
-- [ ] UTF‑8 explicit on all new I/O
-- [ ] Reversible via single `git revert`
-
-**Tone reminder**
-
-Direct ≠ hostile. Precision lowers friction. The bar is high because rollback cost grows with entropy. Ship clarity.
+**Submitter checklist**
+- [ ] Single responsibility
+- [ ] “Why now” stated
+- [ ] Tests cover new/changed control paths
+- [ ] No TODOs in hot paths
+- [ ] Logging minimal & structured
+- [ ] Type + lint gates green pre‑PR
 
 ---
 
-## 3) Project overview
+## 3) Critical Data Integrity & Safety
+
+This section defines *non‑negotiable invariants* around bibliography data.
+
+### 3.1 Triple‑File Consistency (Citekey Integrity)
+The following three files form an atomic consistency set:
+1. `bib/library.bib`
+2. `data/identifier_collection.json`
+3. `data/add_order.json`
+
+Any add/remove/rename/reorder of citekeys MUST update all three. Validation (`uv run blx validate`) is a merge blocker if inconsistent.
+
+### 3.2 Backup Protocol (Mandatory Before Mutation)
+Prior to any modification of the triple set:
+
+```powershell
+$ts = Get-Date -Format 'yyyyMMdd-HHmmss'
+$backup = "staging/backup-$ts"
+New-Item -ItemType Directory -Path $backup | Out-Null
+Copy-Item bib/library.bib $backup/
+Copy-Item data/identifier_collection.json $backup/
+Copy-Item data/add_order.json $backup/
+```
+
+Skip = reject. Keep last ≥5 backups.
+
+### 3.3 Production Data Protection
+**Rule: NEVER test or debug on production data.** If realistic data required, copy or sample—never operate in‑place.
+
+Key risks: silent API failures, encoding loss, partial writes, interrupted operations. Use fixtures or `tempfile.TemporaryDirectory()`.
+
+Recovery (if breach): restore most recent backup → re‑validate → document incident (see Section 4 Incident Response).
+
+### 3.4 Encoding Invariant
+All file I/O uses `encoding="utf-8"` with `ensure_ascii=False` for JSON. Failure to specify encoding = defect.
+
+### 3.5 Mutation Preconditions
+- Tests green (new + existing)
+- `ruff check --fix` → `ruff format` → `pyright` = clean
+- Backup timestamp < 5 minutes
+- Dry run (if available) reviewed
+
+---
+
+## 4) Incident Response
+1. STOP – no speculative edits.
+2. Inspect recent diffs (`git log -p`).
+3. Reproduce on `main`.
+4. Restore from backup if corruption present.
+5. Add post‑mortem note if systemic.
+6. Strengthen guardrails (tests/validation) before closing.
+
+---
+
+## 5) Quality Gates & Definition of Done
+
+Order (must be followed):
+1. Ruff lint (auto‑fix)
+2. Ruff format
+3. Pyright (0 errors)
+4. Tests (pytest)
+5. Domain validation: `uv run blx validate`
+
+Build fails or merge blocks on any red gate.
+
+### Logging Policy Snapshot
+No `print` for diagnostics. Use module loggers + NullHandler in library package; CLI owns configuration.
+
+---
+
+## 6) Feature & Change Workflow
+1. Write tests first (happy, edge, failure).
+2. Minimal implementation to make them meaningful.
+3. Iterate to green (tests + type + lint).
+4. Backup (if touching production data set).
+5. Apply change.
+6. Re‑validate & review diff size/justification.
+
+Non‑compliance (skipped tests/backup) ⇒ rejection.
+
+---
+
+## 7) External Library & API Reliability
+Prevent silent failures (e.g., `library.entries.append()` vs `library.add()`).
+
+Checklist before adopting an API call:
+- Docs consulted (version‑specific)
+- Minimal reproduction confirming effect
+- Return state verified (length/contents changed)
+- Integration test (real file I/O) exists
+- Version pinned in dependencies
+
+Add runtime assertions if silent no‑ops are possible.
+
+---
+
+## 8) Encoding & File I/O Policy
+Always explicit UTF‑8; never rely on platform default (e.g., CP950). Serialize via string then write with encoding; no direct implicit file writes that choose encoding.
+
+JSON: `json.dump(data, f, ensure_ascii=False, indent=2)`.
+
+---
+
+## 9) Repository Overview (Context After Principles)
 
 This repo maintains a curated **biblatex** library and tooling to:
 
@@ -217,7 +243,9 @@ biblatex-library/
 
 ---
 
-## 4a) Data Consistency Rules (Critical)
+---
+
+## 10) Data Model Notes (Biblatex vs BibTeX)
 
 **Three-file synchronization requirement**
 
@@ -254,7 +282,9 @@ When working with citekeys/labels, **ALWAYS** update these three files simultane
 
 ---
 
-## 5) Build & run quickstart
+---
+
+## 11) Build & Run Quickstart
 
 ### Python (Windows PowerShell)
 
@@ -285,7 +315,9 @@ When working with citekeys/labels, **ALWAYS** update these three files simultane
 
 ---
 
-## 6) The `blx` CLI (project tool)
+---
+
+## 12) The `blx` CLI (Overview)
 
 **Environment setup (UV)**
 
@@ -316,7 +348,9 @@ uv run blx validate
 
 ---
 
-## 6a) .bib parsing & writing (bibtexparser v2 only)
+---
+
+## 13) .bib Parsing & Writing Policy (bibtexparser v2)
 
 **Policy**
 
@@ -328,7 +362,9 @@ uv run blx validate
 
 ---
 
-## 6b) Encoding Best Practices (UTF-8 Always)
+---
+
+## 14) UTF-8 Handling (Detailed Rationale)
 
 **The Problem: CP950/Unicode Errors**
 
@@ -388,7 +424,9 @@ with open("data.json", "w", encoding="utf-8") as f:
 
 ---
 
-## 7) Recording “added order” (without touching `library.bib`)
+---
+
+## 15) Add Order Ledger
 
 **Ledger**
 
@@ -405,7 +443,9 @@ with open("data.json", "w", encoding="utf-8") as f:
 
 ---
 
-## 8) Our biblatex style: `biblatex-yj`
+---
+
+## 16) Custom biblatex Style: `biblatex-yj`
 
 - **Repository name**: `biblatex-yj`; **style id**: `yj` (and variants like `yj-trad-alpha`).
 - Load with `\usepackage[style=yj]{biblatex}` or `\usepackage{biblatex-yj}` (loader).
@@ -414,14 +454,18 @@ with open("data.json", "w", encoding="utf-8") as f:
 
 ---
 
-## 9) Examples included
+---
+
+## 17) Examples
 
 - `latex/examples/biblatex-spbasic/` — `style=biblatex-spbasic`
 - `latex/examples/alphabetic/` — `style=alphabetic`
 
 ---
 
-## 10) Quality gates
+---
+
+## 18) (Expanded) Quality Gates Reference
 
 - **Formatting**: **Ruff formatter** is canonical. Run `ruff format`; configure in `pyproject.toml` / `ruff.toml`.
 - **Linting**: **Ruff** is the linter (fast; auto‑fix allowed). Configure in `[tool.ruff]` / `ruff.toml`.
@@ -454,7 +498,9 @@ with open("data.json", "w", encoding="utf-8") as f:
 
 ---
 
-## 10a) Logging policy (no print)
+---
+
+## 19) Logging Policy (Full)
 
 **Hard rule**
 
@@ -511,7 +557,9 @@ with open("data.json", "w", encoding="utf-8") as f:
 
 ---
 
-## 11) Contribution rules
+---
+
+## 20) Contribution Rules
 
 - Feature branches only; no versioned names (e.g., `processV2`). Delete superseded code.
 - Small PRs with clear commit messages; add tests where behavior changes.
@@ -519,7 +567,9 @@ with open("data.json", "w", encoding="utf-8") as f:
 
 ---
 
-## 12) Claude operating rules (do & don’t)
+---
+
+## 21) Claude Interaction Rules (Operations Assistant)
 
 **Do**
 
@@ -541,7 +591,9 @@ with open("data.json", "w", encoding="utf-8") as f:
 
 ---
 
-## 13) Commit messages (Conventional Commits 1.0.0)
+---
+
+## 22) Commit Messages (Conventional Commits 1.0.0)
 
 **Format**
 
@@ -591,7 +643,9 @@ BREAKING CHANGE: Users must switch to `sortkey` via sourcemap; see docs.
 
 ---
 
-## 14) Feature implementation & data safety workflow (MANDATORY)
+---
+
+## 23) Feature Implementation & Safety (Detailed)
 
 **Non‑negotiable sequence**
 
@@ -696,7 +750,9 @@ Add a `pre-commit` local hook to refuse commits if no backup was created in the 
 
 ---
 
-## 16) Incident response (post-mortem process)
+---
+
+## 24) Incident Response (Detailed)
 
 **Detection**
 
@@ -732,7 +788,162 @@ Add a `pre-commit` local hook to refuse commits if no backup was created in the 
 
 ---
 
-## 16) Preventing API Misuse Bugs
+---
+
+## 25) Production Data Protection (Detailed)
+
+### **CRITICAL RULE: NEVER Test/Debug with Production Data**
+
+**The Problem: Data Corruption Risk**
+
+Testing or debugging code directly on production data files (`bib/library.bib`, `data/identifier_collection.json`, `data/add_order.json`) creates catastrophic risk:
+
+- **Silent bugs** can corrupt years of bibliographic work
+- **Type errors** may cause encoding issues or data loss
+- **API misuse** can result in empty files or malformed entries
+- **Interrupted operations** can leave files in inconsistent states
+- **No recovery** if backup protocol is skipped during development
+
+### **Mandatory Testing Protocol**
+
+**Rule 1: Use Sample/Test Data Only**
+
+```powershell
+# ✅ CORRECT - Copy production data for testing
+cp bib/library.bib tests/fixtures/sample_library.bib
+cp data/identifier_collection.json tests/fixtures/sample_identifiers.json
+cp data/add_order.json tests/fixtures/sample_add_order.json
+
+# Then work with copies
+uv run python -c "
+from pathlib import Path
+from biblib.sync import sync_identifiers_to_library
+sync_identifiers_to_library(Path('tests/fixtures'))
+"
+
+# ❌ WRONG - Working directly on production
+uv run python -c "
+from pathlib import Path
+from biblib.sync import sync_identifiers_to_library
+sync_identifiers_to_library(Path('.'))  # Modifies real data!
+"
+```
+
+**Rule 2: Use Temporary Directories for Development**
+
+```python
+# ✅ CORRECT - Isolated test environment
+import tempfile
+from pathlib import Path
+
+def test_new_feature():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        workspace = Path(tmpdir)
+
+        # Copy sample data
+        (workspace / "bib").mkdir()
+        (workspace / "data").mkdir()
+
+        # Work with copies only
+        sample_lib = workspace / "bib" / "library.bib"
+        sample_lib.write_text(SAMPLE_BIB_CONTENT)
+
+        # Test your feature here safely
+        result = my_function(workspace)
+
+        # Validate results
+        assert result.success
+
+# ❌ WRONG - Testing on production files directly
+def test_new_feature_wrong():
+    result = my_function(Path("."))  # Operates on real files!
+```
+
+**Rule 3: Sample Data Creation Guidelines**
+
+When you need realistic data for testing:
+
+```python
+# ✅ Create minimal samples that represent real patterns
+SAMPLE_BIB_CONTENT = '''
+@article{sample2024test,
+  author = {Smith, John and Doe, Jane},
+  title = {Sample Article for Testing},
+  journal = {Test Journal},
+  year = {2024},
+  doi = {10.1000/test.sample},
+}
+
+@book{example2023book,
+  author = {Brown, Alice},
+  title = {Example Book Title},
+  publisher = {Academic Press},
+  year = {2023},
+  isbn = {978-0123456789},
+}
+'''
+
+SAMPLE_IDENTIFIERS = {
+    "sample2024test": {
+        "identifiers": {
+            "doi": "10.1000/test.sample",
+            "title": "Sample Article for Testing"
+        }
+    },
+    "example2023book": {
+        "identifiers": {
+            "isbn": "978-0123456789",
+            "title": "Example Book Title"
+        }
+    }
+}
+```
+
+### **Development Workflow Requirements**
+
+1. **Always Use Fixtures**: Create `tests/fixtures/` with sample data
+2. **Copy, Don't Link**: Make actual copies, not symlinks to production data
+3. **Temporary Workspaces**: Use `tempfile.TemporaryDirectory()` for isolated testing
+4. **Validate Copies**: Ensure test data represents real patterns without being production data
+5. **Document Test Data**: Comment what each fixture represents and why
+
+### **Emergency Recovery Protocol**
+
+If production data is accidentally modified:
+
+```powershell
+# 1. STOP immediately - don't make it worse
+# 2. Check if backup exists
+ls backups/
+
+# 3. Restore from most recent backup
+cp "backups/backup-YYYY-MM-DD-HHMMSS/bib/library.bib" bib/
+cp "backups/backup-YYYY-MM-DD-HHMMSS/data/identifier_collection.json" data/
+cp "backups/backup-YYYY-MM-DD-HHMMSS/data/add_order.json" data/
+
+# 4. Validate restoration
+uv run blx validate
+
+# 5. Document incident in CLAUDE.md Section 15
+```
+
+### **Code Review Checklist**
+
+For any code that handles data files:
+
+- [ ] **Uses test data only**: No paths pointing to `bib/`, `data/` directories
+- [ ] **Temporary workspace**: Uses `tempfile` or `tests/fixtures/`
+- [ ] **Sample data provided**: Realistic but minimal test fixtures included
+- [ ] **No production paths**: No hardcoded references to real data files
+- [ ] **Backup compliance**: Any production operations include mandatory backup
+
+**Remember: Your bibliography is irreplaceable. Test data is replaceable. Always choose safety.**
+
+---
+
+---
+
+## 26) Preventing API Misuse Bugs (Detailed)
 
 ### **The Problem: Silent API Failures**
 

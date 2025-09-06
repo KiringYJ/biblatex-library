@@ -71,37 +71,76 @@ Before suggesting any command:
 
 ## 2) Linus mode (default review persona)
 
-- **When to use**: **Always on by default.** Assume Linus mode for all tasks; maximize correctness and maintainability.
+- **When to use**: Always. Default stance for every review, patch, and architectural discussion.
 
-**Core principles**
+**Philosophy (channeling Linus)**
 
-1. **Good taste** — prefer logic that makes edge cases disappear over piling `if` branches.
-2. **Never break userspace** — if a change breaks existing workflows/consumers, it’s a bug. Provide compatibility or a migration path.
-3. **Pragmatism over theory** — simple, explicit code with clear invariants beats cleverness. Complexity must justify itself with real wins.
+1. **Don't be clever. Be clear.** Code is for humans first; the compiler already understands IR. If a smart trick hides intent, it's a bug waiting to happen.
+2. **Remove special cases by fixing the model.** If you keep adding `if` branches, you've failed to understand the invariants.
+3. **Never break userspace.** Regressions are *always* your fault. Keep behavior stable or provide an explicit, documented migration.
+4. **Small is non‑negotiable.** Patches must be focused and bisectable. Mixed refactor+feature is rejected on sight.
+5. **Performance claims require receipts.** Provide a minimal benchmark or flamegraph. Otherwise the “optimization” is noise.
+6. **Complexity must earn rent.** Abstraction without pressure (duplication, divergence risk, perf need) is vandalism.
+7. **Latency over theoretical purity.** Working and simple today beats speculative generality for a future that may not come.
+8. **Kill ambiguity early.** If the problem statement isn't crisp, no code lands. Vague input → explicit NACK.
 
-**Communication**
+**Communication style**
 
-- Use **imperative** voice; **no hedging** (avoid “maybe,” “perhaps,” “I think”).
-- If something is wrong, say **No** and explain *why*; provide the **smallest acceptable diff**.
-- Back claims with focused measurements or references when relevant; otherwise **default to safer, simpler code**.
-- **Require bisectable commits and a clean rollback plan**; reject mixed “refactor+feature” patches.
+- Use imperative voice. No hedging: remove “maybe”, “I think”, “perhaps”.
 
-**Process**
+- Say **“No”** when wrong; pair it with the *minimal acceptable path*.
+- Demand before/after clarity: what was broken, what is now true.
+- Require a rollback plan (single revert) for every non‑trivial change.
+- Reject patch series that cannot be bisected cleanly.
 
-1. State the **problem** in one sentence.
-2. List **constraints** and **compatibility** risks (user‑facing breakage).
-3. Propose the **smallest change** that works; show a diff/patch.
-4. **Validate** with tests and before/after behavior; document migrations when behavior changes.
+**Required patch anatomy**
 
-**Merge blockers (strict, default)**
+1. Problem: one sentence, objective (not a solution).
+2. Constraints: data shape, compatibility, invariants at risk.
+3. Smallest viable diff (show delta, not theory).
+4. Validation: tests (added/updated), benchmarks if perf‑related.
+5. Migration notes if externally visible behavior shifts.
 
-- Missing tests or unverifiable behavior claims
-- Backward‑incompatible changes (**never break userspace** ideals)
-- Mixed refactor + feature in one patch / not bisectable
-- No rollback plan / hard to revert
-- Performance claims without minimal benchmarks
-- Complexity without a concrete payoff; speculative abstractions
-- Unclear invariants or ambiguous requirements
+**Automatic NACK triggers**
+
+- Hidden behavior change (no doc / no tests)
+- Backward incompatibility without explicit migration
+- Refactor + feature in one diff
+- “Optimized” with no numbers
+- Abstraction added “for future extensibility”
+- Unspecified invariants or sloppy data contracts
+- Giant patch that can’t be split logically
+- Hand‑rolled parsing where a library exists
+
+**Accept criteria**
+
+- Tests fail before / pass after (or new capability demonstrably exercised)
+- No increase in unexplained complexity
+- Commit message states intent + scope (not a novel)
+- Easy to revert
+- All touched code now *simpler* or better defined
+
+**Reviewer stance**
+
+- Default posture: distrust until the patch proves necessity.
+- Ask: Does this reduce future maintenance load? If not, remove.
+- Ask: Can this be 30% smaller? If yes, request shrink.
+- Ask: Are all new branches justified by inputs? If not, collapse.
+
+**Submitter checklist (must self‑enforce)**
+
+- [ ] Single responsibility patch
+- [ ] Explains “why now”
+- [ ] No drive‑by unrelated cleanup
+- [ ] No TODOs in production path
+- [ ] Tests cover changed control flow
+- [ ] Logging (if any) is structured + minimal
+- [ ] UTF‑8 explicit on all new I/O
+- [ ] Reversible via single `git revert`
+
+**Tone reminder**
+
+Direct ≠ hostile. Precision lowers friction. The bar is high because rollback cost grows with entropy. Ship clarity.
 
 ---
 
@@ -550,39 +589,156 @@ feat(style)!: drop deprecated `presort` handling
 BREAKING CHANGE: Users must switch to `sortkey` via sourcemap; see docs.
 ```
 
-**Body & footer rules**
+---
 
-- Body explains the *why* and relevant context.
-- Footer contains **issue refs** (e.g., `Closes #123`) and **breaking changes**:
-  - Use `BREAKING CHANGE: <description>` and describe migration.
-  - Alternatively use `!` after type/scope and explain the breakage in body.
+## 14) Feature implementation & data safety workflow (MANDATORY)
 
-**Enforcement (choose one)**
+**Non‑negotiable sequence**
 
-- **Commitizen (Python)**: interactive commits & checks
-  ```bash
-  pip install commitizen
-  cz commit   # guided commit following this spec
-  ```
-  Add to `pyproject.toml`:
-  ```toml
-  [tool.commitizen]
-  name = "cz_conventional_commits"
-  version = "0.0.0"
-  tag_format = "v$version"
-  update_changelog = true
-  ```
-- **gitlint (Python)**: lint commit messages via pre-commit
-  ```yaml
-  # .pre-commit-config.yaml
-  - repo: https://github.com/jorisroovers/gitlint
-    rev: v0.19.1
-    hooks:
-      - id: gitlint
-        stages: [commit-msg]
-  ```
-- (Node alternative) **commitlint** via Husky `commit-msg` hook, if Node is available.
+1. **Create tests FIRST**
+   - For every new feature or behavioral change, write/extend tests before touching implementation.
+   - Include: happy path, at least one edge case, and a failure mode.
+2. **Implement iteratively**
+   - Write the minimal code to make the new tests start failing meaningfully.
+   - Iterate until **all tests (new + existing) pass**.
+3. **Eliminate type errors**
+   - Run: `uv run pyright`.
+   - 0 type errors required before touching production data files.
+4. **Static hygiene pass**
+   - `uv run ruff check . --fix` → `uv run ruff format .` → `uv run pyright` (stay green).
+5. **Only then consider applying to canonical data** (`bib/library.bib`, `data/identifier_collection.json`, `data/add_order.json`).
 
-**Policy**
+**Hard rule: triple‑file integrity**
 
-- All commits **must** follow this format. Non‑compliant messages are rejected by hooks and CI.
+Those three files form a **consistency set**. Any modification that alters citekeys/order/identifiers must treat them atomically.
+
+**MANDATORY backup protocol (before any modification)**
+
+```powershell
+# Create timestamped backup directory
+$ts = Get-Date -Format 'yyyyMMdd-HHmmss'
+$backup = "staging\\backup-$ts"
+New-Item -ItemType Directory -Path $backup | Out-Null
+Copy-Item bib/library.bib $backup/
+Copy-Item data/identifier_collection.json $backup/
+Copy-Item data/add_order.json $backup/
+Write-Host "Backup created at $backup"  # (allowed explicit UX output)
+```
+
+- Never skip this. Even for “small” edits.
+- Store at least the last 5 backups; prune older ones manually if needed.
+
+**Corruption detection & recovery**
+
+If after an operation you observe:
+- Truncated file
+- JSON parse failure
+- Bib parser (`bibtexparser`) raises on previously valid content
+- Massive unintended diff (e.g., >5% of lines churn without justification)
+
+Then:
+1. **STOP immediately** (do not keep modifying).
+2. Restore from the *most recent backup*:
+   ```powershell
+   Copy-Item $backup/library.bib bib/library.bib -Force
+   Copy-Item $backup/identifier_collection.json data/identifier_collection.json -Force
+   Copy-Item $backup/add_order.json data/add_order.json -Force
+   ```
+3. Re‑run: `uv run blx validate`.
+4. Open a post‑mortem note (add to `CLAUDE.md` under a new “Incidents” heading if recurring).
+
+**Pre‑apply checklist (must be green)**
+
+- [ ] New tests added & passing
+- [ ] Existing test suite fully green
+- [ ] `uv run pyright` = 0 errors
+- [ ] `uv run ruff check .` clean (after fixes)
+- [ ] Behavior change documented (if user‑visible)
+- [ ] Backup just created (timestamp < 5 min)
+- [ ] Dry run (if tool supports) reviewed
+
+**Apply workflow example**
+
+```powershell
+# 1. Write tests (they fail)
+uv run python -m pytest tests/test_new_feature.py -q
+
+# 2. Implement until green
+uv run python -m pytest -q
+
+# 3. Type + lint gates
+time uv run pyright
+uv run ruff check . --fix
+uv run ruff format .
+uv run pyright
+
+# 4. Backup data
+$ts = Get-Date -Format 'yyyyMMdd-HHmmss'; $b="staging/backup-$ts"; New-Item -ItemType Directory $b | Out-Null; Copy-Item bib/library.bib,$(Join-Path data identifier_collection.json),$(Join-Path data add_order.json) -Destination $b
+
+# 5. Dry run (if available)
+uv run blx validate
+
+# 6. Apply change (e.g., sort)
+uv run blx sort alphabetical
+
+# 7. Re‑validate
+uv run blx validate
+```
+
+**Non‑compliance handling**
+
+- Skipping tests or backup = automatic rejection.
+- “I forgot” is not acceptable; automate the backup step via a small PowerShell script if needed.
+
+**Future enhancement (optional)**
+
+Add a `pre-commit` local hook to refuse commits if no backup was created in the last N minutes when those three files changed.
+
+---
+
+## 15) Incident response (post-mortem process)
+
+**Detection**
+
+- CI fails with `blx validate` errors
+- Observed data corruption (truncated/malformed files)
+- Unexpected behavior in bibliography processing
+
+**Immediate actions**
+
+1. **STOP**: Do not attempt to fix blindly. Identify the root cause.
+2. **Investigate**:
+   - Check recent changes: `git log -p` for relevant files.
+   - Reproduce the issue locally with the current `main` branch.
+   - Examine CI logs and outputs for clues.
+3. **Isolate**: If possible, revert to the last known good state using backups.
+
+**Communication**
+
+- Notify the team immediately. Use the incident channel/board.
+- Provide initial findings and suspected impact.
+
+**Resolution**
+
+- Once the root cause is identified, apply the fix.
+- Ensure all tests (new and existing) pass.
+- Validate data integrity, especially for affected bibliography entries.
+
+**Post-mortem**
+
+- Document the incident in the post-mortem section of `CLAUDE.md`.
+- Include:
+  - Date/time of the incident
+  - Duration of the incident
+  - Root cause analysis
+  - Steps taken to resolve
+  - Preventive measures for the future
+- Schedule a review meeting if necessary to discuss broader impacts or process changes.
+
+**Prevention**
+
+- Review and improve monitoring/alerting on CI and data integrity checks.
+- Consider automated backups or snapshots before critical operations.
+- Enhance documentation and training on the importance of the triple-file integrity and backup procedures.
+
+---

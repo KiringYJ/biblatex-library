@@ -36,6 +36,12 @@ blx validate
 # Validate with verbose output
 blx -v validate
 
+# Generate labels for entries
+blx generate-labels
+
+# Generate labels with custom output
+blx generate-labels -o my_labels.json
+
 # Validate specific workspace
 blx --workspace /path/to/project validate
 ```
@@ -101,6 +107,63 @@ ERROR biblib.validate:174 – Only in add_order.json: ['missing-key-2025']
 ERROR biblib.validate:185 – ✗ Citekey inconsistencies found across data sources
 ERROR biblib.cli:46 – ✗ Validation checks failed
 ```
+
+### Label Generation
+
+The `generate-labels` command creates citekeys in the format `lastname-year-<hash>`:
+
+```bash
+blx generate-labels [options]
+```
+
+**What it generates:**
+- **lastname** - Extracted from author/editor field, normalized and cleaned
+- **year** - Extracted from date/year field (4-digit years only)
+- **hash** - 8-character SHA-256 hash of the main identifier from identifier_collection.json
+
+**Options:**
+- `-o OUTPUT, --output OUTPUT` - Output file path (default: bib/generated/labels.json)
+- `-v, --verbose` - Show INFO level messages (use `-vv` for DEBUG)
+- `--workspace WORKSPACE` - Specify workspace directory (default: current directory)
+
+**Examples:**
+
+```bash
+# Generate labels with default output
+blx generate-labels
+
+# Generate labels with custom output file
+blx generate-labels -o my_labels.json
+
+# Generate labels with verbose output
+blx -v generate-labels
+
+# Generate labels for different project
+blx --workspace /path/to/project generate-labels
+```
+
+**Sample output:**
+
+```
+$ blx -v generate-labels
+INFO biblib.cli:37 – Generating labels for biblatex entries
+INFO biblib.generate:211 – Generating labels for biblatex entries
+INFO biblib.generate:245 – Generated 195 labels
+INFO biblib.cli:50 – ✓ Generated 195 labels
+INFO biblib.cli:51 – ✓ Saved to: bib\generated\labels.json
+INFO biblib.cli:55 – Sample labels:
+INFO biblib.cli:59 –   bredon-1993-7908a921 -> bredon-1993-7908a921
+INFO biblib.cli:59 –   dubrovin-1985-b24c3982 -> dubrovin-1985-b24c3982
+```
+
+The generated JSON file maps original entry keys to suggested labels. This is useful for:
+- **Standardizing citekeys** across different bibliography files
+- **Generating consistent labels** for new entries  
+- **Auditing existing labels** for consistency
+
+**Exit codes:**
+- `0` - Labels generated successfully
+- `1` - Generation failed or error occurred
 
 ## Repository Structure
 

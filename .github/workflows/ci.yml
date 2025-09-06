@@ -88,11 +88,6 @@ jobs:
             root: main.tex
             xelatex: true
             force_bibtex: false
-          - name: amsrefs (XeLaTeX + BibTeX)
-            workdir: latex/examples/amsrefs-bibtex
-            root: main.tex
-            xelatex: true
-            force_bibtex: true
 
     steps:
       - uses: actions/checkout@v4

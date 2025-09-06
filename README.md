@@ -365,13 +365,6 @@ cd latex/examples/biblatex-spbasic/
 latexmk -pdf -xelatex main.tex
 ```
 
-### amsrefs Examples
-
-```bash
-cd latex/examples/amsrefs-bibtex/
-latexmk -pdf -xelatex -bibtex main.tex
-```
-
 ## Contributing
 
 1. **Validation first** - Always run `blx validate` before committing
@@ -380,6 +373,21 @@ latexmk -pdf -xelatex -bibtex main.tex
 4. **Tests required** - Add tests for any behavior changes
 
 See `CLAUDE.md` for detailed development guidelines.
+
+## Roadmap / TODO
+
+### Convert Functionality
+- [ ] **biblatex to BibTeX conversion** - Convert modern biblatex entries (`@online`, `@thesis`) to classic BibTeX equivalents (`@misc`, `@phdthesis`) with proper field mapping
+  - Entry type conversion: `@online` → `@misc`, `@thesis` → `@phdthesis`/@mastersthesis`
+  - Field conversion: `date` → `year`/`month`, `journaltitle` → `journal`, etc.
+  - Integration with `biber --tool` for robust processing
+  - CLI: `blx convert input.bib output.bib`
+
+### Other Features
+- [ ] **CSL-JSON export** - Generate CSL-JSON for Pandoc/Zotero compatibility
+- [ ] **Enrichment from APIs** - Auto-fill missing data from CrossRef, arXiv, etc.
+- [ ] **Duplicate detection** - Find and merge duplicate entries
+- [ ] **Citation analysis** - Generate usage reports and statistics
 
 ## License
 

@@ -102,7 +102,6 @@ biblatex-library/
 │  └─ examples/
 │     ├─ biblatex-spbasic/
 │     ├─ alphabetic/
-│     ├─ amsrefs-bibtex/          # uses BibTeX via amsxport
 │     └─ common/                  # optional preamble
 ├─ src/
 │  └─ biblib/
@@ -264,7 +263,6 @@ When working with citekeys/labels, **ALWAYS** update these three files simultane
 
 - `latex/examples/biblatex-spbasic/` — `style=biblatex-spbasic`
 - `latex/examples/alphabetic/` — `style=alphabetic`
-- `latex/examples/amsrefs-bibtex/` — amsrefs via BibTeX (amsxport); omit `\bibliographystyle{...}`; run with `-bibtex`.
 
 ---
 

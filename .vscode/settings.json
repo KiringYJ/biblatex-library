@@ -3,52 +3,38 @@
     "files.trimFinalNewlines": true,
     // --- LaTeX Workshop tools ---
     "latex-workshop.latex.tools": [
-        { // XeLaTeX+biber via latexmk (auto-detects biblatex/biber)
-            "name": "latexmk-xelatex-biber",
+        {
+            "name": "latexmk-xelatex",
             "command": "latexmk",
             "args": [
                 "-xelatex",
-                "-pdf",
                 "-synctex=1",
                 "-interaction=nonstopmode",
                 "-file-line-error",
+                "-outdir=%OUTDIR%",
                 "%DOC%"
             ]
         },
-        { // Force BibTeX (for amsrefs with .bib)
-            "name": "latexmk-xelatex-bibtex",
+        {
+            "name": "latexmk-xelatex-shell-escape",
             "command": "latexmk",
             "args": [
                 "-xelatex",
-                "-pdf",
                 "-synctex=1",
                 "-interaction=nonstopmode",
                 "-file-line-error",
-                "-bibtex",
+                "-outdir=%OUTDIR%",
+                "-shell-escape",
                 "%DOC%"
             ]
         },
-        { // Your Python pre-step (e.g., convert biblatex -> BibTeX)
-            // Tip: set python.defaultInterpreterPath below so "python" resolves to your venv
-            "name": "blx-convert",
-            "command": "python",
-            "args": [
-                "-m",
-                "biblib.cli",
-                "convert",
-                "biblatex-to-bibtex",
-                "--in",
-                "${workspaceFolder}/bib/library.bib",
-                "--out",
-                "${workspaceFolder}/bib/generated/library-bibtex.bib"
-            ]
-        },
-        { // (kept) direct chain without latexmk if you want it
+        {
             "name": "xelatex",
             "command": "xelatex",
             "args": [
                 "-synctex=1",
                 "-interaction=nonstopmode",
+                "-file-line-error",
                 "%DOC%"
             ]
         },
@@ -58,43 +44,28 @@
             "args": [
                 "%DOCFILE%"
             ]
-        },
-        {
-            "name": "bibtex",
-            "command": "bibtex",
-            "args": [
-                "%DOCFILE%"
-            ]
         }
     ],
-    // --- Recipes you can pick from the TeX badge ---
     "latex-workshop.latex.recipes": [
         {
-            "name": "latexmk (XeLaTeX+biber) — default",
+            "name": "latexmk (XeLaTeX + biber)",
             "tools": [
-                "latexmk-xelatex-biber"
+                "latexmk-xelatex"
             ]
         },
         {
-            "name": "XeLaTeX → biber → XeLaTeX ×2",
+            "name": "latexmk (XeLaTeX + biber, shell-escape)",
+            "tools": [
+                "latexmk-xelatex-shell-escape"
+            ]
+        },
+        {
+            "name": "XeLaTeX ➜ biber ➜ XeLaTeX ×2 (manual)",
             "tools": [
                 "xelatex",
                 "biber",
                 "xelatex",
                 "xelatex"
-            ]
-        },
-        {
-            "name": "amsrefs (BibTeX, via latexmk)",
-            "tools": [
-                "latexmk-xelatex-bibtex"
-            ]
-        },
-        {
-            "name": "blx convert → amsrefs (BibTeX)",
-            "tools": [
-                "blx-convert",
-                "latexmk-xelatex-bibtex"
             ]
         }
     ],

@@ -65,6 +65,9 @@ docstring-code-format = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+markers = [
+    "integration: marks tests as integration tests (require external dependencies like biber)",
+]
 
 [tool.pyright]
 typeCheckingMode = "strict"

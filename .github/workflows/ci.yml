@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   lint_and_validate:
-    name: Lint & schema checks
+    name: Lint & validate (pre-commit)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -28,26 +28,21 @@ jobs:
       - name: Set up Python
         run: uv python install 3.12
 
+      - name: Install TeX Live (for biber validation)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y texlive-bibtex-extra biber
+
       - name: Install project and dependencies
         run: uv sync --dev
         # UV automatically creates venv and installs all dependencies
 
-      - name: Run pre-commit (all hooks)
+      - name: Create generated directory
+        run: mkdir -p bib/generated
+
+      - name: Run all validations (pre-commit)
         run: uv run pre-commit run --all-files
-        # Use UV to run pre-commit with proper environment
-
-      - name: Extra JSON Schema validation (explicit)
-        run: |
-          uv run check-jsonschema --schemafile data/identifier_collection.schema.json \
-                                  data/identifier_collection.json
-        # CLI usage: --schemafile <schema> <instances...>
-
-      - name: Custom validation (citekey consistency & labels)
-        run: uv run python -m biblib.cli validate
-        # Validates that citekeys are consistent across all files and match generated labels
-
-      - name: Type check (pyright)
-        run: uv run pyright
+        # Runs all hooks: ruff, pyright, jsonschema, custom validation, biber validation, etc.
 
   tests:
     name: Unit tests
@@ -70,23 +65,3 @@ jobs:
       - name: Run pytest (if tests/ exists)
         if: ${{ hashFiles('tests/**') != '' }}
         run: uv run pytest -q
-
-  biber_validation:
-    name: Validate .bib with biber
-    runs-on: ubuntu-latest
-    needs: [lint_and_validate]
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install TeX Live (biber)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y texlive-bibtex-extra biber
-
-      - name: Create generated directory
-        run: mkdir -p bib/generated
-
-      - name: Validate library.bib with biber --tool
-        run: |
-          biber --tool --validate-datamodel --output-directory bib/generated bib/library.bib
-        # Direct validation of .bib file integrity without LaTeX compilation

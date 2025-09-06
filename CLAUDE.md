@@ -4,6 +4,74 @@
 
 ---
 
+## 0) Development Environment (CRITICAL)
+
+**Platform specifications**
+
+- **OS**: Windows 11
+- **Shell**: PowerShell 7.5.2 (not CMD, not WSL)
+- **Python**: 3.12 with `.venv` virtual environment
+- **LaTeX**: TeX Live installation with biber
+
+**Environment activation (REQUIRED)**
+
+**ALWAYS** activate the virtual environment before running Python commands:
+
+```powershell
+# Windows PowerShell - use this format
+.\.venv\Scripts\Activate.ps1
+
+# Then run Python commands
+python -m pytest
+python -m biblib.cli validate
+```
+
+**PowerShell command equivalents**
+
+PowerShell does **NOT** have Unix commands. Use these equivalents:
+
+```powershell
+# NO: grep pattern file
+# YES: Select-String -Pattern "pattern" -Path "file"
+
+# NO: touch file.txt
+# YES: (Get-Item file.txt).LastWriteTime = Get-Date
+
+# NO: rm -rf directory
+# YES: Remove-Item -Recurse -Force directory
+
+# NO: find . -name "*.py"
+# YES: Get-ChildItem -Recurse -Filter "*.py"
+
+# NO: ls -la
+# YES: Get-ChildItem or dir
+```
+
+**Tool execution patterns**
+
+```powershell
+# Python commands (ALWAYS with full path after activation)
+.\.venv\Scripts\python.exe -m pytest
+.\.venv\Scripts\python.exe -m biblib.cli validate
+
+# Pre-commit (through Python)
+.\.venv\Scripts\python.exe -m pre_commit run --all-files
+
+# LaTeX compilation
+latexmk -pdf -xelatex main.tex
+```
+
+**Claude reminder checklist**
+
+Before suggesting any command:
+- [ ] Is `.venv` activated? (Show activation command)
+- [ ] Using PowerShell syntax, not Unix/bash?
+- [ ] Using full Python path for critical commands?
+- [ ] Using `Select-String` instead of `grep`?
+- [ ] Using `Remove-Item` instead of `rm`?
+
+---
+
 ## 1) How we work together
 
 **Development partnership**
@@ -177,43 +245,58 @@ When working with citekeys/labels, **ALWAYS** update these three files simultane
 
 ## 5) Build & run quickstart
 
-### Python
+### Python (Windows PowerShell)
 
 - Use Python **3.12**. Create a local venv and install dev deps:
-  ```bash
+  ```powershell
   python -m venv .venv
-  source .venv/bin/activate  # Windows: .venv\Scripts\activate
+  .\.venv\Scripts\Activate.ps1
   pip install -e ".[dev]"
   ```
 - For pinned installs (CI-like): `pip install -r requirements/dev.txt`.
+- **ALWAYS activate venv** before running commands: `.\.venv\Scripts\Activate.ps1`
 
 ### LaTeX examples
 
 - **biblatex (biber)**: build with `latexmk -pdf -xelatex` (biber is auto‑detected).
-- **amsrefs (BibTeX)**: build with `latexmk -pdf -xelatex -bibtex`.
-- In amsrefs docs: load `hyperref` **before** `amsrefs`.
+- **Compilation in PowerShell**:
+  ```powershell
+  cd latex/examples/alphabetic
+  latexmk -pdf -xelatex main.tex
+  ```
 
 ### VS Code (LaTeX Workshop)
 
 - Preferred recipes:
   - `latexmk (XeLaTeX+biber)` for biblatex demos
-  - `amsrefs (BibTeX)` for amsrefs demo
-- Optional pre‑step: a **Python converter** tool before the amsrefs recipe.
+- **Python interpreter**: Set to `${workspaceFolder}\.venv\Scripts\python.exe` in settings
 
 ---
 
 ## 6) The `blx` CLI (project tool)
 
+**Environment setup (REQUIRED FIRST)**
+
+```powershell
+# ALWAYS activate venv before using blx
+.\.venv\Scripts\Activate.ps1
+```
+
 **Core commands**
 
-- `blx validate` — JSON Schema + `biber --tool` checks
+- `python -m biblib.cli validate` — JSON Schema + `biber --tool` checks
+- `python -m biblib.cli sort alphabetical` — sort library.bib and identifier_collection.json alphabetically by citekey
+- `python -m biblib.cli sort add-order` — sort library.bib and identifier_collection.json to match add_order.json sequence
+- `python -m biblib.cli generate-labels` — generate labels for biblatex entries
+
+**Future commands (TODO)**
+
 - `blx tidy` — normalize fields (DOI shape, ISBN‑13), optional bibtex‑tidy
-- `blx sort alphabetical` — sort library.bib and identifier_collection.json alphabetically by citekey
-- `blx sort add-order` — sort library.bib and identifier_collection.json to match add_order.json sequence
 - `blx enrich --from crossref --ids missing` — fill gaps via Crossref
 - `blx export-cited --aux latex/examples/.../main.aux` — write `bib/generated/cited.bib`
+- `blx convert biblatex-to-bibtex --in bib/library.bib --out bib/generated/library-bibtex.bib`
 
-**CSL & conversions**
+**CSL & conversions (TODO)**
 
 - `blx csl gen -o csl/out.json` — generate CSL‑JSON; validate against `csl/schema`
 - `blx csl render --in csl/out.json --style apa` — smoke test via citeproc
@@ -275,27 +358,29 @@ When working with citekeys/labels, **ALWAYS** update these three files simultane
 
 ### Python quality gate (strict order; must pass **before** tests or running scripts)
 
+**ALWAYS activate venv first**: `.\.venv\Scripts\Activate.ps1`
+
 1. **Ruff lint (auto‑fix)**
-   ```bash
+   ```powershell
    ruff check . --fix
    ```
 2. **Ruff format**
-   ```bash
+   ```powershell
    ruff format .
    ```
 3. **Type check** (use **Pylance** locally; **CI uses pyright**)
-   ```bash
+   ```powershell
    pyright
    ```
    Treat **any** type error as a merge blocker.
 4. **Then** run tests / scripts
-   ```bash
-   pytest -q
+   ```powershell
+   python -m pytest -q
    ```
 
 **Copilot policy (enforced)**: Use **Copilot Code Actions/Chat** to fix lint and type issues **before** running tests or any script. Re‑run steps (1)–(3) until clean.
 
-**Pre‑commit (required)**: Run **Ruff lint with **``** before the Ruff formatter**, then the type‑checker hook. This avoids churn, since lint fixes may require reformatting.
+**Pre‑commit (required)**: Run **Ruff lint with **`--fix`** before the Ruff formatter**, then the type‑checker hook, then LaTeX compilation tests. This avoids churn, since lint fixes may require reformatting. Pre-commit also validates LaTeX examples compile successfully (matching CI behavior).
 
 ---
 

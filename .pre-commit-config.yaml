@@ -33,10 +33,27 @@ repos:
     hooks:
       - id: validate-citekey-consistency
         name: Validate citekey consistency and labels
-        entry: python
-        args: ["-m", "src.biblib.cli", "validate"]
+        entry: .venv/Scripts/python.exe
+        args: ["-m", "biblib.cli", "validate"]
         language: system
         files: ^(bib/library\.bib|data/add_order\.json|data/identifier_collection\.json)$
+        pass_filenames: false
+
+      # LaTeX compilation tests (matches CI behavior)
+      - id: latex-biblatex-spbasic
+        name: Compile biblatex-spbasic example
+        entry: latexmk
+        args: ["-pdf", "-xelatex", "-cd", "latex/examples/biblatex-spbasic/main.tex"]
+        language: system
+        files: ^(bib/library\.bib|latex/examples/biblatex-spbasic/.+\.tex)$
+        pass_filenames: false
+
+      - id: latex-alphabetic
+        name: Compile alphabetic example
+        entry: latexmk
+        args: ["-pdf", "-xelatex", "-cd", "latex/examples/alphabetic/main.tex"]
+        language: system
+        files: ^(bib/library\.bib|latex/examples/alphabetic/.+\.tex)$
         pass_filenames: false
 
   # Small hygiene checks
@@ -54,13 +71,23 @@ repos:
             ^pyrightconfig\.json$
           )
 
-# Skip common build/virtualenv dirs
+# Skip common build/virtualenv dirs and LaTeX outputs
 exclude: |
   (?x)(
     ^\.venv/|
     ^build/|
     ^dist/|
     ^.+\.pdf$|
+    ^.+\.aux$|
+    ^.+\.bbl$|
+    ^.+\.bcf$|
+    ^.+\.blg$|
+    ^.+\.fdb_latexmk$|
+    ^.+\.fls$|
+    ^.+\.log$|
+    ^.+\.out$|
+    ^.+\.run\.xml$|
+    ^.+\.synctex\.gz$|
     ^latex/.+/(build|out)/|
     ^examples/.+/(build|out)/
   )

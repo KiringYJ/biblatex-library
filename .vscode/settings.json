@@ -69,7 +69,7 @@
             ]
         }
     ],
-    "latex-workshop.latex.recipe.default": "latexmk (XeLaTeX+biber) — default",
+    "latex-workshop.latex.recipe.default": "latexmk (XeLaTeX + biber)",
     "latex-workshop.latex.autoBuild.run": "onSave",
     "latex-workshop.view.pdf.viewer": "tab",
     "latex-workshop.formatting.latex": "tex-fmt",

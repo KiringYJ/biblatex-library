@@ -1,4 +1,6 @@
 {
+    "files.insertFinalNewline": true,
+    "files.trimFinalNewlines": true,
     // --- LaTeX Workshop tools ---
     "latex-workshop.latex.tools": [
         { // XeLaTeX+biber via latexmk (auto-detects biblatex/biber)

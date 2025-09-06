@@ -14,7 +14,7 @@ repos:
     rev: v1.1.405
     hooks:
       - id: pyright
-        additional_dependencies: ["bibtexparser>=2.0.0b8,<3.0.0"]  # Match project dependency version
+        additional_dependencies: ["bibtexparser>=2.0.0b8,<3.0.0", "pytest>=8.3"]  # Match pyproject.toml versions
         args: ["--project", "."]  # Explicitly use local pyrightconfig.json
 
   # Validate your JSON against schemas (e.g., identifier_collection)
@@ -33,7 +33,8 @@ repos:
     hooks:
       - id: validate-citekey-consistency
         name: Validate citekey consistency and labels
-        entry: .venv/Scripts/python.exe -m src.biblib.cli validate
+        entry: python
+        args: ["-m", "src.biblib.cli", "validate"]
         language: system
         files: ^(bib/library\.bib|data/add_order\.json|data/identifier_collection\.json)$
         pass_filenames: false

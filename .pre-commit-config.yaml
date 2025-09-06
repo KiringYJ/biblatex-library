@@ -34,7 +34,7 @@ repos:
       - id: validate-citekey-consistency
         name: Validate citekey consistency and labels
         entry: uv
-        args: ["run", "python", "-m", "biblib.cli", "validate"]
+        args: ["run", "blx", "validate"]
         language: system
         files: ^(bib/library\.bib|data/add_order\.json|data/identifier_collection\.json)$
         pass_filenames: false

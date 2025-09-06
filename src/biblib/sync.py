@@ -29,7 +29,7 @@ def load_identifier_collection(identifier_path: Path) -> dict[str, dict[str, Any
     try:
         with open(identifier_path, encoding="utf-8") as f:
             data = json.load(f)
-        logger.debug("Loaded %d entries from identifier collection", len(data))
+        logger.debug(f"Loaded {len(data)} entries from identifier collection")
         return data
     except FileNotFoundError as e:
         raise FileNotFoundError(f"Identifier collection not found: {identifier_path}") from e
@@ -58,7 +58,7 @@ def load_bibtex_library(bib_path: Path) -> tuple[Library, dict[str, Entry]]:
         # Create mapping from citekey to entry for easy lookup
         entry_map = {entry.key: entry for entry in library.entries}
 
-        logger.debug("Loaded %d entries from bibtex library", len(entry_map))
+        logger.debug(f"Loaded {len(entry_map)} entries from bibtex library")
         return library, entry_map
     except FileNotFoundError as e:
         raise FileNotFoundError(f"Library file not found: {bib_path}") from e
@@ -97,8 +97,8 @@ def sync_identifiers_to_library(
     if fields_to_sync is None:
         fields_to_sync = default_sync_fields
 
-    logger.info("Starting identifier sync %s", "(dry run)" if dry_run else "")
-    logger.debug("Fields to sync: %s", ", ".join(sorted(fields_to_sync)))
+    logger.info(f"Starting identifier sync {('(dry run)' if dry_run else '')}")
+    logger.debug(f"Fields to sync: {', '.join(sorted(fields_to_sync))}")
 
     # Load data
     identifier_data = load_identifier_collection(identifier_path)
@@ -110,7 +110,7 @@ def sync_identifiers_to_library(
     # Process each entry in identifier collection
     for citekey, id_info in identifier_data.items():
         if citekey not in entry_map:
-            logger.warning("Entry %s in identifier collection not found in library", citekey)
+            logger.warning(f"Entry {citekey} in identifier collection not found in library")
             continue
 
         entry = entry_map[citekey]
@@ -118,7 +118,7 @@ def sync_identifiers_to_library(
 
         # Ensure identifiers is a dictionary
         if not isinstance(identifiers, dict):
-            logger.warning("Entry %s has invalid identifiers format, skipping", citekey)
+            logger.warning(f"Entry {citekey} has invalid identifiers format, skipping")
             continue
 
         # Check each identifier field that we can sync
@@ -126,7 +126,7 @@ def sync_identifiers_to_library(
             # Ensure we have string values
             if not isinstance(id_field_raw, str) or not isinstance(id_value_raw, str):
                 logger.warning(
-                    "Entry %s has invalid identifier field/value types, skipping field", citekey
+                    f"Entry {citekey} has invalid identifier field/value types, skipping field"
                 )
                 continue
 
@@ -149,7 +149,7 @@ def sync_identifiers_to_library(
                     f"{citekey}: {bibtex_field} '{current_value}' -> '{normalized_id_value}'"
                 )
                 changes.append(change_desc)
-                logger.info("  %s", change_desc)
+                logger.info(f"  {change_desc}")
 
                 if not dry_run:
                     _set_field_value(entry, bibtex_field, normalized_id_value)
@@ -160,15 +160,15 @@ def sync_identifiers_to_library(
             bibtex_string = btp.write_string(library)
             with open(bib_path, "w", encoding="utf-8") as f:
                 f.write(bibtex_string)
-            logger.info("✓ Updated %d entries in %s", entries_modified, bib_path)
+            logger.info(f"✓ Updated {entries_modified} entries in {bib_path}")
         except Exception as e:
-            logger.error("Failed to write updated library: %s", e)
+            logger.error(f"Failed to write updated library: {e}")
             return False, changes
 
     if dry_run:
-        logger.info("✓ Dry run complete: %d potential changes identified", len(changes))
+        logger.info(f"✓ Dry run complete: {len(changes)} potential changes identified")
     else:
-        logger.info("✓ Sync complete: %d changes applied", len(changes))
+        logger.info(f"✓ Sync complete: {len(changes)} changes applied")
 
     return True, changes
 

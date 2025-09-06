@@ -27,7 +27,7 @@ def extract_citekeys_from_bib(bib_path: Path) -> set[str]:
     if not bib_path.exists():
         raise FileNotFoundError(f"Bibliography file not found: {bib_path}")
 
-    logger.debug("Parsing .bib file: %s", bib_path)
+    logger.debug(f"Parsing .bib file: {bib_path}")
 
     try:
         lib = bibtexparser.parse_file(str(bib_path))  # type: ignore[attr-defined]
@@ -37,7 +37,7 @@ def extract_citekeys_from_bib(bib_path: Path) -> set[str]:
             raise ValueError(f"Failed to parse {len(lib.failed_blocks)} blocks: {failed_keys}")  # type: ignore[attr-defined]
 
         citekeys = {entry.key for entry in lib.entries}  # type: ignore[attr-defined]
-        logger.debug("Found %d citekeys in %s", len(citekeys), bib_path.name)
+        logger.debug(f"Found {len(citekeys)} citekeys in {bib_path.name}")
 
         return citekeys
 
@@ -61,7 +61,7 @@ def extract_citekeys_from_add_order(add_order_path: Path) -> set[str]:
     if not add_order_path.exists():
         raise FileNotFoundError(f"Add order file not found: {add_order_path}")
 
-    logger.debug("Reading add order file: %s", add_order_path)
+    logger.debug(f"Reading add order file: {add_order_path}")
 
     try:
         with open(add_order_path, encoding="utf-8") as f:
@@ -73,7 +73,7 @@ def extract_citekeys_from_add_order(add_order_path: Path) -> set[str]:
         # Convert to set, ensuring all items are strings
         data_list = cast(list[Any], data)
         citekeys = {str(item) for item in data_list}
-        logger.debug("Found %d citekeys in %s", len(citekeys), add_order_path.name)
+        logger.debug(f"Found {len(citekeys)} citekeys in {add_order_path.name}")
 
         return citekeys
 
@@ -97,7 +97,7 @@ def extract_citekeys_from_identifier_collection(identifier_path: Path) -> set[st
     if not identifier_path.exists():
         raise FileNotFoundError(f"Identifier collection file not found: {identifier_path}")
 
-    logger.debug("Reading identifier collection file: %s", identifier_path)
+    logger.debug(f"Reading identifier collection file: {identifier_path}")
 
     try:
         with open(identifier_path, encoding="utf-8") as f:
@@ -109,7 +109,7 @@ def extract_citekeys_from_identifier_collection(identifier_path: Path) -> set[st
         # Convert keys to set of strings
         data_dict = cast(dict[str, Any], data)
         citekeys = {str(key) for key in data_dict.keys()}
-        logger.debug("Found %d citekeys in %s", len(citekeys), identifier_path.name)
+        logger.debug(f"Found {len(citekeys)} citekeys in {identifier_path.name}")
 
         return citekeys
 
@@ -156,34 +156,32 @@ def validate_citekey_consistency(
 
     # Report inconsistencies
     if missing_from_bib:
-        logger.error("Missing from library.bib: %s", sorted(missing_from_bib))
+        logger.error(f"Missing from library.bib: {sorted(missing_from_bib)}")
         all_consistent = False
 
     if missing_from_order:
-        logger.error("Missing from add_order.json: %s", sorted(missing_from_order))
+        logger.error(f"Missing from add_order.json: {sorted(missing_from_order)}")
         all_consistent = False
 
     if missing_from_identifiers:
-        logger.error(
-            "Missing from identifier_collection.json: %s", sorted(missing_from_identifiers)
-        )
+        logger.error(f"Missing from identifier_collection.json: {sorted(missing_from_identifiers)}")
         all_consistent = False
 
     if only_in_bib:
-        logger.error("Only in library.bib: %s", sorted(only_in_bib))
+        logger.error(f"Only in library.bib: {sorted(only_in_bib)}")
         all_consistent = False
 
     if only_in_order:
-        logger.error("Only in add_order.json: %s", sorted(only_in_order))
+        logger.error(f"Only in add_order.json: {sorted(only_in_order)}")
         all_consistent = False
 
     if only_in_identifiers:
-        logger.error("Only in identifier_collection.json: %s", sorted(only_in_identifiers))
+        logger.error(f"Only in identifier_collection.json: {sorted(only_in_identifiers)}")
         all_consistent = False
 
     if all_consistent:
         total_keys = len(bib_keys)
-        logger.info("✓ All %d citekeys are consistent across data sources", total_keys)
+        logger.info(f"✓ All {total_keys} citekeys are consistent across data sources")
     else:
         logger.error("✗ Citekey inconsistencies found across data sources")
 
@@ -220,26 +218,26 @@ def validate_citekey_labels(bib_path: Path, identifier_path: Path) -> bool:
         for current_key, expected_label in generated_labels.items():
             if current_key == expected_label:
                 matches += 1
-                logger.debug("✓ %s matches generated label", current_key)
+                logger.debug(f"✓ {current_key} matches generated label")
             else:
                 mismatches.append((current_key, expected_label))
-                logger.warning("✗ %s should be %s", current_key, expected_label)
+                logger.warning(f"✗ {current_key} should be {expected_label}")
 
         # Report results
         total_entries = len(generated_labels)
         if mismatches:
             logger.error(
-                "✗ Found %d citekey mismatches out of %d entries:", len(mismatches), total_entries
+                f"✗ Found {len(mismatches)} citekey mismatches out of {total_entries} entries:"
             )
             for current, expected in mismatches:
-                logger.error("  %s → should be → %s", current, expected)
+                logger.error(f"  {current} → should be → {expected}")
             return False
         else:
-            logger.info("✓ All %d citekeys match their generated labels", matches)
+            logger.info(f"✓ All {matches} citekeys match their generated labels")
             return True
 
     except Exception as e:
-        logger.error("Failed to validate citekey labels: %s", e)
+        logger.error(f"Failed to validate citekey labels: {e}")
         return False
 
 

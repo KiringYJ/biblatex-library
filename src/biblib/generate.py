@@ -111,7 +111,7 @@ def parse_bib_entries(bib_path: Path) -> dict[str, dict[str, str]]:
     if not bib_path.exists():
         raise FileNotFoundError(f"Bibliography file not found: {bib_path}")
 
-    logger.debug("Parsing .bib file for label generation: %s", bib_path)
+    logger.debug(f"Parsing .bib file for label generation: {bib_path}")
 
     try:
         lib = bibtexparser.parse_file(str(bib_path))  # type: ignore[attr-defined]
@@ -155,7 +155,7 @@ def parse_bib_entries(bib_path: Path) -> dict[str, dict[str, str]]:
 
             entries[entry_key] = entry_data
 
-        logger.debug("Extracted %d entries for label generation", len(entries))
+        logger.debug(f"Extracted {len(entries)} entries for label generation")
         return entries
 
     except Exception as e:
@@ -178,7 +178,7 @@ def load_identifier_collection(identifier_path: Path) -> dict[str, Any]:
     if not identifier_path.exists():
         raise FileNotFoundError(f"Identifier collection file not found: {identifier_path}")
 
-    logger.debug("Loading identifier collection: %s", identifier_path)
+    logger.debug(f"Loading identifier collection: {identifier_path}")
 
     try:
         with open(identifier_path, encoding="utf-8") as f:
@@ -189,7 +189,7 @@ def load_identifier_collection(identifier_path: Path) -> dict[str, Any]:
 
         # Type assertion after runtime check
         data_dict = cast(dict[str, Any], data)
-        logger.debug("Loaded %d identifiers", len(data_dict))
+        logger.debug(f"Loaded {len(data_dict)} identifiers")
         return data_dict
 
     except json.JSONDecodeError as e:
@@ -242,7 +242,7 @@ def generate_labels(bib_path: Path, identifier_path: Path) -> dict[str, str]:
         label = f"{lastname}-{year}-{hash_part}"
         labels[entry_key] = label
 
-        logger.debug("%s -> %s", entry_key, label)
+        logger.debug(f"{entry_key} -> {label}")
 
-    logger.info("Generated %d labels", len(labels))
+    logger.info(f"Generated {len(labels)} labels")
     return labels

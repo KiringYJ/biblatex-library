@@ -10,16 +10,8 @@
 
 - **OS**: Windows 11
 - **Shell**: PowerShell 7.5.2 (not CMD, not WSL)
-- **Python**: 3.12 with `.venv` virtual environment
+- **Python**: 3.12 with UV package manager
 - **LaTeX**: TeX Live installation with biber
-
-**Environment activation (UV)**
-
-```powershell
-# UV automatically manages the virtual environment
-uv run python -m pytest
-uv run python -m biblib.cli validate
-```
 
 **PowerShell command equivalents**
 
@@ -40,18 +32,6 @@ PowerShell does **NOT** have Unix commands. Use these equivalents:
 
 # NO: ls -la
 # YES: Get-ChildItem or dir
-```
-
-**Tool execution patterns**
-
-```powershell
-# All commands use UV - automatically manages environment
-uv run python -m pytest
-uv run python -m biblib.cli validate
-uv run pre-commit run --all-files
-
-# LaTeX compilation (system tools)
-latexmk -pdf -xelatex main.tex
 ```
 
 **Claude reminder checklist**
@@ -132,7 +112,7 @@ This repo maintains a curated **biblatex** library and tooling to:
 - Validate/normalize/sort the `.bib` database
 - Generate **CSL‑JSON** and convert to **BibTeX**
 - Provide **biblatex** and **amsrefs** LaTeX examples
-- Host our custom biblatex style (\`\`)
+- Host our custom biblatex style (`yj-standard`)
 
 ---
 
@@ -246,7 +226,7 @@ When working with citekeys/labels, **ALWAYS** update these three files simultane
 
   # Run commands with UV
   uv run python -m pytest
-  uv run python -m biblib.cli validate
+  uv run blx validate
   ```
 
 ### LaTeX examples
@@ -272,28 +252,28 @@ When working with citekeys/labels, **ALWAYS** update these three files simultane
 
 ```powershell
 # All commands use UV - no manual activation needed
-uv run python -m biblib.cli validate
+uv run blx validate
 ```
 
 **Core commands**
 
-- `uv run python -m biblib.cli validate` — JSON Schema + `biber --tool` checks
-- `uv run python -m biblib.cli sort alphabetical` — sort library.bib and identifier_collection.json alphabetically by citekey
-- `uv run python -m biblib.cli sort add-order` — sort library.bib and identifier_collection.json to match add_order.json sequence
-- `uv run python -m biblib.cli generate-labels` — generate labels for biblatex entries
+- `uv run blx validate` — JSON Schema + `biber --tool` checks
+- `uv run blx sort alphabetical` — sort library.bib and identifier_collection.json alphabetically by citekey
+- `uv run blx sort add-order` — sort library.bib and identifier_collection.json to match add_order.json sequence
+- `uv run blx generate-labels` — generate labels for biblatex entries
 
 **Future commands (TODO)**
 
-- `uv run python -m biblib.cli tidy` — normalize fields (DOI shape, ISBN‑13), optional bibtex‑tidy
-- `uv run python -m biblib.cli enrich --from crossref --ids missing` — fill gaps via Crossref
-- `uv run python -m biblib.cli export-cited --aux latex/examples/.../main.aux` — write `bib/generated/cited.bib`
-- `uv run python -m biblib.cli convert biblatex-to-bibtex --in bib/library.bib --out bib/generated/library-bibtex.bib`
+- `uv run blx tidy` — normalize fields (DOI shape, ISBN‑13), optional bibtex‑tidy
+- `uv run blx enrich --from crossref --ids missing` — fill gaps via Crossref
+- `uv run blx export-cited --aux latex/examples/.../main.aux` — write `bib/generated/cited.bib`
+- `uv run blx convert biblatex-to-bibtex --in bib/library.bib --out bib/generated/library-bibtex.bib`
 
 **CSL & conversions (TODO)**
 
-- `uv run python -m biblib.cli csl gen -o csl/out.json` — generate CSL‑JSON; validate against `csl/schema`
-- `uv run python -m biblib.cli csl render --in csl/out.json --style apa` — smoke test via citeproc
-- `uv run python -m biblib.cli convert biblatex-to-bibtex --in bib/library.bib --out bib/generated/library-bibtex.bib`
+- `uv run blx csl gen -o csl/out.json` — generate CSL‑JSON; validate against `csl/schema`
+- `uv run blx csl render --in csl/out.json --style apa` — smoke test via citeproc
+- `uv run blx convert biblatex-to-bibtex --in bib/library.bib --out bib/generated/library-bibtex.bib`
 
 ---
 
@@ -439,16 +419,16 @@ with open("data.json", "w", encoding="utf-8") as f:
 
 **Hard rule**
 
-- **Do not use **``** for diagnostics** (debug/progress/errors). Use the `` module.
+- **Do not use **`print`** for diagnostics** (debug/progress/errors). Use the `logging` module.
 
-**Library code (inside **``**)**
+**Library code**
 
 - Create a per‑module logger and **do not configure handlers** in the library:
   ```python
   # in src/biblib/whatever.py
   import logging
   logger = logging.getLogger(__name__)
-  logger.debug("validating %s", item_id)
+  logger.debug(f"validating {item_id}")
   ```
 - At package init (e.g., `src/biblib/__init__.py`), install a **NullHandler** to avoid emitting logs unless the application configures logging:
   ```python
@@ -456,7 +436,7 @@ with open("data.json", "w", encoding="utf-8") as f:
   logging.getLogger(__name__).addHandler(logging.NullHandler())
   ```
 
-**CLI / application code (e.g., **``**)**
+**CLI / application code**
 
 - The CLI is responsible for **configuring** logging (levels, handlers, format):
   ```python
@@ -470,7 +450,13 @@ with open("data.json", "w", encoding="utf-8") as f:
       )
   ```
 - Reserve **stdout** for final, user‑facing results; send logs to **stderr** (default handler behavior).
-- For exceptions, prefer `logger.exception("context...")` inside `except` blocks to include tracebacks.
+- For exceptions, prefer `logger.exception(f"failed to process {item_name}")` inside `except` blocks to include tracebacks.
+- Use f-strings for readable logging messages:
+  ```python
+  logger.info(f"processing {count} entries from {filename}")
+  logger.warning(f"missing field '{field_name}' in entry {entry_key}")
+  logger.error(f"validation failed for {filepath}: {error_details}")
+  ```
 
 **Levels & usage**
 

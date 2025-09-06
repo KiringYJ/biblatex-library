@@ -49,8 +49,8 @@ def cmd_generate_labels(args: argparse.Namespace) -> None:
         with open(output_path, "w", encoding="utf-8") as f:
             json.dump(labels, f, indent=2, ensure_ascii=False)
 
-        logger.info("✓ Generated %d labels", len(labels))
-        logger.info("✓ Saved to: %s", output_path)
+        logger.info(f"✓ Generated {len(labels)} labels")
+        logger.info(f"✓ Saved to: {output_path}")
 
         # Optionally show first few labels for verification
         if args.verbose and labels:
@@ -58,12 +58,12 @@ def cmd_generate_labels(args: argparse.Namespace) -> None:
             for i, (old_key, new_label) in enumerate(labels.items()):
                 if i >= 5:  # Show first 5 as examples
                     break
-                logger.info("  %s -> %s", old_key, new_label)
+                logger.info(f"  {old_key} -> {new_label}")
 
         sys.exit(0)
 
     except (FileNotFoundError, ValueError) as e:
-        logger.error("Label generation error: %s", e)
+        logger.error(f"Label generation error: {e}")
         sys.exit(1)
 
 
@@ -104,7 +104,7 @@ def cmd_validate(args: argparse.Namespace) -> None:
                 sys.exit(1)
 
         except (FileNotFoundError, ValueError) as e:
-            logger.error("Fix error: %s", e)
+            logger.error(f"Fix error: {e}")
             sys.exit(1)
     else:
         logger.info("Starting validation checks")
@@ -131,7 +131,7 @@ def cmd_validate(args: argparse.Namespace) -> None:
                 sys.exit(1)
 
         except (FileNotFoundError, ValueError) as e:
-            logger.error("Validation error: %s", e)
+            logger.error(f"Validation error: {e}")
             sys.exit(1)
 
 
@@ -162,13 +162,13 @@ def cmd_sort(args: argparse.Namespace) -> None:
                 add_order_path=add_order_path,
             )
         else:
-            logger.error("Invalid sort mode: %s", args.mode)
+            logger.error(f"Invalid sort mode: {args.mode}")
             sys.exit(1)
 
         logger.info("✓ Sort operation completed successfully")
 
     except (FileNotFoundError, ValueError) as e:
-        logger.error("Sort error: %s", e)
+        logger.error(f"Sort error: {e}")
         sys.exit(1)
 
 
@@ -186,7 +186,7 @@ def cmd_sync(args: argparse.Namespace) -> None:
     fields_to_sync = None
     if args.fields:
         fields_to_sync = set(field.strip() for field in args.fields.split(","))
-        logger.info("Syncing specific fields: %s", ", ".join(sorted(fields_to_sync)))
+        logger.info(f"Syncing specific fields: {', '.join(sorted(fields_to_sync))}")
 
     try:
         success, changes = sync_identifiers_to_library(
@@ -198,22 +198,22 @@ def cmd_sync(args: argparse.Namespace) -> None:
 
         if success:
             if args.dry_run:
-                logger.info("✓ Dry run completed: %d potential changes", len(changes))
+                logger.info(f"✓ Dry run completed: {len(changes)} potential changes")
                 if changes:
                     logger.info("Changes that would be made:")
                     for change in changes[:10]:  # Show first 10 changes
-                        logger.info("  %s", change)
+                        logger.info(f"  {change}")
                     if len(changes) > 10:
-                        logger.info("  ... and %d more changes", len(changes) - 10)
+                        logger.info(f"  ... and {len(changes) - 10} more changes")
             else:
-                logger.info("✓ Sync completed: %d changes applied", len(changes))
+                logger.info(f"✓ Sync completed: {len(changes)} changes applied")
             sys.exit(0)
         else:
             logger.error("✗ Sync failed")
             sys.exit(1)
 
     except (FileNotFoundError, ValueError) as e:
-        logger.error("Sync error: %s", e)
+        logger.error(f"Sync error: {e}")
         sys.exit(1)
 
 

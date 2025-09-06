@@ -86,10 +86,6 @@
         "editor.tabSize": 4,
         "editor.insertSpaces": false
     },
-    // --- Python: point VS Code to your venv interpreter (so recipes find "python") ---
-    // Windows example:
-    "python.defaultInterpreterPath": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
-    // macOS/Linux: "${workspaceFolder}/.venv/bin/python"
     // --- Python Language Server (Pylance) Configuration ---
     "python.analysis.autoImportCompletions": true,
     "python.analysis.diagnosticMode": "workspace",

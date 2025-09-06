@@ -124,6 +124,10 @@ tex/**/build/
 # Project-specific generated artifacts
 # -----------------------------
 
+# Backup files (created during testing/fixing)
+*.backup
+*.bak
+
 # Generated BibTeX/exports
 bib/generated/
 

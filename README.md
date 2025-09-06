@@ -67,6 +67,7 @@ blx validate [options]
 **Options:**
 - `-v, --verbose` - Show INFO level messages (use `-vv` for DEBUG)
 - `--workspace WORKSPACE` - Specify workspace directory (default: current directory)
+- `--fix` - Automatically fix citekeys that don't match generated labels
 
 **Examples:**
 
@@ -79,6 +80,12 @@ blx -v validate
 
 # Debug validation with detailed logging
 blx -vv validate
+
+# Automatically fix mismatched citekeys
+blx validate --fix
+
+# Fix with verbose output to see what was changed
+blx -v validate --fix
 
 # Validate a different project
 blx --workspace /path/to/other/project validate
@@ -122,6 +129,21 @@ ERROR biblib.validate:164 – Missing from identifier_collection.json: ['missing
 ERROR biblib.validate:174 – Only in add_order.json: ['missing-key-2025']
 ERROR biblib.validate:185 – ✗ Citekey inconsistencies found across data sources
 ERROR biblib.cli:96 – ✗ Validation checks failed
+
+# Automatically fixing citekey mismatches
+$ blx -v validate --fix
+INFO biblib.cli:80 – Starting validation and fixing citekeys
+INFO biblib.validate:136 – Validating citekey consistency across data sources
+INFO biblib.validate:185 – ✓ All 195 citekeys are consistent across data sources
+INFO biblib.validate:263 – Fixing citekeys to match generated labels
+INFO biblib.validate:282 – Found 2 citekey mismatches to fix
+INFO biblib.validate:288 – Fixing citekeys in library.bib
+INFO biblib.validate:292 – Fixing citekeys in add_order.json
+INFO biblib.validate:296 – Fixing citekeys in identifier_collection.json
+INFO biblib.validate:301 – ✓ Fixed: zhang-2022-5ddb276b → zhang-2022-80e83528
+INFO biblib.validate:301 – ✓ Fixed: hoffman-1971-38f649b3 → hoffman-1971-7150c568
+INFO biblib.validate:303 – ✓ Successfully fixed 2 citekeys
+INFO biblib.cli:98 – ✓ All citekey fixes applied successfully
 ```
 
 ### Label Generation

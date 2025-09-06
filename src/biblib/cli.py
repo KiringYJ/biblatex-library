@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 from .generate import generate_labels
-from .validate import validate_citekey_consistency, validate_citekey_labels
+from .validate import fix_citekey_labels, validate_citekey_consistency, validate_citekey_labels
 
 
 def setup_logging(verbosity: int = 0) -> None:
@@ -75,30 +75,62 @@ def cmd_validate(args: argparse.Namespace) -> None:
     identifier_path = workspace / "data" / "identifier_collection.json"
 
     logger = logging.getLogger(__name__)
-    logger.info("Starting validation checks")
 
-    try:
-        # Run citekey consistency validation
-        is_consistent = validate_citekey_consistency(
-            bib_path=bib_path, add_order_path=add_order_path, identifier_path=identifier_path
-        )
+    if args.fix:
+        logger.info("Starting validation and fixing citekeys")
 
-        # Run citekey label validation (check if existing keys match generated labels)
-        labels_valid = validate_citekey_labels(bib_path=bib_path, identifier_path=identifier_path)
+        try:
+            # Run citekey consistency validation first
+            is_consistent = validate_citekey_consistency(
+                bib_path=bib_path, add_order_path=add_order_path, identifier_path=identifier_path
+            )
 
-        # Check if all validations passed
-        all_valid = is_consistent and labels_valid
+            if not is_consistent:
+                logger.error("✗ Cannot fix citekeys: consistency issues must be resolved first")
+                sys.exit(1)
 
-        if all_valid:
-            logger.info("✓ All validation checks passed")
-            sys.exit(0)
-        else:
-            logger.error("✗ Validation checks failed")
+            # Fix citekey labels
+            fix_successful = fix_citekey_labels(
+                bib_path=bib_path, add_order_path=add_order_path, identifier_path=identifier_path
+            )
+
+            if fix_successful:
+                logger.info("✓ All citekey fixes applied successfully")
+                sys.exit(0)
+            else:
+                logger.error("✗ Failed to fix some citekeys")
+                sys.exit(1)
+
+        except (FileNotFoundError, ValueError) as e:
+            logger.error("Fix error: %s", e)
             sys.exit(1)
+    else:
+        logger.info("Starting validation checks")
 
-    except (FileNotFoundError, ValueError) as e:
-        logger.error("Validation error: %s", e)
-        sys.exit(1)
+        try:
+            # Run citekey consistency validation
+            is_consistent = validate_citekey_consistency(
+                bib_path=bib_path, add_order_path=add_order_path, identifier_path=identifier_path
+            )
+
+            # Run citekey label validation (check if existing keys match generated labels)
+            labels_valid = validate_citekey_labels(
+                bib_path=bib_path, identifier_path=identifier_path
+            )
+
+            # Check if all validations passed
+            all_valid = is_consistent and labels_valid
+
+            if all_valid:
+                logger.info("✓ All validation checks passed")
+                sys.exit(0)
+            else:
+                logger.error("✗ Validation checks failed")
+                sys.exit(1)
+
+        except (FileNotFoundError, ValueError) as e:
+            logger.error("Validation error: %s", e)
+            sys.exit(1)
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -128,6 +160,11 @@ def create_parser() -> argparse.ArgumentParser:
     # validate subcommand
     validate_parser = subparsers.add_parser(
         "validate", help="Validate library files for consistency and correctness"
+    )
+    validate_parser.add_argument(
+        "--fix",
+        action="store_true",
+        help="Automatically fix citekeys that don't match generated labels",
     )
     validate_parser.set_defaults(func=cmd_validate)
 

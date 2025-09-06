@@ -8,6 +8,7 @@ from biblib.validate import (
     extract_citekeys_from_add_order,
     extract_citekeys_from_bib,
     extract_citekeys_from_identifier_collection,
+    fix_citekey_labels,
     validate_citekey_consistency,
     validate_citekey_labels,
 )
@@ -227,3 +228,71 @@ def test_validate_citekey_labels_mismatched():
         # Test validation - should fail
         result = validate_citekey_labels(bib_path, identifier_path)
         assert result is False
+
+
+def test_fix_citekey_labels():
+    """Test fixing citekeys to match generated labels."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_path = Path(temp_dir)
+
+        # Create .bib file with wrong citekeys
+        bib_path = temp_path / "library.bib"
+        bib_path.write_text("""
+@book{wrong-key-1,
+  author = {Bredon, Glen E.},
+  title = {Test Book},
+  year = {1993},
+}
+
+@article{bad-key-2,
+  author = {Smith, John},
+  title = {Test Article},
+  year = {2020},
+}
+""")
+
+        # Create add_order.json with same wrong keys
+        add_order_path = temp_path / "add_order.json"
+        add_order_path.write_text(json.dumps(["wrong-key-1", "bad-key-2"]))
+
+        # Create identifier collection with same wrong keys
+        identifier_path = temp_path / "identifier_collection.json"
+        identifier_path.write_text(
+            json.dumps(
+                {
+                    "wrong-key-1": {
+                        "main_identifier": "doi",
+                        "identifiers": {"doi": "10.1007/978-1-4757-6848-0"},
+                    },
+                    "bad-key-2": {
+                        "main_identifier": "isbn",
+                        "identifiers": {"isbn": "1234567890123"},
+                    },
+                }
+            )
+        )
+
+        # Fix the citekeys
+        result = fix_citekey_labels(bib_path, add_order_path, identifier_path)
+        assert result is True
+
+        # Verify the fixes worked
+        # Check .bib file
+        bib_content = bib_path.read_text()
+        assert "@book{bredon-1993-7908a921," in bib_content
+        assert "@article{smith-2020-bca2b41a," in bib_content
+        assert "wrong-key-1" not in bib_content
+        assert "bad-key-2" not in bib_content
+
+        # Check add_order.json
+        with open(add_order_path) as f:
+            order_data = json.load(f)
+        assert order_data == ["bredon-1993-7908a921", "smith-2020-bca2b41a"]
+
+        # Check identifier_collection.json
+        with open(identifier_path) as f:
+            id_data = json.load(f)
+        assert "bredon-1993-7908a921" in id_data
+        assert "smith-2020-bca2b41a" in id_data
+        assert "wrong-key-1" not in id_data
+        assert "bad-key-2" not in id_data

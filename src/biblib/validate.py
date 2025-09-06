@@ -2,6 +2,7 @@
 
 import json
 import logging
+import re
 from pathlib import Path
 from typing import Any, cast
 
@@ -240,3 +241,137 @@ def validate_citekey_labels(bib_path: Path, identifier_path: Path) -> bool:
     except Exception as e:
         logger.error("Failed to validate citekey labels: %s", e)
         return False
+
+
+def fix_citekey_labels(bib_path: Path, add_order_path: Path, identifier_path: Path) -> bool:
+    """Fix citekeys by replacing them with their correct generated labels.
+
+    Args:
+        bib_path: Path to library.bib
+        add_order_path: Path to add_order.json
+        identifier_path: Path to identifier_collection.json
+
+    Returns:
+        True if fixes were applied successfully
+
+    Raises:
+        FileNotFoundError: If any required file is missing
+        ValueError: If parsing any file fails
+    """
+    logger.info("Fixing citekeys to match generated labels")
+
+    # Import here to avoid circular imports
+    from biblib.generate import generate_labels
+
+    try:
+        # Generate what the labels should be
+        generated_labels = generate_labels(bib_path, identifier_path)
+
+        # Find mismatches
+        mismatches: list[tuple[str, str]] = []
+        for current_key, expected_label in generated_labels.items():
+            if current_key != expected_label:
+                mismatches.append((current_key, expected_label))
+
+        if not mismatches:
+            logger.info("✓ All citekeys already match their generated labels")
+            return True
+
+        logger.info("Found %d citekey mismatches to fix", len(mismatches))
+
+        # Create mapping for replacements
+        replacement_map = dict(mismatches)
+
+        # Fix library.bib file
+        logger.info("Fixing citekeys in %s", bib_path.name)
+        _fix_bib_file(bib_path, replacement_map)
+
+        # Fix add_order.json file
+        logger.info("Fixing citekeys in %s", add_order_path.name)
+        _fix_add_order_file(add_order_path, replacement_map)
+
+        # Fix identifier_collection.json file
+        logger.info("Fixing citekeys in %s", identifier_path.name)
+        _fix_identifier_collection_file(identifier_path, replacement_map)
+
+        # Report what was fixed
+        for old_key, new_key in mismatches:
+            logger.info("✓ Fixed: %s → %s", old_key, new_key)
+
+        logger.info("✓ Successfully fixed %d citekeys", len(mismatches))
+        return True
+
+    except Exception as e:
+        logger.error("Failed to fix citekey labels: %s", e)
+        return False
+
+
+def _fix_bib_file(bib_path: Path, replacement_map: dict[str, str]) -> None:
+    """Fix citekeys in the .bib file.
+
+    Args:
+        bib_path: Path to the .bib file
+        replacement_map: Dictionary mapping old citekeys to new ones
+    """
+    # Read the file content
+    with open(bib_path, encoding="utf-8") as f:
+        content = f.read()
+
+    # Replace citekeys in entry declarations
+    for old_key, new_key in replacement_map.items():
+        # Pattern to match @entrytype{oldkey, (with word boundaries)
+        pattern = rf"(@[a-zA-Z]+\s*\{{\s*){re.escape(old_key)}(\s*,)"
+        replacement = rf"\1{new_key}\2"
+        content = re.sub(pattern, replacement, content)
+
+    # Write back the modified content
+    with open(bib_path, "w", encoding="utf-8") as f:
+        f.write(content)
+
+
+def _fix_add_order_file(add_order_path: Path, replacement_map: dict[str, str]) -> None:
+    """Fix citekeys in the add_order.json file.
+
+    Args:
+        add_order_path: Path to add_order.json
+        replacement_map: Dictionary mapping old citekeys to new ones
+    """
+    # Load the JSON data
+    with open(add_order_path, encoding="utf-8") as f:
+        data = json.load(f)
+
+    # Replace citekeys in the list
+    if isinstance(data, list):
+        data_list = cast(list[Any], data)
+        for i, key in enumerate(data_list):
+            key_str = str(key)
+            if key_str in replacement_map:
+                data_list[i] = replacement_map[key_str]
+
+    # Write back the modified data
+    with open(add_order_path, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+
+
+def _fix_identifier_collection_file(identifier_path: Path, replacement_map: dict[str, str]) -> None:
+    """Fix citekeys in the identifier_collection.json file.
+
+    Args:
+        identifier_path: Path to identifier_collection.json
+        replacement_map: Dictionary mapping old citekeys to new ones
+    """
+    # Load the JSON data
+    with open(identifier_path, encoding="utf-8") as f:
+        data = json.load(f)
+
+    # Replace keys in the dictionary
+    if isinstance(data, dict):
+        data_dict = cast(dict[str, Any], data)
+        new_data: dict[str, Any] = {}
+        for old_key, value in data_dict.items():
+            new_key = replacement_map.get(old_key, old_key)
+            new_data[new_key] = value
+
+        # Write back the modified data
+        with open(identifier_path, "w", encoding="utf-8") as f:
+            json.dump(new_data, f, indent=2, ensure_ascii=False)

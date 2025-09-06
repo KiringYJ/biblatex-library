@@ -6,6 +6,7 @@ import logging
 import sys
 from pathlib import Path
 
+from .add_entries import add_entries_from_staging
 from .generate import generate_labels
 from .sort import sort_alphabetically, sort_by_add_order
 from .sync import sync_identifiers_to_library
@@ -217,6 +218,30 @@ def cmd_sync(args: argparse.Namespace) -> None:
         sys.exit(1)
 
 
+def cmd_add(args: argparse.Namespace) -> None:
+    """Add new entries from staging files to the main library."""
+    workspace = Path(args.workspace)
+    logger = logging.getLogger(__name__)
+
+    try:
+        success, processed_slugs = add_entries_from_staging(workspace=workspace)
+
+        if success:
+            if processed_slugs:
+                logger.info(f"✓ Successfully added {len(processed_slugs)} new entries")
+                logger.info(f"Processed files: {', '.join(processed_slugs)}")
+            else:
+                logger.info("✓ No new entries to add")
+            sys.exit(0)
+        else:
+            logger.error("✗ Failed to add entries")
+            sys.exit(1)
+
+    except (FileNotFoundError, ValueError) as e:
+        logger.error(f"Add entries error: {e}")
+        sys.exit(1)
+
+
 def create_parser() -> argparse.ArgumentParser:
     """Create the argument parser for the CLI."""
     parser = argparse.ArgumentParser(
@@ -288,6 +313,12 @@ def create_parser() -> argparse.ArgumentParser:
         help="Comma-separated list of fields to sync (default: isbn,doi,url,arxiv,mrnumber,zbl)",
     )
     sync_parser.set_defaults(func=cmd_sync)
+
+    # add subcommand
+    add_parser = subparsers.add_parser(
+        "add", help="Add new entries from staging files to the main library"
+    )
+    add_parser.set_defaults(func=cmd_add)
 
     return parser
 

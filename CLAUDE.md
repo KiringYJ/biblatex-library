@@ -696,7 +696,7 @@ Add a `pre-commit` local hook to refuse commits if no backup was created in the 
 
 ---
 
-## 15) Incident response (post-mortem process)
+## 16) Incident response (post-mortem process)
 
 **Detection**
 
@@ -724,21 +724,150 @@ Add a `pre-commit` local hook to refuse commits if no backup was created in the 
 - Ensure all tests (new and existing) pass.
 - Validate data integrity, especially for affected bibliography entries.
 
-**Post-mortem**
-
-- Document the incident in the post-mortem section of `CLAUDE.md`.
-- Include:
-  - Date/time of the incident
-  - Duration of the incident
-  - Root cause analysis
-  - Steps taken to resolve
-  - Preventive measures for the future
-- Schedule a review meeting if necessary to discuss broader impacts or process changes.
-
 **Prevention**
 
 - Review and improve monitoring/alerting on CI and data integrity checks.
 - Consider automated backups or snapshots before critical operations.
 - Enhance documentation and training on the importance of the triple-file integrity and backup procedures.
+
+---
+
+## 16) Preventing API Misuse Bugs
+
+### **The Problem: Silent API Failures**
+
+Modern libraries often have multiple ways to do the same thing, and not all methods work as expected. The bibtexparser v2 incident (library.entries.append() vs library.add()) exemplifies this - the wrong method silently failed without errors.
+
+### **Mandatory API Validation Checklist**
+
+Before using any external library method:
+
+1. **Consult Official Documentation First**
+   ```powershell
+   # For Python libraries, always check help() in REPL
+   python -c "import bibtexparser; help(bibtexparser.Library.add)"
+   # or dir() to explore available methods
+   python -c "import bibtexparser; print([m for m in dir(bibtexparser.Library()) if not m.startswith('_')])"
+   ```
+
+2. **Write Minimal Test Cases**
+   - Create isolated test with expected vs actual output
+   - Verify the operation actually works before integrating
+   ```python
+   # Example validation test
+   lib = bibtexparser.Library()
+   entry = parsed_entry  # from known working parse
+
+   # Test approach 1
+   lib.entries.append(entry)
+   assert len(lib.entries) > 0, "append() failed silently"
+
+   # Test approach 2
+   lib.add(entry)
+   assert len(lib.entries) > 0, "add() failed silently"
+   ```
+
+3. **Check Version-Specific Behavior**
+   - Major version changes often break APIs
+   - bibtexparser v1 vs v2 have different Entry construction
+   - Always specify exact version in dependencies
+   ```toml
+   # pyproject.toml - be specific about versions
+   dependencies = [
+       "bibtexparser>=2.0.0,<3.0.0"  # Pin major version
+   ]
+   ```
+
+### **Integration Test Requirements**
+
+**Rule:** All file I/O operations MUST have integration tests that verify actual file contents.
+
+```python
+# ❌ BAD - mocked test that hides real bugs
+@patch('biblib.add_entries.append_to_files')
+def test_add_entries(mock_append):
+    mock_append.return_value = True  # Lies about success
+    result = add_entries_from_staging(workspace)
+    assert result  # Passes but real function is broken
+
+# ✅ GOOD - real test that catches file I/O bugs
+def test_add_entries_real_files():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # Test with actual files
+        result = add_entries_from_staging(workspace)
+
+        # Verify actual file contents
+        bib_content = Path(tmpdir).joinpath("library.bib").read_text()
+        assert "@article{" in bib_content  # Real verification
+```
+
+### **Documentation Verification Protocol**
+
+When implementing features with external libraries:
+
+1. **API Reference Check**
+   - Read official docs for the specific version
+   - Check GitHub issues for known problems
+   - Look for migration guides between versions
+
+2. **Working Example Validation**
+   - Find official examples that work
+   - Copy and modify incrementally
+   - Never assume similar-looking methods work the same
+
+3. **Error Handling Verification**
+   - Test what happens when operations fail
+   - Ensure failures are detected, not silently ignored
+   ```python
+   # Verify operations actually work
+   before_count = len(library.entries)
+   library.add(entry)
+   after_count = len(library.entries)
+   if after_count == before_count:
+       raise RuntimeError("Entry was not added to library")
+   ```
+
+### **Mandatory Code Review Points**
+
+For all external library usage:
+
+- [ ] **Method source verified**: Official docs consulted for this exact method
+- [ ] **Return value validated**: Operation success confirmed by checking results
+- [ ] **Integration tested**: Real file I/O tested, not just mocked
+- [ ] **Error handling**: Failures detected and reported properly
+- [ ] **Version pinned**: Exact version specified to prevent surprise updates
+
+### **Library-Specific Guidelines**
+
+**bibtexparser v2:**
+```python
+# ✅ CORRECT patterns
+library = bibtexparser.parse_file(str(path))        # File parsing
+library.add(entry)                                  # Adding entries
+bib_string = bibtexparser.write_string(library)     # Serialization
+
+# ❌ WRONG patterns (silent failures)
+library.entries.append(entry)                       # Doesn't work
+bibtexparser.write_file(path, library)             # May use wrong encoding
+```
+
+**JSON handling:**
+```python
+# ✅ CORRECT with UTF-8 explicit
+with open(path, "w", encoding="utf-8") as f:
+    json.dump(data, f, ensure_ascii=False, indent=2)
+
+# ❌ WRONG - system default encoding
+with open(path, "w") as f:  # May use CP950 on Windows
+    json.dump(data, f)
+```
+
+### **Prevention Summary**
+
+1. **Never assume**: Test every external library method before using
+2. **Document explicitly**: Write down which methods work and which don't
+3. **Integration test**: Always verify real file operations work
+4. **Pin versions**: Prevent surprise API changes from updates
+5. **Validate results**: Check that operations actually succeeded
 
 ---

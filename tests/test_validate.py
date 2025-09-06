@@ -9,6 +9,7 @@ from biblib.validate import (
     extract_citekeys_from_bib,
     extract_citekeys_from_identifier_collection,
     validate_citekey_consistency,
+    validate_citekey_labels,
 )
 
 
@@ -139,4 +140,90 @@ def test_validate_citekey_consistency_failure():
 
         # Test validation - should fail
         result = validate_citekey_consistency(bib_path, order_path, identifier_path)
+        assert result is False
+
+
+def test_validate_citekey_labels_matching():
+    """Test citekey label validation when keys match generated labels."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_path = Path(temp_dir)
+
+        # Create .bib file with entries that will generate matching citekeys
+        bib_path = temp_path / "library.bib"
+        bib_path.write_text("""
+@book{bredon-1993-7908a921,
+  author = {Bredon, Glen E.},
+  title = {Test Book},
+  year = {1993},
+}
+
+@article{smith-2020-bca2b41a,
+  author = {Smith, John},
+  title = {Test Article},
+  year = {2020},
+}
+""")
+
+        # Create identifier collection
+        identifier_path = temp_path / "identifier_collection.json"
+        identifier_path.write_text(
+            json.dumps(
+                {
+                    "bredon-1993-7908a921": {
+                        "main_identifier": "doi",
+                        "identifiers": {"doi": "10.1007/978-1-4757-6848-0"},
+                    },
+                    "smith-2020-bca2b41a": {
+                        "main_identifier": "isbn",
+                        "identifiers": {"isbn": "1234567890123"},
+                    },
+                }
+            )
+        )
+
+        # Test validation - should pass
+        result = validate_citekey_labels(bib_path, identifier_path)
+        assert result is True
+
+
+def test_validate_citekey_labels_mismatched():
+    """Test citekey label validation when keys don't match generated labels."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_path = Path(temp_dir)
+
+        # Create .bib file with entries that have wrong citekeys
+        bib_path = temp_path / "library.bib"
+        bib_path.write_text("""
+@book{wrong-key-1,
+  author = {Bredon, Glen E.},
+  title = {Test Book},
+  year = {1993},
+}
+
+@article{bad-key-2,
+  author = {Smith, John},
+  title = {Test Article},
+  year = {2020},
+}
+""")
+
+        # Create identifier collection
+        identifier_path = temp_path / "identifier_collection.json"
+        identifier_path.write_text(
+            json.dumps(
+                {
+                    "wrong-key-1": {
+                        "main_identifier": "doi",
+                        "identifiers": {"doi": "10.1007/978-1-4757-6848-0"},
+                    },
+                    "bad-key-2": {
+                        "main_identifier": "isbn",
+                        "identifiers": {"isbn": "1234567890123"},
+                    },
+                }
+            )
+        )
+
+        # Test validation - should fail
+        result = validate_citekey_labels(bib_path, identifier_path)
         assert result is False

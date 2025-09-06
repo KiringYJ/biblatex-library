@@ -187,3 +187,56 @@ def validate_citekey_consistency(
         logger.error("✗ Citekey inconsistencies found across data sources")
 
     return all_consistent
+
+
+def validate_citekey_labels(bib_path: Path, identifier_path: Path) -> bool:
+    """Validate that existing citekeys match their generated labels.
+
+    Args:
+        bib_path: Path to library.bib
+        identifier_path: Path to identifier_collection.json
+
+    Returns:
+        True if all citekeys match their generated labels
+
+    Raises:
+        FileNotFoundError: If any required file is missing
+        ValueError: If parsing any file fails
+    """
+    logger.info("Validating that citekeys match generated labels")
+
+    # Import here to avoid circular imports
+    from biblib.generate import generate_labels
+
+    try:
+        # Generate what the labels should be
+        generated_labels = generate_labels(bib_path, identifier_path)
+
+        # Check each entry
+        mismatches: list[tuple[str, str]] = []
+        matches = 0
+
+        for current_key, expected_label in generated_labels.items():
+            if current_key == expected_label:
+                matches += 1
+                logger.debug("✓ %s matches generated label", current_key)
+            else:
+                mismatches.append((current_key, expected_label))
+                logger.warning("✗ %s should be %s", current_key, expected_label)
+
+        # Report results
+        total_entries = len(generated_labels)
+        if mismatches:
+            logger.error(
+                "✗ Found %d citekey mismatches out of %d entries:", len(mismatches), total_entries
+            )
+            for current, expected in mismatches:
+                logger.error("  %s → should be → %s", current, expected)
+            return False
+        else:
+            logger.info("✓ All %d citekeys match their generated labels", matches)
+            return True
+
+    except Exception as e:
+        logger.error("Failed to validate citekey labels: %s", e)
+        return False

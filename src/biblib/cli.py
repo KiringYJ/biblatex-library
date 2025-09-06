@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 from .generate import generate_labels
-from .validate import validate_citekey_consistency
+from .validate import validate_citekey_consistency, validate_citekey_labels
 
 
 def setup_logging(verbosity: int = 0) -> None:
@@ -83,7 +83,13 @@ def cmd_validate(args: argparse.Namespace) -> None:
             bib_path=bib_path, add_order_path=add_order_path, identifier_path=identifier_path
         )
 
-        if is_consistent:
+        # Run citekey label validation (check if existing keys match generated labels)
+        labels_valid = validate_citekey_labels(bib_path=bib_path, identifier_path=identifier_path)
+
+        # Check if all validations passed
+        all_valid = is_consistent and labels_valid
+
+        if all_valid:
             logger.info("✓ All validation checks passed")
             sys.exit(0)
         else:

@@ -60,6 +60,7 @@ blx validate [options]
 
 **What it validates:**
 - **Citekey consistency** - Ensures `bib/library.bib`, `data/add_order.json`, and `data/identifier_collection.json` contain the same set of citekeys
+- **Citekey labels** - Validates that existing citekeys match their generated labels (format: `lastname-year-hash`)
 - **JSON Schema validation** - Validates data files against their schemas
 - **Biber compatibility** - Checks that the .bib file can be processed by biber
 
@@ -92,20 +93,35 @@ blx --workspace /path/to/other/project validate
 ```
 # Successful validation
 $ blx -v validate
-INFO biblib.cli:34 – Starting validation checks
-INFO biblib.validate:134 – Validating citekey consistency across data sources
-INFO biblib.validate:183 – ✓ All 195 citekeys are consistent across data sources
-INFO biblib.cli:43 – ✓ All validation checks passed
+INFO biblib.cli:78 – Starting validation checks
+INFO biblib.validate:136 – Validating citekey consistency across data sources
+INFO biblib.validate:185 – ✓ All 195 citekeys are consistent across data sources
+INFO biblib.validate:206 – Validating that citekeys match generated labels
+INFO biblib.validate:240 – ✓ All 195 citekeys match their generated labels
+INFO biblib.cli:95 – ✓ All validation checks passed
 
-# Failed validation
+# Failed validation (citekey mismatches)
 $ blx -v validate
-INFO biblib.cli:34 – Starting validation checks
-INFO biblib.validate:134 – Validating citekey consistency across data sources
+INFO biblib.cli:78 – Starting validation checks
+INFO biblib.validate:136 – Validating citekey consistency across data sources
+INFO biblib.validate:185 – ✓ All 195 citekeys are consistent across data sources
+INFO biblib.validate:206 – Validating that citekeys match generated labels
+WARNING biblib.validate:225 – ✗ zhang-2022-5ddb276b should be zhang-2022-80e83528
+WARNING biblib.validate:225 – ✗ hoffman-1971-38f649b3 should be hoffman-1971-7150c568
+ERROR biblib.validate:230 – ✗ Found 2 citekey mismatches out of 195 entries:
+ERROR biblib.validate:236 –   zhang-2022-5ddb276b → should be → zhang-2022-80e83528
+ERROR biblib.validate:236 –   hoffman-1971-38f649b3 → should be → hoffman-1971-7150c568
+ERROR biblib.cli:96 – ✗ Validation checks failed
+
+# Failed validation (consistency issues)
+$ blx -v validate
+INFO biblib.cli:78 – Starting validation checks
+INFO biblib.validate:136 – Validating citekey consistency across data sources
 ERROR biblib.validate:156 – Missing from library.bib: ['missing-key-2025']
 ERROR biblib.validate:164 – Missing from identifier_collection.json: ['missing-key-2025']
 ERROR biblib.validate:174 – Only in add_order.json: ['missing-key-2025']
 ERROR biblib.validate:185 – ✗ Citekey inconsistencies found across data sources
-ERROR biblib.cli:46 – ✗ Validation checks failed
+ERROR biblib.cli:96 – ✗ Validation checks failed
 ```
 
 ### Label Generation

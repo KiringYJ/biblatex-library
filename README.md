@@ -42,6 +42,12 @@ blx generate-labels
 # Generate labels with custom output
 blx generate-labels -o my_labels.json
 
+# Sort files alphabetically by citekey (default)
+blx sort
+
+# Sort files to match add_order.json sequence
+blx sort add-order
+
 # Validate specific workspace
 blx --workspace /path/to/project validate
 ```
@@ -196,12 +202,74 @@ INFO biblib.cli:59 –   dubrovin-1985-b24c3982 -> dubrovin-1985-b24c3982
 
 The generated JSON file maps original entry keys to suggested labels. This is useful for:
 - **Standardizing citekeys** across different bibliography files
-- **Generating consistent labels** for new entries  
+- **Generating consistent labels** for new entries
 - **Auditing existing labels** for consistency
 
 **Exit codes:**
 - `0` - Labels generated successfully
 - `1` - Generation failed or error occurred
+
+### Sorting
+
+The `sort` command reorders `library.bib` and `identifier_collection.json` while preserving `add_order.json`:
+
+```bash
+blx sort [mode] [options]
+```
+
+**Sorting modes:**
+- **`alphabetical`** - Sort entries alphabetically by citekey (default)
+- **`add-order`** - Sort entries to match the sequence in `data/add_order.json`
+
+**What it sorts:**
+- **library.bib** - Reorders bibliography entries
+- **identifier_collection.json** - Reorders identifier mappings
+- **add_order.json** - **Never modified** (read-only reference)
+
+**Options:**
+- `-v, --verbose` - Show INFO level messages (use `-vv` for DEBUG)
+- `--workspace WORKSPACE` - Specify workspace directory (default: current directory)
+
+**Examples:**
+
+```bash
+# Sort files alphabetically by citekey
+blx sort alphabetical
+
+# Sort files to match add_order.json sequence
+blx sort add-order
+
+# Sort with verbose output
+blx -v sort alphabetical
+
+# Sort different project
+blx --workspace /path/to/project sort add-order
+```
+
+**Sample output:**
+
+```
+$ blx -v sort alphabetical
+INFO biblib.cli:148 – Sorting files alphabetically by citekey
+INFO biblib.sort:32 – Sorting files alphabetically by citekey
+INFO biblib.sort:46 – ✓ Successfully sorted files alphabetically by citekey
+INFO biblib.cli:166 – ✓ Sort operation completed successfully
+
+$ blx -v sort add-order
+INFO biblib.cli:156 – Sorting files to match add_order.json sequence
+INFO biblib.sort:75 – Sorting files to match add_order.json sequence
+INFO biblib.sort:89 – ✓ Successfully sorted files to match add_order.json sequence
+INFO biblib.cli:166 – ✓ Sort operation completed successfully
+```
+
+**Use cases:**
+- **Alphabetical sorting** - For clean, predictable ordering in version control diffs
+- **Add-order sorting** - To restore chronological addition order for historical context
+- **Consistency maintenance** - Keep all data files synchronized
+
+**Exit codes:**
+- `0` - Sorting completed successfully
+- `1` - Sorting failed or error occurred
 
 ## Repository Structure
 

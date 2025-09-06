@@ -158,9 +158,9 @@ When working with citekeys/labels, **ALWAYS** update these three files simultane
 **Required operations for citekey changes**
 
 - **Adding entries**: Add to all three files
-- **Removing entries**: Remove from all three files  
+- **Removing entries**: Remove from all three files
 - **Renaming citekeys**: Update in all three files (use `blx validate --fix` for automated fixing)
-- **Reordering**: Only affects `data/add_order.json`
+- **Reordering**: Update `library.bib` and `identifier_collection.json` (alphabetically or by `data/add_order.json` sequence)
 
 **Automation available**
 
@@ -209,7 +209,8 @@ When working with citekeys/labels, **ALWAYS** update these three files simultane
 
 - `blx validate` — JSON Schema + `biber --tool` checks
 - `blx tidy` — normalize fields (DOI shape, ISBN‑13), optional bibtex‑tidy
-- `blx sort` — stable sort (nyt/ynt emulation)
+- `blx sort alphabetical` — sort library.bib and identifier_collection.json alphabetically by citekey
+- `blx sort add-order` — sort library.bib and identifier_collection.json to match add_order.json sequence
 - `blx enrich --from crossref --ids missing` — fill gaps via Crossref
 - `blx export-cited --aux latex/examples/.../main.aux` — write `bib/generated/cited.bib`
 
@@ -465,4 +466,3 @@ BREAKING CHANGE: Users must switch to `sortkey` via sourcemap; see docs.
 **Policy**
 
 - All commits **must** follow this format. Non‑compliant messages are rejected by hooks and CI.
-

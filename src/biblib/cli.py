@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 
 from .generate import generate_labels
+from .sort import sort_alphabetically, sort_by_add_order
 from .validate import fix_citekey_labels, validate_citekey_consistency, validate_citekey_labels
 
 
@@ -133,6 +134,43 @@ def cmd_validate(args: argparse.Namespace) -> None:
             sys.exit(1)
 
 
+def cmd_sort(args: argparse.Namespace) -> None:
+    """Sort library files."""
+    workspace = Path(args.workspace)
+
+    # Default paths based on standard repository layout
+    bib_path = workspace / "bib" / "library.bib"
+    add_order_path = workspace / "data" / "add_order.json"
+    identifier_path = workspace / "data" / "identifier_collection.json"
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        if args.mode == "alphabetical":
+            logger.info("Sorting files alphabetically by citekey")
+            sort_alphabetically(
+                library_path=bib_path,
+                identifier_path=identifier_path,
+                add_order_path=add_order_path,
+            )
+        elif args.mode == "add-order":
+            logger.info("Sorting files to match add_order.json sequence")
+            sort_by_add_order(
+                library_path=bib_path,
+                identifier_path=identifier_path,
+                add_order_path=add_order_path,
+            )
+        else:
+            logger.error("Invalid sort mode: %s", args.mode)
+            sys.exit(1)
+
+        logger.info("✓ Sort operation completed successfully")
+
+    except (FileNotFoundError, ValueError) as e:
+        logger.error("Sort error: %s", e)
+        sys.exit(1)
+
+
 def create_parser() -> argparse.ArgumentParser:
     """Create the argument parser for the CLI."""
     parser = argparse.ArgumentParser(
@@ -176,6 +214,18 @@ def create_parser() -> argparse.ArgumentParser:
         "-o", "--output", type=str, help="Output file path (default: bib/generated/labels.json)"
     )
     generate_parser.set_defaults(func=cmd_generate_labels)
+
+    # sort subcommand
+    sort_parser = subparsers.add_parser("sort", help="Sort library files by citekey")
+    sort_parser.add_argument(
+        "mode",
+        nargs="?",
+        default="alphabetical",
+        choices=["alphabetical", "add-order"],
+        help="Sort mode: 'alphabetical' sorts by citekey alphabetically (default), "
+        "'add-order' sorts to match add_order.json sequence",
+    )
+    sort_parser.set_defaults(func=cmd_sort)
 
     return parser
 

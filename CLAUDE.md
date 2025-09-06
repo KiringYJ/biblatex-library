@@ -15,6 +15,19 @@
 
 **Environment activation (REQUIRED)**
 
+**Option 1: UV (Recommended)**
+
+```powershell
+# UV automatically manages the virtual environment
+uv run python -m pytest
+uv run python -m biblib.cli validate
+
+# Or activate manually if needed
+.\.venv\Scripts\Activate.ps1
+```
+
+**Option 2: Traditional activation**
+
 **ALWAYS** activate the virtual environment before running Python commands:
 
 ```powershell
@@ -50,23 +63,26 @@ PowerShell does **NOT** have Unix commands. Use these equivalents:
 **Tool execution patterns**
 
 ```powershell
-# Python commands (ALWAYS with full path after activation)
+# UV (Recommended) - automatically manages environment
+uv run python -m pytest
+uv run python -m biblib.cli validate
+uv run pre-commit run --all-files
+
+# Traditional (after manual activation)
 .\.venv\Scripts\python.exe -m pytest
 .\.venv\Scripts\python.exe -m biblib.cli validate
-
-# Pre-commit (through Python)
 .\.venv\Scripts\python.exe -m pre_commit run --all-files
 
-# LaTeX compilation
+# LaTeX compilation (same for both)
 latexmk -pdf -xelatex main.tex
 ```
 
 **Claude reminder checklist**
 
 Before suggesting any command:
-- [ ] Is `.venv` activated? (Show activation command)
+- [ ] Prefer `uv run <command>` over manual activation?
+- [ ] If not using UV, is `.venv` activated? (Show activation command)
 - [ ] Using PowerShell syntax, not Unix/bash?
-- [ ] Using full Python path for critical commands?
 - [ ] Using `Select-String` instead of `grep`?
 - [ ] Using `Remove-Item` instead of `rm`?
 
@@ -247,14 +263,34 @@ When working with citekeys/labels, **ALWAYS** update these three files simultane
 
 ### Python (Windows PowerShell)
 
+**Option 1: UV (Recommended - Fast package manager)**
+
+- Use Python **3.12** with UV package manager:
+  ```powershell
+  # Install dependencies and create virtual environment
+  uv sync --dev
+
+  # Activate environment
+  .\.venv\Scripts\Activate.ps1
+
+  # Run commands with UV (alternative to activation)
+  uv run python -m pytest
+  uv run python -m biblib.cli validate
+  ```
+
+**Option 2: Traditional pip**
+
 - Use Python **3.12**. Create a local venv and install dev deps:
   ```powershell
   python -m venv .venv
   .\.venv\Scripts\Activate.ps1
   pip install -e ".[dev]"
   ```
-- For pinned installs (CI-like): `pip install -r requirements/dev.txt`.
+
+**Environment activation**
+
 - **ALWAYS activate venv** before running commands: `.\.venv\Scripts\Activate.ps1`
+- Alternative: Use `uv run <command>` to run commands without manual activation
 
 ### LaTeX examples
 
@@ -278,11 +314,21 @@ When working with citekeys/labels, **ALWAYS** update these three files simultane
 **Environment setup (REQUIRED FIRST)**
 
 ```powershell
-# ALWAYS activate venv before using blx
+# Option 1: UV (Recommended) - no manual activation needed
+uv run python -m biblib.cli validate
+
+# Option 2: Traditional - activate venv first
 .\.venv\Scripts\Activate.ps1
 ```
 
 **Core commands**
+
+- `uv run python -m biblib.cli validate` — JSON Schema + `biber --tool` checks
+- `uv run python -m biblib.cli sort alphabetical` — sort library.bib and identifier_collection.json alphabetically by citekey
+- `uv run python -m biblib.cli sort add-order` — sort library.bib and identifier_collection.json to match add_order.json sequence
+- `uv run python -m biblib.cli generate-labels` — generate labels for biblatex entries
+
+**Alternative (after manual activation)**
 
 - `python -m biblib.cli validate` — JSON Schema + `biber --tool` checks
 - `python -m biblib.cli sort alphabetical` — sort library.bib and identifier_collection.json alphabetically by citekey
@@ -357,6 +403,28 @@ When working with citekeys/labels, **ALWAYS** update these three files simultane
 - **Other**: JSON Schema checks, l3build tests for TeX, CSL smoke renders.
 
 ### Python quality gate (strict order; must pass **before** tests or running scripts)
+
+**Option 1: UV (Recommended)**
+
+1. **Ruff lint (auto‑fix)**
+   ```powershell
+   uv run ruff check . --fix
+   ```
+2. **Ruff format**
+   ```powershell
+   uv run ruff format .
+   ```
+3. **Type check** (use **Pylance** locally; **CI uses pyright**)
+   ```powershell
+   uv run pyright
+   ```
+   Treat **any** type error as a merge blocker.
+4. **Then** run tests / scripts
+   ```powershell
+   uv run python -m pytest -q
+   ```
+
+**Option 2: Traditional (activate venv first)**
 
 **ALWAYS activate venv first**: `.\.venv\Scripts\Activate.ps1`
 

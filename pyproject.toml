@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools>=69", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
 name = "biblib"
@@ -43,12 +43,8 @@ blx = "biblib.cli:main"
 Homepage = "https://github.com/KiringYJ/biblatex-library"
 Repository = "https://github.com/KiringYJ/biblatex-library"
 
-[tool.setuptools]
-package-dir = { "" = "src" }
-
-[tool.setuptools.packages.find]
-where = ["src"]
-include = ["biblib*"]
+[tool.hatch.build.targets.wheel]
+packages = ["src/biblib"]
 
 [tool.ruff]
 line-length = 100
@@ -76,3 +72,14 @@ venvPath = "."
 venv = ".venv"
 include = ["src", "tests"]
 reportMissingTypeStubs = false
+
+[dependency-groups]
+dev = [
+    "check-jsonschema>=0.33.3",
+    "pip-tools>=7.5.0",
+    "pre-commit>=4.3.0",
+    "pyright>=1.1.405",
+    "pytest>=8.4.2",
+    "pytest-cov>=6.2.1",
+    "ruff>=0.12.12",
+]

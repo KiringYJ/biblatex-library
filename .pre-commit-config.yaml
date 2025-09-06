@@ -9,6 +9,13 @@ repos:
         args: [--fix]        # apply safe autofixes
       - id: ruff-format
 
+  # Type checking with pyright
+  - repo: https://github.com/RobertCraigie/pyright-python
+    rev: v1.1.405
+    hooks:
+      - id: pyright
+        additional_dependencies: [bibtexparser]  # Add project dependencies needed for type checking
+
   # Validate your JSON against schemas (e.g., identifier_collection)
   - repo: https://github.com/python-jsonschema/check-jsonschema
     rev: 0.33.3
@@ -19,6 +26,16 @@ repos:
         args:
           - --schemafile
           - data/identifier_collection.schema.json
+
+  # Custom validation: Check citekey consistency and label validity
+  - repo: local
+    hooks:
+      - id: validate-citekey-consistency
+        name: Validate citekey consistency and labels
+        entry: .venv/Scripts/python.exe -m src.biblib.cli validate
+        language: system
+        files: ^(bib/library\.bib|data/add_order\.json|data/identifier_collection\.json)$
+        pass_filenames: false
 
   # Small hygiene checks
   - repo: https://github.com/pre-commit/pre-commit-hooks

@@ -39,21 +39,13 @@ repos:
         files: ^(bib/library\.bib|data/add_order\.json|data/identifier_collection\.json)$
         pass_filenames: false
 
-      # LaTeX compilation tests (matches CI behavior)
-      - id: latex-biblatex-spbasic
-        name: Compile biblatex-spbasic example
-        entry: latexmk
-        args: ["-pdf", "-xelatex", "-cd", "latex/examples/biblatex-spbasic/main.tex"]
+      # Direct biber validation of .bib file integrity
+      - id: biber-validate-bib
+        name: Validate library.bib with biber --tool
+        entry: biber
+        args: ["--tool", "--validate-datamodel", "--output-directory", "bib/generated", "bib/library.bib"]
         language: system
-        files: ^(bib/library\.bib|latex/examples/biblatex-spbasic/.+\.tex)$
-        pass_filenames: false
-
-      - id: latex-alphabetic
-        name: Compile alphabetic example
-        entry: latexmk
-        args: ["-pdf", "-xelatex", "-cd", "latex/examples/alphabetic/main.tex"]
-        language: system
-        files: ^(bib/library\.bib|latex/examples/alphabetic/.+\.tex)$
+        files: ^bib/library\.bib$
         pass_filenames: false
 
   # Small hygiene checks

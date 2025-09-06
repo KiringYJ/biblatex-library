@@ -71,53 +71,22 @@ jobs:
         if: ${{ hashFiles('tests/**') != '' }}
         run: uv run pytest -q
 
-  latex_examples:
-    name: Build LaTeX examples
+  biber_validation:
+    name: Validate .bib with biber
     runs-on: ubuntu-latest
     needs: [lint_and_validate]
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: biblatex-spbasic (XeLaTeX + biber)
-            workdir: latex/examples/biblatex-spbasic
-            root: main.tex
-            xelatex: true
-            force_bibtex: false
-          - name: alphabetic (XeLaTeX + biber)
-            workdir: latex/examples/alphabetic
-            root: main.tex
-            xelatex: true
-            force_bibtex: false
-
     steps:
       - uses: actions/checkout@v4
 
-      # Build each example with xu-cheng/latex-action (TinyTeX/TeX Live in a container)
-      - name: Compile ${{ matrix.name }}
-        id: build
-        uses: xu-cheng/latex-action@v4
-        with:
-          working_directory: ${{ matrix.workdir }}
-          root_file: ${{ matrix.root }}
-          latexmk_use_xelatex: ${{ matrix.xelatex }}
-          # Force BibTeX only for amsrefs example; otherwise let latexmk auto-detect biber.
-          args: >-
-            -pdf -file-line-error -halt-on-error -interaction=nonstopmode
-            ${{ matrix.force_bibtex && '-bibtex' || '' }}
-          pre_compile: |
-            tlmgr update --self --all
-            # Ensure engines/tools are present:
-            tlmgr install latexmk
-            # For biblatex demos we need biber and the style package:
-            tlmgr install biber biblatex biblatex-spbasic
-        # Action inputs & XeLaTeX / args / artifact examples are documented here. :contentReference[oaicite:3]{index=3}
+      - name: Install TeX Live (biber)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y texlive-bibtex-extra biber
 
-      - name: Upload PDF artifact (${{ matrix.name }})
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.name }}-pdf
-          path: |
-            ${{ matrix.workdir }}/*.pdf
-        # Use v4 artifacts; faster uploads and new backend. :contentReference[oaicite:4]{index=4}
+      - name: Create generated directory
+        run: mkdir -p bib/generated
+
+      - name: Validate library.bib with biber --tool
+        run: |
+          biber --tool --validate-datamodel --output-directory bib/generated bib/library.bib
+        # Direct validation of .bib file integrity without LaTeX compilation

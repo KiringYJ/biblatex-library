@@ -131,6 +131,12 @@ biblatex-library/
 - `bib/library.bib` is the **single source of truth**. Never commit generated fields (e.g., sort hints).
 - All derived files go to `bib/generated/` or are produced in CI.
 
+**Biblatex data model note**
+
+- `bib/library.bib` is written for **biblatex** (not classic BibTeX). It may use biblatex‑only entry types such as `@online` and `@thesis`.
+- Classic BibTeX does **not** define these types (it uses `@phdthesis`/`@mastersthesis` and has no `@online`), so **conversion/mapping is required** for BibTeX/amsrefs workflows.
+- Our converter maps `@thesis` → `@phdthesis`/`@mastersthesis` (based on the `type` field) and `@online` → `@misc` (carrying `url`/`urldate`), or an equivalent mapping supported by the target style.
+
 ---
 
 ## 5) Build & run quickstart
@@ -257,6 +263,57 @@ biblatex-library/
 
 ---
 
+## 10a) Logging policy (no print)
+
+**Hard rule**
+
+- **Do not use **``** for diagnostics** (debug/progress/errors). Use the `` module.
+
+**Library code (inside **``**)**
+
+- Create a per‑module logger and **do not configure handlers** in the library:
+  ```python
+  # in src/biblib/whatever.py
+  import logging
+  logger = logging.getLogger(__name__)
+  logger.debug("validating %s", item_id)
+  ```
+- At package init (e.g., `src/biblib/__init__.py`), install a **NullHandler** to avoid emitting logs unless the application configures logging:
+  ```python
+  import logging
+  logging.getLogger(__name__).addHandler(logging.NullHandler())
+  ```
+
+**CLI / application code (e.g., **``**)**
+
+- The CLI is responsible for **configuring** logging (levels, handlers, format):
+  ```python
+  import logging
+
+  def setup_logging(verbosity: int = 0) -> None:
+      level = {0: logging.WARNING, 1: logging.INFO}.get(min(verbosity, 1), logging.DEBUG)
+      logging.basicConfig(
+          level=level,
+          format="%(levelname)s %(name)s:%(lineno)d – %(message)s",
+      )
+  ```
+- Reserve **stdout** for final, user‑facing results; send logs to **stderr** (default handler behavior).
+- For exceptions, prefer `logger.exception("context...")` inside `except` blocks to include tracebacks.
+
+**Levels & usage**
+
+- `DEBUG` – developer trace (disabled by default)
+- `INFO` – high‑level progress
+- `WARNING` – recoverable problems / non‑default fallbacks
+- `ERROR` – operation failed but process can continue
+- `CRITICAL` – unrecoverable; process is likely to exit
+
+**Rationale**
+
+- Logging provides levels, routing to multiple destinations, formatting and tracebacks, and is controllable without code edits; `print()` cannot. Prefer logging everywhere; `print()` is allowed only for **deliberate user output** in CLI UX.
+
+---
+
 ## 11) Contribution rules
 
 - Feature branches only; no versioned names (e.g., `processV2`). Delete superseded code.
@@ -282,4 +339,93 @@ biblatex-library/
 - Don’t break existing recipes/CLI flags.
 - Don’t add complexity without a concrete payoff.
 - **Don’t hedge**; don’t accept `TODO` placeholders in production paths; don’t proceed without reproducing a reported issue.
-- \*\*Don’t manually parse \*\*`` (no regex/tokenizers). Always use **bibtexparser v2** for I/O and transforms.
+- **Don’t manually parse **`` (no regex/tokenizers). Always use **bibtexparser v2** for I/O and transforms.
+- **Don’t use **``** for diagnostics**; use `logging` (levels/handlers) instead.
+
+---
+
+## 13) Commit messages (Conventional Commits 1.0.0)
+
+**Format**
+
+```
+<type>(<optional scope>)<optional !>: <subject>
+
+[optional body]
+
+[optional footer(s)]
+```
+
+- Use **lowercase** `type` and a short, imperative **subject** (no period).
+- `scope` is optional; prefer repository‑specific scopes.
+- Use `!` after type/scope **or** a `BREAKING CHANGE:` footer to mark breaking changes.
+
+**Allowed types**
+
+- `feat` (new user‑visible feature)
+- `fix` (bug fix)
+- `docs` (documentation only)
+- `style` (formatting; no code behavior changes)
+- `refactor` (code change that neither fixes a bug nor adds a feature)
+- `perf` (performance)
+- `test` (tests only)
+- `build` (build system, packaging)
+- `ci` (continuous integration)
+- `chore` (maintenance; no src/test changes)
+- `revert` (revert a previous commit)
+
+**Repo‑specific scopes** (use when it adds clarity)
+
+- `cli`, `convert`, `csl`, `style`, `tex`, `examples`, `data`, `ledger`, `ci`, `docs`
+
+**Examples**
+
+```
+feat(cli): add `blx csl gen` to export CSL‑JSON
+fix(style): correct `yj-standard.cbx` date formatting
+chore(ci): add ruff check to pre-commit and CI
+refactor(convert): unify biblatex→BibTeX mapping pipeline
+perf(sort): speed up add_order lookup by 3x
+revert: feat(cli): add experimental subcommand   # reverts prior commit
+
+feat(style)!: drop deprecated `presort` handling
+BREAKING CHANGE: Users must switch to `sortkey` via sourcemap; see docs.
+```
+
+**Body & footer rules**
+
+- Body explains the *why* and relevant context.
+- Footer contains **issue refs** (e.g., `Closes #123`) and **breaking changes**:
+  - Use `BREAKING CHANGE: <description>` and describe migration.
+  - Alternatively use `!` after type/scope and explain the breakage in body.
+
+**Enforcement (choose one)**
+
+- **Commitizen (Python)**: interactive commits & checks
+  ```bash
+  pip install commitizen
+  cz commit   # guided commit following this spec
+  ```
+  Add to `pyproject.toml`:
+  ```toml
+  [tool.commitizen]
+  name = "cz_conventional_commits"
+  version = "0.0.0"
+  tag_format = "v$version"
+  update_changelog = true
+  ```
+- **gitlint (Python)**: lint commit messages via pre-commit
+  ```yaml
+  # .pre-commit-config.yaml
+  - repo: https://github.com/jorisroovers/gitlint
+    rev: v0.19.1
+    hooks:
+      - id: gitlint
+        stages: [commit-msg]
+  ```
+- (Node alternative) **commitlint** via Husky `commit-msg` hook, if Node is available.
+
+**Policy**
+
+- All commits **must** follow this format. Non‑compliant messages are rejected by hooks and CI.
+

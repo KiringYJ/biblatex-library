@@ -1,0 +1,36 @@
+{
+    // What to type-check
+    "include": [
+        "src",
+        "scripts",
+        "tests"
+    ],
+    "exclude": [
+        "**/__pycache__",
+        "build",
+        "dist",
+        "latex/**/build",
+        "examples/**/build"
+    ],
+    // Interpreter / venv discovery
+    "venvPath": ".",
+    "venv": ".venv",
+    "pythonVersion": "3.12",
+    // Overall strictness (you can raise to "strict" later)
+    "typeCheckingMode": "standard",
+    // Make "src" imports work without relative dots
+    "executionEnvironments": [
+        {
+            "root": "src",
+            "extraPaths": [
+                "src"
+            ]
+        },
+        {
+            "root": "scripts",
+            "extraPaths": [
+                "src"
+            ]
+        }
+    ]
+}

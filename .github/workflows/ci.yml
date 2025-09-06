@@ -1,0 +1,123 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint_and_validate:
+    name: Lint & schema checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"              # speed up reinstalls
+      # setup-python supports pip caching natively. :contentReference[oaicite:0]{index=0}
+
+      - name: Install tooling
+        run: |
+          python -m pip install -U pip
+          python -m pip install pre-commit ruff check-jsonschema pyright
+
+      - name: Run pre-commit (all hooks)
+        uses: pre-commit/action@v3.0.1
+        # Runs hooks configured in .pre-commit-config.yaml (ruff, check-jsonschema, etc.)
+        # The action wires up pre-commit caches automatically. :contentReference[oaicite:1]{index=1}
+
+      - name: Extra JSON Schema validation (explicit)
+        run: |
+          check-jsonschema --schemafile data/identifier_collection.schema.json \
+                           data/identifier_collection.json
+        # CLI usage: --schemafile <schema> <instances...>. :contentReference[oaicite:2]{index=2}
+
+      - name: Type check (pyright)
+        run: pyright
+
+  tests:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    needs: [lint_and_validate]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+      - name: Install project (dev)
+        run: |
+          python -m pip install -U pip
+          python -m pip install -e ".[dev]" || python -m pip install -e .
+      - name: Run pytest (if tests/ exists)
+        if: ${{ hashFiles('tests/**') != '' }}
+        run: |
+          python -m pip install pytest
+          pytest -q
+
+  latex_examples:
+    name: Build LaTeX examples
+    runs-on: ubuntu-latest
+    needs: [lint_and_validate]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: biblatex-spbasic (XeLaTeX + biber)
+            workdir: latex/examples/biblatex-spbasic
+            root: main.tex
+            xelatex: true
+            force_bibtex: false
+          - name: alphabetic (XeLaTeX + biber)
+            workdir: latex/examples/alphabetic
+            root: main.tex
+            xelatex: true
+            force_bibtex: false
+          - name: amsrefs (XeLaTeX + BibTeX)
+            workdir: latex/examples/amsrefs-bibtex
+            root: main.tex
+            xelatex: true
+            force_bibtex: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Build each example with xu-cheng/latex-action (TinyTeX/TeX Live in a container)
+      - name: Compile ${{ matrix.name }}
+        id: build
+        uses: xu-cheng/latex-action@v4
+        with:
+          working_directory: ${{ matrix.workdir }}
+          root_file: ${{ matrix.root }}
+          latexmk_use_xelatex: ${{ matrix.xelatex }}
+          # Force BibTeX only for amsrefs example; otherwise let latexmk auto-detect biber.
+          args: >-
+            -pdf -file-line-error -halt-on-error -interaction=nonstopmode
+            ${{ matrix.force_bibtex && '-bibtex' || '' }}
+          pre_compile: |
+            tlmgr update --self --all
+            # Ensure engines/tools are present:
+            tlmgr install latexmk
+            # For biblatex demos we need biber and the style package:
+            tlmgr install biber biblatex biblatex-spbasic
+        # Action inputs & XeLaTeX / args / artifact examples are documented here. :contentReference[oaicite:3]{index=3}
+
+      - name: Upload PDF artifact (${{ matrix.name }})
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}-pdf
+          path: |
+            ${{ matrix.workdir }}/*.pdf
+        # Use v4 artifacts; faster uploads and new backend. :contentReference[oaicite:4]{index=4}

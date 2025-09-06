@@ -1,6 +1,42 @@
-- repo: https://github.com/python-jsonschema/check-jsonschema
-  rev: 0.33.3
-  hooks:
-    - id: check-jsonschema
-      args: ["--schemafile", "data/identifier_collection.schema.json"]
-      files: ^data/identifier_collection\.json$
+# Run `pre-commit install` once, then hooks run on each commit.
+# Update hook versions with: pre-commit autoupdate
+repos:
+  # Ruff: lint + format (run linter first so fixes get reformatted)
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.12.12
+    hooks:
+      - id: ruff-check
+        args: [--fix]        # apply safe autofixes
+      - id: ruff-format
+
+  # Validate your JSON against schemas (e.g., identifier_collection)
+  - repo: https://github.com/python-jsonschema/check-jsonschema
+    rev: 0.33.3
+    hooks:
+      - id: check-jsonschema
+        name: Validate identifier_collection.json
+        files: ^data/identifier_collection\.json$
+        args:
+          - --schemafile
+          - data/identifier_collection.schema.json
+
+  # Small hygiene checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-yaml
+      - id: check-toml
+      - id: check-json
+
+# Skip common build/virtualenv dirs
+exclude: |
+  (?x)(
+    ^\.venv/|
+    ^build/|
+    ^dist/|
+    ^.+\.pdf$|
+    ^latex/.+/(build|out)/|
+    ^examples/.+/(build|out)/
+  )

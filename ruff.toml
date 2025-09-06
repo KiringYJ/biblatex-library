@@ -1,0 +1,30 @@
+# Global
+line-length = 100
+target-version = "py312"
+respect-gitignore = true
+extend-exclude = [
+    "build",
+    "dist",
+    ".venv",
+    "latex/**/build",
+    "latex/**/out",
+    "examples/**/build",
+    "examples/**/out",
+]
+src = ["src", "tests"]
+
+[lint]
+# Start pragmatic: core errors + import sorting + safe upgrades + bugbears
+select = ["E", "F", "I", "UP", "B"]
+# Add ignores here as you go; keep empty initially
+ignore = []
+# Don't auto-fix "commented-out code" (if you enable ERA later)
+unfixable = ["ERA001"]
+
+[lint.isort]
+known-first-party = ["biblib"] # your package name under src/
+
+[format]
+indent-style = "space"
+quote-style = "double"
+skip-magic-trailing-comma = false

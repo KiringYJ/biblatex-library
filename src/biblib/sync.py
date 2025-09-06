@@ -156,7 +156,10 @@ def sync_identifiers_to_library(
                     entries_modified += 1  # Save changes if not dry run
     if not dry_run and entries_modified > 0:
         try:
-            btp.write_file(str(bib_path), library)
+            # Write with explicit UTF-8 encoding to handle Unicode characters
+            bibtex_string = btp.write_string(library)
+            with open(bib_path, "w", encoding="utf-8") as f:
+                f.write(bibtex_string)
             logger.info("✓ Updated %d entries in %s", entries_modified, bib_path)
         except Exception as e:
             logger.error("Failed to write updated library: %s", e)

@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 import bibtexparser  # type: ignore[import-untyped]
+from bibtexparser.model import Entry  # type: ignore[import-untyped]
 
 from .generate import generate_labels
 from .validate import extract_citekeys_from_bib, extract_citekeys_from_identifier_collection
@@ -147,8 +148,8 @@ def load_existing_keys(bib_path: Path, identifier_path: Path, add_order_path: Pa
 
 def process_staging_entry(
     slug: str, bib_path: Path, json_path: Path, existing_keys: set[str]
-) -> tuple[str, dict[str, Any], dict[str, Any]] | None:
-    """Process a single staging entry pair.
+) -> tuple[dict[str, str], dict[str, Any], dict[str, Any]] | None:
+    """Process a staging entry pair (can contain multiple entries).
 
     Args:
         slug: The staging file slug (filename without extension)
@@ -157,7 +158,10 @@ def process_staging_entry(
         existing_keys: Set of existing citekeys to check for duplicates
 
     Returns:
-        Tuple of (new_key, entry_data, identifier_data) if successful, None if skipped
+        Tuple of (key_mapping, entry_data, identifier_data) if successful, None if skipped
+        - key_mapping: dict mapping original keys to new generated keys
+        - entry_data: dict of all processed entries with new keys
+        - identifier_data: dict of all identifier data with new keys
     """
     logger.info(f"Processing staging entry: {slug}")
 
@@ -170,12 +174,11 @@ def process_staging_entry(
             logger.error(f"Failed to parse {bib_path}: {len(lib.failed_blocks)} failed blocks")
             return None
 
-        if len(lib.entries) != 1:
-            logger.error(f"Expected exactly 1 entry in {bib_path}, found {len(lib.entries)}")
+        if len(lib.entries) == 0:
+            logger.error(f"No entries found in {bib_path}")
             return None
 
-        entry = lib.entries[0]
-        original_key = entry.key
+        logger.info(f"Found {len(lib.entries)} entries in {bib_path}")
 
         # Load identifier data
         logger.debug(f"Loading identifier data: {json_path}")
@@ -186,16 +189,66 @@ def process_staging_entry(
             logger.error(f"Expected object in {json_path}, got {type(identifier_data).__name__}")
             return None
 
-        if original_key not in identifier_data:
-            logger.error(f"Entry key '{original_key}' not found in identifier data")
+        # Initialize result containers
+        key_mapping: dict[str, str] = {}
+        all_entry_data: dict[str, Any] = {}
+        all_identifier_data: dict[str, Any] = {}
+
+        # Process each entry in the file
+        for entry in lib.entries:
+            original_key = entry.key
+
+            if original_key not in identifier_data:
+                logger.error(f"Entry key '{original_key}' not found in identifier data")
+                continue
+
+            # Extract the identifier data for this specific entry
+            entry_identifier_data: dict[str, Any] = identifier_data[original_key]  # type: ignore[assignment]
+
+            # Generate new label for this entry
+            new_key = process_single_entry(
+                entry,
+                entry_identifier_data,  # type: ignore[arg-type]
+                existing_keys,
+                original_key,
+            )
+            if new_key is None:
+                logger.error(f"Failed to generate label for entry {original_key}")
+                continue
+
+            # Store the mapping and data
+            key_mapping[original_key] = new_key
+            all_entry_data[new_key] = entry
+            all_identifier_data[new_key] = entry_identifier_data
+            existing_keys.add(new_key)  # Prevent duplicates within this batch
+
+        if not key_mapping:
+            logger.error(f"No entries were successfully processed from {slug}")
             return None
 
-        # Extract the identifier data for this specific entry
-        entry_identifier_data: dict[str, Any] = identifier_data[original_key]  # type: ignore[assignment]
+        logger.info(f"Successfully processed {len(key_mapping)} entries from {slug}")
+        return key_mapping, all_entry_data, all_identifier_data
 
-        # Generate new label
-        # Create temporary files for label generation
+    except Exception as e:
+        logger.error(f"Error processing {slug}: {e}")
+        return None
 
+
+def process_single_entry(
+    entry: Entry, entry_identifier_data: dict[str, Any], existing_keys: set[str], original_key: str
+) -> str | None:
+    """Process a single entry and generate its new key.
+
+    Args:
+        entry: The bibtex entry to process
+        entry_identifier_data: The identifier data for this entry
+        existing_keys: Set of existing keys to avoid duplicates
+        original_key: Original key of the entry
+
+    Returns:
+        New generated key if successful, None otherwise
+    """
+    try:
         # Write entry to temporary bib file
         with tempfile.NamedTemporaryFile(
             mode="w", suffix=".bib", delete=False, encoding="utf-8"
@@ -229,7 +282,7 @@ def process_staging_entry(
 
         # Check for duplicates
         if new_key in existing_keys:
-            logger.warning(f"Skipping duplicate key: {new_key} (from {slug})")
+            logger.warning(f"Skipping duplicate key: {new_key}")
             return None
 
         logger.info(f"Generated new key: {original_key} -> {new_key}")
@@ -237,14 +290,10 @@ def process_staging_entry(
         # Update entry with new key
         entry.key = new_key
 
-        # Prepare return data
-        new_entry_data: dict[str, Any] = {new_key: entry}
-        new_identifier_data: dict[str, Any] = {new_key: entry_identifier_data}
-
-        return new_key, new_entry_data, new_identifier_data
+        return new_key
 
     except Exception as e:
-        logger.error(f"Error processing {slug}: {e}")
+        logger.error(f"Error processing entry {original_key}: {e}")
         return None
 
 
@@ -370,10 +419,17 @@ def add_entries_from_staging(workspace: Path) -> tuple[bool, list[str]]:
     for slug, bib_file, json_file in pairs:
         result = process_staging_entry(slug, bib_file, json_file, existing_keys)
         if result is not None:
-            new_key, entry_data, identifier_data = result
-            new_entries.append((new_key, entry_data, identifier_data))
+            key_mapping, entry_data, identifier_data = result
+
+            # Convert to the format expected by append_to_files
+            for _original_key, new_key in key_mapping.items():
+                new_entries.append(
+                    (new_key, {new_key: entry_data[new_key]}, {new_key: identifier_data[new_key]})
+                )
+                existing_keys.add(new_key)  # Prevent duplicates within the batch
+
             processed_slugs.append(slug)
-            existing_keys.add(new_key)  # Prevent duplicates within the batch
+            logger.info(f"Processed {len(key_mapping)} entries from {slug}")
         else:
             logger.warning(f"Skipped staging pair: {slug}")
 

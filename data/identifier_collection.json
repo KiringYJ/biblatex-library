@@ -1174,5 +1174,17 @@
     "identifiers": {
       "doi": "10.1112/s0010437x20007393"
     }
+  },
+  "abramovich-2015-12dfe521": {
+    "main_identifier": "doi",
+    "identifiers": {
+      "doi": "10.24033/asens.2258"
+    }
+  },
+  "kennedyhunt-2024-067f300c": {
+    "main_identifier": "doi",
+    "identifiers": {
+      "doi": "10.1007/s00220-024-05114-3"
+    }
   }
 }

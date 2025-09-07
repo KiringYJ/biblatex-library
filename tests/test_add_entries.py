@@ -71,7 +71,12 @@ def test_process_staging_entry_success():
             )
 
             assert result is not None
-            new_key, entry_data, identifier_data = result
+            key_mapping, entry_data, identifier_data = result
+
+            # Should have one entry mapped
+            assert len(key_mapping) == 1
+            assert "temp-key" in key_mapping
+            new_key = key_mapping["temp-key"]
             assert new_key == "smith-2025-abc123"
             assert "smith-2025-abc123" in entry_data
             assert "smith-2025-abc123" in identifier_data
@@ -216,7 +221,12 @@ def test_real_label_generation_integration():
         )
 
         assert result is not None
-        new_key, entry_data, identifier_data = result
+        key_mapping, entry_data, identifier_data = result
+
+        # Should have one entry mapped
+        assert len(key_mapping) == 1
+        assert "MR123456" in key_mapping
+        new_key = key_mapping["MR123456"]
 
         # Verify the key uses DOI hash, not entry key hash
         assert new_key.startswith("smith-2025-")
@@ -265,7 +275,12 @@ def test_doi_hash_vs_entry_key_hash():
         )
 
         assert result is not None
-        new_key, _, _ = result
+        key_mapping, _, _ = result
+
+        # Should have one entry mapped
+        assert len(key_mapping) == 1
+        assert "MR4177284" in key_mapping
+        new_key = key_mapping["MR4177284"]
 
         # Calculate expected hashes
         doi_hash = hashlib.sha256(b"10.1112/s0010437x20007393").hexdigest()[:8]
@@ -278,3 +293,84 @@ def test_doi_hash_vs_entry_key_hash():
         assert new_key == f"abramovich-2020-{doi_hash}"
         # This would fail with nested JSON bug:
         assert new_key != f"abramovich-2020-{entry_key_hash}"
+
+
+def test_process_staging_entry_multiple_entries():
+    """Test that process_staging_entry can handle multiple entries in one file."""
+    import hashlib
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        workspace = Path(tmpdir)
+
+        # Create a staging file with multiple entries (like the tropical example)
+        bib_content = """@article{MR3377065,
+    author = {Abramovich, Dan and Caporaso, Lucia and Payne, Sam},
+    title = {The tropicalization of the moduli space of curves},
+    journal = {Ann. Sci. Éc. Norm. Supér. (4)},
+    volume = {48},
+    year = {2015},
+    doi = {10.24033/asens.2258}
+}
+
+@article{MR4797751,
+    author = {Kennedy-Hunt, Patrick and Shafi, Qaasim and Kumaran, Ajith Urundolil},
+    title = {Tropical refined curve counting with descendants},
+    journal = {Comm. Math. Phys.},
+    volume = {405},
+    year = {2024},
+    doi = {10.1007/s00220-024-05114-3}
+}"""
+
+        json_content = {
+            "MR3377065": {"main_identifier": "doi", "identifiers": {"doi": "10.24033/asens.2258"}},
+            "MR4797751": {
+                "main_identifier": "doi",
+                "identifiers": {"doi": "10.1007/s00220-024-05114-3"},
+            },
+        }
+
+        bib_file = workspace / "test.bib"
+        json_file = workspace / "test.json"
+
+        bib_file.write_text(bib_content, encoding="utf-8")
+        json_file.write_text(json.dumps(json_content, indent=2), encoding="utf-8")
+
+        result = process_staging_entry(
+            slug="test-multiple", bib_path=bib_file, json_path=json_file, existing_keys=set()
+        )
+
+        assert result is not None
+        key_mapping, entry_data, identifier_data = result
+
+        # Should have processed both entries
+        assert len(key_mapping) == 2
+        assert len(entry_data) == 2
+        assert len(identifier_data) == 2
+
+        # Check the original keys are mapped
+        assert "MR3377065" in key_mapping
+        assert "MR4797751" in key_mapping
+
+        # Check the new keys follow the expected pattern
+        new_key_1 = key_mapping["MR3377065"]
+        new_key_2 = key_mapping["MR4797751"]
+
+        # Calculate expected hashes
+        doi1_hash = hashlib.sha256(b"10.24033/asens.2258").hexdigest()[:8]
+        doi2_hash = hashlib.sha256(b"10.1007/s00220-024-05114-3").hexdigest()[:8]
+
+        # Check the generated keys use correct format
+        assert new_key_1 == f"abramovich-2015-{doi1_hash}"
+        assert new_key_2 == f"kennedyhunt-2024-{doi2_hash}"  # Note: hyphens removed from name
+
+        # Check that entry data and identifier data have the new keys
+        assert new_key_1 in entry_data
+        assert new_key_2 in entry_data
+        assert new_key_1 in identifier_data
+        assert new_key_2 in identifier_data
+
+        # Verify the data integrity
+        assert identifier_data[new_key_1]["main_identifier"] == "doi"
+        assert identifier_data[new_key_1]["identifiers"]["doi"] == "10.24033/asens.2258"
+        assert identifier_data[new_key_2]["main_identifier"] == "doi"
+        assert identifier_data[new_key_2]["identifiers"]["doi"] == "10.1007/s00220-024-05114-3"

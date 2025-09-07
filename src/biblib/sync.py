@@ -198,8 +198,8 @@ def _set_field_value(entry: Entry, field_name: str, value: str) -> None:
         entry.fields_dict[field_name].value = value
     else:
         # Add new field to the fields list (fields_dict is computed from this)
-        new_field = Field(field_name, value)  # type: ignore[call-arg]
-        entry.fields.append(new_field)  # type: ignore[attr-defined]
+        new_field = Field(field_name, value)
+        entry.fields.append(new_field)
 
 
 def _map_identifier_to_bibtex_field(identifier_field: str) -> str:

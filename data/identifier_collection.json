@@ -1186,5 +1186,18 @@
     "identifiers": {
       "doi": "10.1007/s00220-024-05114-3"
     }
+  },
+  "vonk-2016-d91042c4": {
+    "main_identifier": "mrnumber",
+    "identifiers": {
+      "mrnumber": "3525993"
+    }
+  },
+  "garoufalidis-2021-a73cf607": {
+    "main_identifier": "doi",
+    "identifiers": {
+      "mrnumber": "4394512",
+      "doi": "10.4171/IRMA/33-1/14"
+    }
   }
 }

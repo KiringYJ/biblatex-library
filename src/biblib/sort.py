@@ -8,7 +8,8 @@ import bibtexparser
 from bibtexparser.library import Block
 from bibtexparser.model import Entry
 
-from .types import AddOrderList, IdentifierCollection
+from .json_validation import validate_add_order_list, validate_identifier_collection
+from .types import IdentifierCollection
 
 logger = logging.getLogger(__name__)
 
@@ -30,11 +31,8 @@ def sort_alphabetically(library_path: Path, identifier_path: Path, add_order_pat
     with open(add_order_path, encoding="utf-8") as f:
         citekeys_data = json.load(f)
 
-    if not isinstance(citekeys_data, list):
-        raise ValueError(f"Expected list in {add_order_path}, got {type(citekeys_data)}")
-
-    # Type assertion for better type checking
-    citekeys: AddOrderList = citekeys_data
+    # Use proper validation function to eliminate type warnings
+    citekeys = validate_add_order_list(citekeys_data)
 
     # Sort citekeys alphabetically
     sorted_citekeys = sorted(citekeys)
@@ -65,11 +63,8 @@ def sort_by_add_order(library_path: Path, identifier_path: Path, add_order_path:
     with open(add_order_path, encoding="utf-8") as f:
         citekey_order_data = json.load(f)
 
-    if not isinstance(citekey_order_data, list):
-        raise ValueError(f"Expected list in {add_order_path}, got {type(citekey_order_data)}")
-
-    # Type assertion for better type checking
-    citekey_order: AddOrderList = citekey_order_data
+    # Use proper validation function to eliminate type warnings
+    citekey_order = validate_add_order_list(citekey_order_data)
 
     # Sort library.bib entries
     _sort_library_bib(library_path, citekey_order)
@@ -142,11 +137,8 @@ def _sort_identifier_collection(identifier_path: Path, citekey_order: list[str])
     with open(identifier_path, encoding="utf-8") as f:
         data_raw = json.load(f)
 
-    if not isinstance(data_raw, dict):
-        raise ValueError(f"Expected dict in {identifier_path}, got {type(data_raw)}")
-
-    # Type assertion for better type checking
-    data: IdentifierCollection = data_raw
+    # Use proper validation function to eliminate type warnings
+    data = validate_identifier_collection(data_raw)
 
     # Create ordered dictionary based on citekey_order
     sorted_data: IdentifierCollection = {}

@@ -10,6 +10,7 @@ import bibtexparser
 from bibtexparser.model import Entry
 
 from .generate import generate_labels
+from .json_validation import validate_add_order_list, validate_identifier_collection
 from .types import AddOrderList, EntryIdentifierData, IdentifierCollection, KeyMapping
 from .validate import extract_citekeys_from_bib, extract_citekeys_from_identifier_collection
 
@@ -136,7 +137,8 @@ def load_existing_keys(bib_path: Path, identifier_path: Path, add_order_path: Pa
     try:
         if add_order_path.exists():
             with open(add_order_path, encoding="utf-8") as f:
-                add_order_data: AddOrderList = json.load(f)
+                raw_data = json.load(f)
+                add_order_data = validate_add_order_list(raw_data)
                 existing_keys.update(str(key) for key in add_order_data)
     except Exception as e:
         logger.error(f"Failed to load keys from {add_order_path}: {e}")
@@ -182,7 +184,8 @@ def process_staging_entry(
         # Load identifier data
         logger.debug(f"Loading identifier data: {json_path}")
         with open(json_path, encoding="utf-8") as f:
-            identifier_data: IdentifierCollection = json.load(f)
+            raw_data = json.load(f)
+            identifier_data = validate_identifier_collection(raw_data)
 
         # Initialize result containers
         key_mapping: KeyMapping = {}
@@ -337,12 +340,14 @@ def append_to_files(
         identifier_collection: IdentifierCollection = {}
         if identifier_path.exists():
             with open(identifier_path, encoding="utf-8") as f:
-                identifier_collection = json.load(f)
+                raw_data = json.load(f)
+                identifier_collection = validate_identifier_collection(raw_data)
 
         add_order: AddOrderList = []
         if add_order_path.exists():
             with open(add_order_path, encoding="utf-8") as f:
-                add_order = json.load(f)
+                raw_data = json.load(f)
+                add_order = validate_add_order_list(raw_data)
 
         # Add new entries
         for new_key, entry_data, identifier_data in new_entries:

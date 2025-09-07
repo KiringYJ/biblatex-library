@@ -7,7 +7,12 @@ from pathlib import Path
 
 import bibtexparser
 
-from .types import AddOrderList, IdentifierCollection
+from .json_validation import validate_add_order_list, validate_identifier_collection
+from .types import IdentifierCollection
+
+# Private aliases for internal use
+_validate_add_order_list = validate_add_order_list
+_validate_identifier_collection = validate_identifier_collection
 
 logger = logging.getLogger(__name__)
 
@@ -68,19 +73,9 @@ def extract_citekeys_from_add_order(add_order_path: Path) -> set[str]:
         with open(add_order_path, encoding="utf-8") as f:
             data = json.load(f)
 
-        if not isinstance(data, list):
-            raise ValueError(f"Expected array, got {type(data).__name__}")
-
-        # Validate all items are strings using a comprehension that pyright handles better
-        non_strings = [i for i, item in enumerate(data) if not isinstance(item, str)]
-        if non_strings:
-            first_bad = non_strings[0]
-            bad_type = type(data[first_bad]).__name__
-            raise ValueError(f"Expected string at index {first_bad}, got {bad_type}")
-
-        # Now we can safely assign the properly validated data
-        data_list: AddOrderList = data
-        citekeys = {item for item in data_list}  # No need for str() conversion
+        # Use proper validation function to eliminate type warnings
+        data_list = _validate_add_order_list(data)
+        citekeys = set(data_list)
         logger.debug(f"Found {len(citekeys)} citekeys in {add_order_path.name}")
 
         return citekeys
@@ -111,12 +106,9 @@ def extract_citekeys_from_identifier_collection(identifier_path: Path) -> set[st
         with open(identifier_path, encoding="utf-8") as f:
             data = json.load(f)
 
-        if not isinstance(data, dict):
-            raise ValueError(f"Expected object, got {type(data).__name__}")
-
-        # Convert keys to set of strings
-        data_dict: IdentifierCollection = data
-        citekeys = {str(key) for key in data_dict.keys()}
+        # Use proper validation function to eliminate type warnings
+        data_dict = _validate_identifier_collection(data)
+        citekeys = set(data_dict.keys())
         logger.debug(f"Found {len(citekeys)} citekeys in {identifier_path.name}")
 
         return citekeys
@@ -348,15 +340,16 @@ def _fix_add_order_file(add_order_path: Path, replacement_map: dict[str, str]) -
 
     # Replace citekeys in the list
     if isinstance(data, list):
-        data_list: AddOrderList = data
+        data_list = _validate_add_order_list(data)
         for i, key in enumerate(data_list):
-            key_str = str(key)
-            if key_str in replacement_map:
-                data_list[i] = replacement_map[key_str]
+            if key in replacement_map:
+                data_list[i] = replacement_map[key]
 
-    # Write back the modified data
-    with open(add_order_path, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
+        # Write back the modified data
+        with open(add_order_path, "w", encoding="utf-8") as f:
+            json.dump(data_list, f, indent=2, ensure_ascii=False)
+    else:
+        raise ValueError(f"Expected list in {add_order_path}, got {type(data).__name__}")
 
 
 def _fix_identifier_collection_file(identifier_path: Path, replacement_map: dict[str, str]) -> None:
@@ -372,7 +365,7 @@ def _fix_identifier_collection_file(identifier_path: Path, replacement_map: dict
 
     # Replace keys in the dictionary
     if isinstance(data, dict):
-        data_dict: IdentifierCollection = data
+        data_dict = _validate_identifier_collection(data)
         new_data: IdentifierCollection = {}
         for old_key, value in data_dict.items():
             new_key = replacement_map.get(old_key, old_key)
@@ -381,3 +374,5 @@ def _fix_identifier_collection_file(identifier_path: Path, replacement_map: dict
         # Write back the modified data
         with open(identifier_path, "w", encoding="utf-8") as f:
             json.dump(new_data, f, indent=2, ensure_ascii=False)
+    else:
+        raise ValueError(f"Expected dict in {identifier_path}, got {type(data).__name__}")

@@ -9,6 +9,7 @@ import bibtexparser as btp
 from bibtexparser.library import Library
 from bibtexparser.model import Entry
 
+from .json_validation import validate_identifier_collection
 from .types import IdentifierCollection
 
 
@@ -30,8 +31,11 @@ def load_identifier_collection(identifier_path: Path) -> IdentifierCollection:
     try:
         with open(identifier_path, encoding="utf-8") as f:
             data = json.load(f)
-        logger.debug(f"Loaded {len(data)} entries from identifier collection")
-        return data
+
+        # Validate JSON structure to eliminate type warnings
+        validated_collection = validate_identifier_collection(data)
+        logger.debug(f"Loaded {len(validated_collection)} entries from identifier collection")
+        return validated_collection
     except FileNotFoundError as e:
         raise FileNotFoundError(f"Identifier collection not found: {identifier_path}") from e
     except json.JSONDecodeError as e:

@@ -9,6 +9,7 @@ from pathlib import Path
 
 import bibtexparser
 
+from .json_validation import validate_identifier_collection
 from .types import IdentifierCollection
 
 logger = logging.getLogger(__name__)
@@ -185,11 +186,8 @@ def load_identifier_collection(identifier_path: Path) -> IdentifierCollection:
         with open(identifier_path, encoding="utf-8") as f:
             data = json.load(f)
 
-        if not isinstance(data, dict):
-            raise ValueError(f"Expected object, got {type(data).__name__}")
-
-        # Type assertion after runtime check
-        data_dict: IdentifierCollection = data
+        # Use proper validation function to eliminate type warnings
+        data_dict = validate_identifier_collection(data)
         logger.debug(f"Loaded {len(data_dict)} identifiers")
         return data_dict
 

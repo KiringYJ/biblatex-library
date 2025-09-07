@@ -181,3 +181,100 @@ def test_invalid_staging_files():
             )
 
             assert result is None  # Should return None on error
+
+
+def test_real_label_generation_integration():
+    """Test actual label generation without mocking - would catch JSON nesting bugs."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        workspace = Path(tmpdir)
+
+        # Create test staging files with real structure
+        bib_content = """@article{MR123456,
+    title = {Test Article for Integration},
+    author = {Smith, John},
+    year = {2025},
+    doi = {10.1000/integration.test}
+}"""
+        # Realistic staging JSON structure (not nested)
+        json_content = {
+            "MR123456": {
+                "main_identifier": "doi",
+                "identifiers": {"doi": "10.1000/integration.test"},
+            }
+        }
+
+        bib_file = workspace / "test.bib"
+        json_file = workspace / "test.json"
+
+        bib_file.write_text(bib_content, encoding="utf-8")
+        json_file.write_text(json.dumps(json_content, indent=2), encoding="utf-8")
+
+        # Call process_staging_entry WITHOUT mocking generate_labels
+        # This would have failed with the nested JSON bug
+        result = process_staging_entry(
+            slug="test", bib_path=bib_file, json_path=json_file, existing_keys=set()
+        )
+
+        assert result is not None
+        new_key, entry_data, identifier_data = result
+
+        # Verify the key uses DOI hash, not entry key hash
+        assert new_key.startswith("smith-2025-")
+        assert len(new_key.split("-")) == 3  # lastname-year-hash format
+
+        # The hash should be from DOI, not from "MR123456"
+        # If nested JSON bug existed, it would use MR123456 hash instead
+        doi_hash = new_key.split("-")[2]
+        assert doi_hash != "867430bf"  # This would be MR123456 hash (example)
+
+        assert "smith-2025-" in new_key
+        assert new_key in entry_data
+        assert new_key in identifier_data
+
+
+def test_doi_hash_vs_entry_key_hash():
+    """Test that label generation uses DOI hash, not entry key hash - catches nested JSON bug."""
+    import hashlib
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        workspace = Path(tmpdir)
+
+        # Use the exact case from the bug report
+        bib_content = """@article{MR4177284,
+    author = {Abramovich, Dan and Chen, Qile and Gross, Mark and Siebert, Bernd},
+    title = {Decomposition of degenerate {Gromov}--{Witten} invariants},
+    journal = {Compos. Math.},
+    date = {2020},
+    doi = {10.1112/s0010437x20007393}
+}"""
+        json_content = {
+            "MR4177284": {
+                "main_identifier": "doi",
+                "identifiers": {"doi": "10.1112/s0010437x20007393"},
+            }
+        }
+
+        bib_file = workspace / "test.bib"
+        json_file = workspace / "test.json"
+
+        bib_file.write_text(bib_content, encoding="utf-8")
+        json_file.write_text(json.dumps(json_content, indent=2), encoding="utf-8")
+
+        result = process_staging_entry(
+            slug="test", bib_path=bib_file, json_path=json_file, existing_keys=set()
+        )
+
+        assert result is not None
+        new_key, _, _ = result
+
+        # Calculate expected hashes
+        doi_hash = hashlib.sha256(b"10.1112/s0010437x20007393").hexdigest()[:8]
+        entry_key_hash = hashlib.sha256(b"MR4177284").hexdigest()[:8]
+
+        assert doi_hash == "d6c646d7"  # Expected correct hash
+        assert entry_key_hash == "867430bf"  # Wrong hash from buggy code
+
+        # The generated key should use DOI hash, not entry key hash
+        assert new_key == f"abramovich-2020-{doi_hash}"
+        # This would fail with nested JSON bug:
+        assert new_key != f"abramovich-2020-{entry_key_hash}"

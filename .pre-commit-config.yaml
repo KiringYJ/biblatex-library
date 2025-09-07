@@ -14,7 +14,7 @@ repos:
     rev: v1.1.405
     hooks:
       - id: pyright
-        additional_dependencies: ["bibtexparser>=2.0.0b8,<3.0.0", "pytest>=8.3"]  # Match pyproject.toml versions
+        additional_dependencies: ["bibtexparser>=2.0.0b8,<3.0.0", "pytest>=8.3", "msgspec>=0.18.0"]  # Match pyproject.toml versions
         args: ["--project", "."]  # Explicitly use local pyrightconfig.json
 
   # Validate your JSON against schemas (e.g., identifier_collection)

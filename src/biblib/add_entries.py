@@ -15,7 +15,6 @@ from .exceptions import BackupError, FileOperationError, InvalidDataError
 from .generate import generate_labels
 from .types import (
     AddOrderList,
-    EntryIdentifierData,
     IdentifierCollection,
     IdentifierData,
     KeyMapping,
@@ -159,7 +158,7 @@ def load_existing_keys(config: WorkspaceConfig) -> set[str]:
 
 def process_staging_entry(
     slug: str, bib_path: Path, json_path: Path, existing_keys: set[str]
-) -> tuple[KeyMapping, dict[str, Entry], dict[str, EntryIdentifierData]] | None:
+) -> tuple[KeyMapping, dict[str, Entry], dict[str, IdentifierData]] | None:
     """Process a staging entry pair (can contain multiple entries).
 
     Args:
@@ -200,7 +199,7 @@ def process_staging_entry(
         # Initialize result containers
         key_mapping: KeyMapping = {}
         all_entry_data: dict[str, Entry] = {}
-        all_identifier_data: dict[str, EntryIdentifierData] = {}
+        all_identifier_data: dict[str, IdentifierData] = {}
 
         # Process each entry in the file
         for entry in lib.entries:
@@ -211,7 +210,7 @@ def process_staging_entry(
                 continue
 
             # Extract the identifier data for this specific entry
-            entry_identifier_data: EntryIdentifierData = identifier_data[original_key]
+            entry_identifier_data: IdentifierData = identifier_data[original_key]
 
             # Generate new label for this entry
             new_key = process_single_entry(
@@ -245,7 +244,7 @@ def process_staging_entry(
 
 def process_single_entry(
     entry: Entry,
-    entry_identifier_data: EntryIdentifierData,
+    entry_identifier_data: IdentifierData,
     existing_keys: set[str],
     original_key: str,
 ) -> str | None:
@@ -347,7 +346,7 @@ def _load_existing_data(
 
 
 def _add_entries_to_data(
-    new_entries: list[tuple[str, dict[str, Entry], dict[str, EntryIdentifierData]]],
+    new_entries: list[tuple[str, dict[str, Entry], dict[str, IdentifierData]]],
     library: bibtexparser.Library,
     identifier_collection: IdentifierCollection,
     add_order: AddOrderList,
@@ -408,7 +407,7 @@ def _write_data_files(
 
 
 def append_to_files(
-    new_entries: list[tuple[str, dict[str, Entry], dict[str, EntryIdentifierData]]],
+    new_entries: list[tuple[str, dict[str, Entry], dict[str, IdentifierData]]],
     bib_path: Path,
     identifier_path: Path,
     add_order_path: Path,
@@ -485,7 +484,7 @@ def cleanup_processed_files(config: WorkspaceConfig, processed_slugs: list[str])
 
 def process_staging_pairs(
     pairs: list[tuple[str, Path, Path]], existing_keys: set[str]
-) -> tuple[list[tuple[str, dict[str, Entry], dict[str, EntryIdentifierData]]], list[str]]:
+) -> tuple[list[tuple[str, dict[str, Entry], dict[str, IdentifierData]]], list[str]]:
     """Process all staging pairs and collect new entries.
 
     Args:
@@ -495,7 +494,7 @@ def process_staging_pairs(
     Returns:
         Tuple of (new_entries, processed_slugs)
     """
-    new_entries: list[tuple[str, dict[str, Entry], dict[str, EntryIdentifierData]]] = []
+    new_entries: list[tuple[str, dict[str, Entry], dict[str, IdentifierData]]] = []
     processed_slugs: list[str] = []
 
     for slug, bib_file, json_file in pairs:

@@ -12,13 +12,6 @@ class IdentifierData(TypedDict):
     identifiers: dict[str, str]
 
 
-class EntryIdentifierData(TypedDict):
-    """Structure for entry identifier data in JSON files."""
-
-    main_identifier: str
-    identifiers: dict[str, str]
-
-
 # Type aliases for common data structures
 IdentifierCollection = dict[str, IdentifierData]
 AddOrderList = list[str]

@@ -10,6 +10,7 @@ from .add_entries import add_entries_from_staging
 from .generate import generate_labels
 from .sort import sort_alphabetically, sort_by_add_order
 from .sync import sync_identifiers_to_library
+from .template import generate_staging_templates
 from .validate import fix_citekey_labels, validate_citekey_consistency, validate_citekey_labels
 
 
@@ -242,6 +243,29 @@ def cmd_add(args: argparse.Namespace) -> None:
         sys.exit(1)
 
 
+def cmd_template(args: argparse.Namespace) -> None:
+    """Generate identifier collection templates for staging .bib files."""
+    workspace = Path(args.workspace)
+    logger = logging.getLogger(__name__)
+
+    try:
+        files_processed, generated_files = generate_staging_templates(
+            workspace=workspace, overwrite=args.overwrite
+        )
+
+        if files_processed > 0:
+            logger.info(f"✓ Generated {files_processed} identifier templates")
+            logger.info(f"Created files: {', '.join(generated_files)}")
+        else:
+            logger.info("✓ No templates to generate (all .bib files already have .json companions)")
+
+        sys.exit(0)
+
+    except (FileNotFoundError, ValueError) as e:
+        logger.error(f"Template generation error: {e}")
+        sys.exit(1)
+
+
 def create_parser() -> argparse.ArgumentParser:
     """Create the argument parser for the CLI."""
     parser = argparse.ArgumentParser(
@@ -319,6 +343,20 @@ def create_parser() -> argparse.ArgumentParser:
         "add", help="Add new entries from staging files to the main library"
     )
     add_parser.set_defaults(func=cmd_add)
+
+    # template subcommand
+    template_parser = subparsers.add_parser(
+        "template", help="Generate identifier collection templates for staging .bib files"
+    )
+    template_parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help=(
+            "Overwrite existing .json files "
+            "(default: skip files that already have .json companions)"
+        ),
+    )
+    template_parser.set_defaults(func=cmd_template)
 
     return parser
 

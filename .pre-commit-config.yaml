@@ -28,9 +28,18 @@ repos:
           - --schemafile
           - data/identifier_collection.schema.json
 
-  # Custom validation: Check citekey consistency and label validity
+  # Tests and custom validation (run after linting/formatting but before complex validation)
   - repo: local
     hooks:
+      # Run tests to ensure all functionality works before validating data files
+      - id: pytest
+        name: Run pytest
+        entry: uv
+        args: ["run", "python", "-m", "pytest", "tests/", "-v"]
+        language: system
+        pass_filenames: false
+        files: ^(src/.*\.py|tests/.*\.py|pyproject\.toml)$
+
       - id: validate-citekey-consistency
         name: Validate citekey consistency and labels
         entry: uv

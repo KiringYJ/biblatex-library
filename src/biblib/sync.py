@@ -1,16 +1,15 @@
 """Synchronization utilities for updating library.bib from identifier collection."""
 
-import json
 import logging
 import re
 from pathlib import Path
 
 import bibtexparser as btp
+import msgspec
 from bibtexparser.library import Library
 from bibtexparser.model import Entry
 
-from .json_validation import validate_identifier_collection
-from .types import IdentifierCollection
+from .types import IdentifierCollection, IdentifierData
 
 
 def load_identifier_collection(identifier_path: Path) -> IdentifierCollection:
@@ -29,16 +28,14 @@ def load_identifier_collection(identifier_path: Path) -> IdentifierCollection:
     logger = logging.getLogger(__name__)
 
     try:
-        with open(identifier_path, encoding="utf-8") as f:
-            data = json.load(f)
+        with open(identifier_path, "rb") as f:
+            validated_collection = msgspec.json.decode(f.read(), type=dict[str, IdentifierData])
 
-        # Validate JSON structure to eliminate type warnings
-        validated_collection = validate_identifier_collection(data)
         logger.debug(f"Loaded {len(validated_collection)} entries from identifier collection")
         return validated_collection
     except FileNotFoundError as e:
         raise FileNotFoundError(f"Identifier collection not found: {identifier_path}") from e
-    except json.JSONDecodeError as e:
+    except (msgspec.DecodeError, msgspec.ValidationError) as e:
         raise ValueError(f"Invalid JSON in identifier collection: {e}") from e
 
 

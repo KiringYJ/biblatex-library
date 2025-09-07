@@ -5,11 +5,11 @@ import logging
 from pathlib import Path
 
 import bibtexparser
+import msgspec
 from bibtexparser.library import Block
 from bibtexparser.model import Entry
 
-from .json_validation import validate_add_order_list, validate_identifier_collection
-from .types import IdentifierCollection
+from .types import IdentifierCollection, IdentifierData
 
 logger = logging.getLogger(__name__)
 
@@ -31,8 +31,8 @@ def sort_alphabetically(library_path: Path, identifier_path: Path, add_order_pat
     with open(add_order_path, encoding="utf-8") as f:
         citekeys_data = json.load(f)
 
-    # Use proper validation function to eliminate type warnings
-    citekeys = validate_add_order_list(citekeys_data)
+    # Use msgspec for direct type-safe validation
+    citekeys = msgspec.convert(citekeys_data, type=list[str])
 
     # Sort citekeys alphabetically
     sorted_citekeys = sorted(citekeys)
@@ -63,8 +63,8 @@ def sort_by_add_order(library_path: Path, identifier_path: Path, add_order_path:
     with open(add_order_path, encoding="utf-8") as f:
         citekey_order_data = json.load(f)
 
-    # Use proper validation function to eliminate type warnings
-    citekey_order = validate_add_order_list(citekey_order_data)
+    # Use msgspec for direct type-safe validation
+    citekey_order = msgspec.convert(citekey_order_data, type=list[str])
 
     # Sort library.bib entries
     _sort_library_bib(library_path, citekey_order)
@@ -137,8 +137,8 @@ def _sort_identifier_collection(identifier_path: Path, citekey_order: list[str])
     with open(identifier_path, encoding="utf-8") as f:
         data_raw = json.load(f)
 
-    # Use proper validation function to eliminate type warnings
-    data = validate_identifier_collection(data_raw)
+    # Use msgspec for direct type-safe validation
+    data = msgspec.convert(data_raw, type=dict[str, IdentifierData])
 
     # Create ordered dictionary based on citekey_order
     sorted_data: IdentifierCollection = {}

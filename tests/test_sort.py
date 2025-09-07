@@ -5,6 +5,7 @@ import tempfile
 from collections.abc import Generator
 from pathlib import Path
 
+import msgspec
 import pytest
 
 from biblib.sort import sort_alphabetically, sort_by_add_order
@@ -159,7 +160,7 @@ def test_sort_with_invalid_add_order_format(
     with open(temp_add_order, "w", encoding="utf-8") as f:
         json.dump({"invalid": "format"}, f)
 
-    with pytest.raises(ValueError, match="Expected `array`"):
+    with pytest.raises(msgspec.ValidationError, match="Expected `array`"):
         sort_alphabetically(temp_library_bib, temp_identifier_collection, temp_add_order)
 
 
@@ -171,7 +172,7 @@ def test_sort_with_invalid_identifier_collection_format(
     with open(temp_identifier_collection, "w", encoding="utf-8") as f:
         json.dump(["invalid", "format"], f)
 
-    with pytest.raises(ValueError, match="Expected `object`"):
+    with pytest.raises(msgspec.ValidationError, match="Expected `object`"):
         sort_by_add_order(temp_library_bib, temp_identifier_collection, temp_add_order)
 
 

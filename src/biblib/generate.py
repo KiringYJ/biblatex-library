@@ -1,16 +1,15 @@
 """Label generation module for biblatex entries."""
 
 import hashlib
-import json
 import logging
 import re
 import unicodedata
 from pathlib import Path
 
 import bibtexparser
+import msgspec
 
-from .json_validation import validate_identifier_collection
-from .types import IdentifierCollection
+from .types import IdentifierCollection, IdentifierData
 
 logger = logging.getLogger(__name__)
 
@@ -183,15 +182,13 @@ def load_identifier_collection(identifier_path: Path) -> IdentifierCollection:
     logger.debug(f"Loading identifier collection: {identifier_path}")
 
     try:
-        with open(identifier_path, encoding="utf-8") as f:
-            data = json.load(f)
+        with open(identifier_path, "rb") as f:
+            data_dict = msgspec.json.decode(f.read(), type=dict[str, IdentifierData])
 
-        # Use proper validation function to eliminate type warnings
-        data_dict = validate_identifier_collection(data)
         logger.debug(f"Loaded {len(data_dict)} identifiers")
         return data_dict
 
-    except json.JSONDecodeError as e:
+    except msgspec.DecodeError as e:
         raise ValueError(f"Invalid JSON in {identifier_path}: {e}") from e
 
 

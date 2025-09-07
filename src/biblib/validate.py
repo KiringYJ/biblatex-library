@@ -6,13 +6,9 @@ import re
 from pathlib import Path
 
 import bibtexparser
+import msgspec
 
-from .json_validation import validate_add_order_list, validate_identifier_collection
-from .types import IdentifierCollection
-
-# Private aliases for internal use
-_validate_add_order_list = validate_add_order_list
-_validate_identifier_collection = validate_identifier_collection
+from .types import IdentifierCollection, IdentifierData
 
 logger = logging.getLogger(__name__)
 
@@ -73,8 +69,8 @@ def extract_citekeys_from_add_order(add_order_path: Path) -> set[str]:
         with open(add_order_path, encoding="utf-8") as f:
             data = json.load(f)
 
-        # Use proper validation function to eliminate type warnings
-        data_list = _validate_add_order_list(data)
+        # Use msgspec for direct type-safe validation
+        data_list = msgspec.convert(data, type=list[str])
         citekeys = set(data_list)
         logger.debug(f"Found {len(citekeys)} citekeys in {add_order_path.name}")
 
@@ -106,8 +102,8 @@ def extract_citekeys_from_identifier_collection(identifier_path: Path) -> set[st
         with open(identifier_path, encoding="utf-8") as f:
             data = json.load(f)
 
-        # Use proper validation function to eliminate type warnings
-        data_dict = _validate_identifier_collection(data)
+        # Use msgspec for direct type-safe validation
+        data_dict = msgspec.convert(data, type=dict[str, IdentifierData])
         citekeys = set(data_dict.keys())
         logger.debug(f"Found {len(citekeys)} citekeys in {identifier_path.name}")
 
@@ -340,7 +336,7 @@ def _fix_add_order_file(add_order_path: Path, replacement_map: dict[str, str]) -
 
     # Replace citekeys in the list
     if isinstance(data, list):
-        data_list = _validate_add_order_list(data)
+        data_list = msgspec.convert(data, type=list[str])
         for i, key in enumerate(data_list):
             if key in replacement_map:
                 data_list[i] = replacement_map[key]
@@ -365,7 +361,7 @@ def _fix_identifier_collection_file(identifier_path: Path, replacement_map: dict
 
     # Replace keys in the dictionary
     if isinstance(data, dict):
-        data_dict = _validate_identifier_collection(data)
+        data_dict = msgspec.convert(data, type=dict[str, IdentifierData])
         new_data: IdentifierCollection = {}
         for old_key, value in data_dict.items():
             new_key = replacement_map.get(old_key, old_key)

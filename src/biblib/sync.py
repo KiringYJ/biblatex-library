@@ -68,6 +68,92 @@ def load_bibtex_library(bib_path: Path) -> tuple[Library, dict[str, Entry]]:
         raise ValueError(f"Failed to parse bibtex library: {e}") from e
 
 
+def _process_entry_sync(
+    citekey: str,
+    id_info: IdentifierData,
+    entry_map: dict[str, Entry],
+    fields_to_sync: set[str],
+    dry_run: bool,
+) -> tuple[list[str], int]:
+    """Process a single entry for identifier sync.
+
+    Args:
+        citekey: The citekey to process
+        id_info: Identifier data for this entry
+        entry_map: Mapping from citekeys to Entry objects
+        fields_to_sync: Set of field names to sync
+        dry_run: Whether this is a dry run
+
+    Returns:
+        Tuple of (changes, entries_modified)
+    """
+    logger = logging.getLogger(__name__)
+
+    if citekey not in entry_map:
+        logger.warning(f"Entry {citekey} in identifier collection not found in library")
+        return [], 0
+
+    entry = entry_map[citekey]
+    identifiers = id_info.get("identifiers", {})
+    changes: list[str] = []
+    entries_modified = 0
+
+    # Check each identifier field that we can sync
+    for id_field_raw, id_value_raw in identifiers.items():
+        # Now we know these are strings from our TypedDict
+        id_field: str = id_field_raw
+        id_value: str = id_value_raw
+
+        # Map identifier collection field names to bibtex field names
+        bibtex_field = _map_identifier_to_bibtex_field(id_field)
+
+        if bibtex_field not in fields_to_sync:
+            continue
+
+        current_value = _get_field_value(entry, bibtex_field)
+        normalized_id_value = _normalize_field_value(bibtex_field, id_value, id_field)
+
+        # Check if we need to update
+        if _field_needs_update(bibtex_field, current_value, normalized_id_value):
+            change_desc = f"{citekey}: {bibtex_field} '{current_value}' -> '{normalized_id_value}'"
+            changes.append(change_desc)
+            logger.info(f"  {change_desc}")
+
+            if not dry_run:
+                _set_field_value(entry, bibtex_field, normalized_id_value)
+                entries_modified += 1  # Save changes if not dry run
+
+    return changes, entries_modified
+
+
+def _write_library_changes(bib_path: Path, library: Library, entries_modified: int) -> bool:
+    """Write changes to the library file.
+
+    Args:
+        bib_path: Path to write to
+        library: The library object to write
+        entries_modified: Number of entries that were modified
+
+    Returns:
+        True if successful, False otherwise
+    """
+    logger = logging.getLogger(__name__)
+
+    if entries_modified == 0:
+        return True
+
+    try:
+        # Write with explicit UTF-8 encoding to handle Unicode characters
+        bibtex_string = btp.write_string(library)
+        with open(bib_path, "w", encoding="utf-8") as f:
+            f.write(bibtex_string)
+        logger.info(f"✓ Updated {entries_modified} entries in {bib_path}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to write updated library: {e}")
+        return False
+
+
 def sync_identifiers_to_library(
     bib_path: Path,
     identifier_path: Path,
@@ -106,61 +192,29 @@ def sync_identifiers_to_library(
     identifier_data = load_identifier_collection(identifier_path)
     library, entry_map = load_bibtex_library(bib_path)
 
-    changes: list[str] = []
-    entries_modified = 0
+    # Process all entries and collect changes
+    all_changes: list[str] = []
+    total_entries_modified = 0
 
-    # Process each entry in identifier collection
     for citekey, id_info in identifier_data.items():
-        if citekey not in entry_map:
-            logger.warning(f"Entry {citekey} in identifier collection not found in library")
-            continue
+        entry_changes, entry_modified = _process_entry_sync(
+            citekey, id_info, entry_map, fields_to_sync, dry_run
+        )
+        all_changes.extend(entry_changes)
+        total_entries_modified += entry_modified
 
-        entry = entry_map[citekey]
-        identifiers = id_info.get("identifiers", {})
-
-        # Check each identifier field that we can sync
-        for id_field_raw, id_value_raw in identifiers.items():
-            # Now we know these are strings from our TypedDict
-            id_field: str = id_field_raw
-            id_value: str = id_value_raw
-
-            # Map identifier collection field names to bibtex field names
-            bibtex_field = _map_identifier_to_bibtex_field(id_field)
-
-            if bibtex_field not in fields_to_sync:
-                continue
-
-            current_value = _get_field_value(entry, bibtex_field)
-            normalized_id_value = _normalize_field_value(bibtex_field, id_value, id_field)
-
-            # Check if we need to update
-            if _field_needs_update(bibtex_field, current_value, normalized_id_value):
-                change_desc = (
-                    f"{citekey}: {bibtex_field} '{current_value}' -> '{normalized_id_value}'"
-                )
-                changes.append(change_desc)
-                logger.info(f"  {change_desc}")
-
-                if not dry_run:
-                    _set_field_value(entry, bibtex_field, normalized_id_value)
-                    entries_modified += 1  # Save changes if not dry run
-    if not dry_run and entries_modified > 0:
-        try:
-            # Write with explicit UTF-8 encoding to handle Unicode characters
-            bibtex_string = btp.write_string(library)
-            with open(bib_path, "w", encoding="utf-8") as f:
-                f.write(bibtex_string)
-            logger.info(f"✓ Updated {entries_modified} entries in {bib_path}")
-        except Exception as e:
-            logger.error(f"Failed to write updated library: {e}")
-            return False, changes
+    # Write changes if not dry run
+    if not dry_run:
+        success = _write_library_changes(bib_path, library, total_entries_modified)
+        if not success:
+            return False, all_changes
 
     if dry_run:
-        logger.info(f"✓ Dry run complete: {len(changes)} potential changes identified")
+        logger.info(f"✓ Dry run complete: {len(all_changes)} potential changes identified")
     else:
-        logger.info(f"✓ Sync complete: {len(changes)} changes applied")
+        logger.info(f"✓ Sync complete: {len(all_changes)} changes applied")
 
-    return True, changes
+    return True, all_changes
 
 
 def _get_field_value(entry: Entry, field_name: str) -> str | None:

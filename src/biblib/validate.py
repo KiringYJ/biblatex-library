@@ -43,8 +43,10 @@ def extract_citekeys_from_bib(bib_path: Path) -> set[str]:
 
         return citekeys
 
-    except Exception as e:
-        raise ValueError(f"Failed to parse {bib_path}: {e}") from e
+    except (OSError, PermissionError) as e:
+        raise ValueError(f"Failed to read {bib_path}: {e}") from e
+    except UnicodeDecodeError as e:
+        raise ValueError(f"Failed to decode {bib_path}: {e}") from e
 
 
 def extract_citekeys_from_add_order(add_order_path: Path) -> set[str]:
@@ -232,7 +234,10 @@ def validate_citekey_labels(bib_path: Path, identifier_path: Path) -> bool:
             logger.info(f"✓ All {matches} citekeys match their generated labels")
             return True
 
-    except Exception as e:
+    except (FileNotFoundError, OSError) as e:
+        logger.error(f"Failed to access required files: {e}")
+        return False
+    except ValueError as e:
         logger.error(f"Failed to validate citekey labels: {e}")
         return False
 
@@ -295,7 +300,10 @@ def fix_citekey_labels(bib_path: Path, add_order_path: Path, identifier_path: Pa
         logger.info("✓ Successfully fixed %d citekeys", len(mismatches))
         return True
 
-    except Exception as e:
+    except (FileNotFoundError, OSError) as e:
+        logger.error("Failed to access required files: %s", e)
+        return False
+    except ValueError as e:
         logger.error("Failed to fix citekey labels: %s", e)
         return False
 

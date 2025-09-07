@@ -10,6 +10,8 @@ import bibtexparser
 import msgspec
 from bibtexparser.model import Entry
 
+from .config import WorkspaceConfig
+from .exceptions import BackupError, FileOperationError, InvalidDataError
 from .generate import generate_labels
 from .types import (
     AddOrderList,
@@ -33,35 +35,32 @@ def create_backup(workspace: Path) -> str:
         Backup directory path
 
     Raises:
-        RuntimeError: If backup creation fails
+        BackupError: If backup creation fails
     """
     import datetime
 
     timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     backup_dir = workspace / "staging" / f"backup-{timestamp}"
+    config = WorkspaceConfig.from_workspace(workspace)
 
     try:
         backup_dir.mkdir(parents=True, exist_ok=True)
 
-        # Copy core data files
-        bib_path = workspace / "bib" / "library.bib"
-        identifier_path = workspace / "data" / "identifier_collection.json"
-        add_order_path = workspace / "data" / "add_order.json"
-
-        if bib_path.exists():
-            backup_dir.joinpath("library.bib").write_bytes(bib_path.read_bytes())
-        if identifier_path.exists():
+        # Copy core data files using config
+        if config.bib_path.exists():
+            backup_dir.joinpath("library.bib").write_bytes(config.bib_path.read_bytes())
+        if config.identifier_path.exists():
             backup_dir.joinpath("identifier_collection.json").write_bytes(
-                identifier_path.read_bytes()
+                config.identifier_path.read_bytes()
             )
-        if add_order_path.exists():
-            backup_dir.joinpath("add_order.json").write_bytes(add_order_path.read_bytes())
+        if config.add_order_path.exists():
+            backup_dir.joinpath("add_order.json").write_bytes(config.add_order_path.read_bytes())
 
         logger.info(f"Backup created at {backup_dir}")
         return str(backup_dir)
 
-    except Exception as e:
-        raise RuntimeError(f"Failed to create backup: {e}") from e
+    except OSError as e:
+        raise BackupError(f"Failed to create backup at {backup_dir}: {e}") from e
 
 
 # Pattern for staging files: YYYY-MM-DD-<slug>
@@ -115,13 +114,11 @@ def find_staging_pairs(staging_dir: Path) -> list[tuple[str, Path, Path]]:
     return pairs
 
 
-def load_existing_keys(bib_path: Path, identifier_path: Path, add_order_path: Path) -> set[str]:
+def load_existing_keys(config: WorkspaceConfig) -> set[str]:
     """Load all existing citekeys from the three data files.
 
     Args:
-        bib_path: Path to library.bib
-        identifier_path: Path to identifier_collection.json
-        add_order_path: Path to add_order.json
+        config: Workspace configuration with file paths
 
     Returns:
         Set of all existing citekeys
@@ -129,25 +126,32 @@ def load_existing_keys(bib_path: Path, identifier_path: Path, add_order_path: Pa
     existing_keys: set[str] = set()
 
     try:
-        if bib_path.exists():
-            existing_keys.update(extract_citekeys_from_bib(bib_path))
+        if config.bib_path.exists():
+            existing_keys.update(extract_citekeys_from_bib(config.bib_path))
+    except OSError as e:
+        raise FileOperationError(f"Failed to load keys from {config.bib_path}: {e}") from e
     except Exception as e:
-        logger.error(f"Failed to load keys from {bib_path}: {e}")
+        # Catch bibtexparser errors without knowing their exact type
+        raise InvalidDataError(f"Failed to parse bib file {config.bib_path}: {e}") from e
 
     try:
-        if identifier_path.exists():
-            existing_keys.update(extract_citekeys_from_identifier_collection(identifier_path))
-    except Exception as e:
-        logger.error(f"Failed to load keys from {identifier_path}: {e}")
+        if config.identifier_path.exists():
+            existing_keys.update(
+                extract_citekeys_from_identifier_collection(config.identifier_path)
+            )
+    except (OSError, msgspec.DecodeError, msgspec.ValidationError) as e:
+        raise InvalidDataError(f"Failed to load keys from {config.identifier_path}: {e}") from e
 
     try:
-        if add_order_path.exists():
-            with open(add_order_path, encoding="utf-8") as f:
+        if config.add_order_path.exists():
+            with open(config.add_order_path, encoding="utf-8") as f:
                 raw_data = json.load(f)
                 add_order_data = msgspec.convert(raw_data, type=list[str])
-                existing_keys.update(str(key) for key in add_order_data)
-    except Exception as e:
-        logger.error(f"Failed to load keys from {add_order_path}: {e}")
+                existing_keys.update(add_order_data)  # No need for str() on strings!
+    except (OSError, json.JSONDecodeError) as e:
+        raise FileOperationError(f"Failed to load keys from {config.add_order_path}: {e}") from e
+    except msgspec.ValidationError as e:
+        raise InvalidDataError(f"Invalid add_order data in {config.add_order_path}: {e}") from e
 
     logger.debug(f"Loaded {len(existing_keys)} existing keys")
     return existing_keys
@@ -233,9 +237,10 @@ def process_staging_entry(
         logger.info(f"Successfully processed {len(key_mapping)} entries from {slug}")
         return key_mapping, all_entry_data, all_identifier_data
 
-    except Exception as e:
-        logger.error(f"Error processing {slug}: {e}")
-        return None
+    except (OSError, json.JSONDecodeError) as e:
+        raise FileOperationError(f"Failed to read staging files for {slug}: {e}") from e
+    except (msgspec.DecodeError, msgspec.ValidationError) as e:
+        raise InvalidDataError(f"Invalid data format in staging files for {slug}: {e}") from e
 
 
 def process_single_entry(
@@ -300,8 +305,106 @@ def process_single_entry(
         return new_key
 
     except Exception as e:
+        # Keep this as Exception since generate_labels can have various errors
         logger.error(f"Error processing entry {original_key}: {e}")
         return None
+
+
+def _load_existing_data(
+    bib_path: Path, identifier_path: Path, add_order_path: Path
+) -> tuple[bibtexparser.Library, IdentifierCollection, AddOrderList]:
+    """Load existing data from the three data files.
+
+    Args:
+        bib_path: Path to library.bib
+        identifier_path: Path to identifier_collection.json
+        add_order_path: Path to add_order.json
+
+    Returns:
+        Tuple of (library, identifier_collection, add_order)
+    """
+    # Load library
+    if bib_path.exists():
+        library = bibtexparser.parse_file(str(bib_path))
+    else:
+        library = bibtexparser.Library()
+
+    # Load identifier collection
+    identifier_collection: IdentifierCollection = {}
+    if identifier_path.exists():
+        with open(identifier_path, encoding="utf-8") as f:
+            raw_data = json.load(f)
+            identifier_collection = msgspec.convert(raw_data, type=dict[str, IdentifierData])
+
+    # Load add order
+    add_order: AddOrderList = []
+    if add_order_path.exists():
+        with open(add_order_path, encoding="utf-8") as f:
+            raw_data = json.load(f)
+            add_order = msgspec.convert(raw_data, type=list[str])
+
+    return library, identifier_collection, add_order
+
+
+def _add_entries_to_data(
+    new_entries: list[tuple[str, dict[str, Entry], dict[str, EntryIdentifierData]]],
+    library: bibtexparser.Library,
+    identifier_collection: IdentifierCollection,
+    add_order: AddOrderList,
+) -> None:
+    """Add new entries to the data structures.
+
+    Args:
+        new_entries: List of (key, entry_data, identifier_data) tuples
+        library: Library to add entries to
+        identifier_collection: Identifier collection to update
+        add_order: Add order list to append to
+    """
+    for new_key, entry_data, identifier_data in new_entries:
+        logger.debug(f"Processing entry: {new_key}")
+
+        # Add to library
+        for entry_key, entry in entry_data.items():
+            logger.debug(f"Adding entry {entry_key} of type {type(entry)}")
+            library.add(entry)  # Use library.add() instead of library.entries.append()
+
+        # Add to identifier collection
+        identifier_collection.update(identifier_data)
+
+        # Add to add_order
+        add_order.append(new_key)
+
+        logger.debug(f"Added entry: {new_key}")
+
+
+def _write_data_files(
+    library: bibtexparser.Library,
+    identifier_collection: IdentifierCollection,
+    add_order: AddOrderList,
+    bib_path: Path,
+    identifier_path: Path,
+    add_order_path: Path,
+) -> None:
+    """Write data structures back to files.
+
+    Args:
+        library: Library to write
+        identifier_collection: Identifier collection to write
+        add_order: Add order list to write
+        bib_path: Path to library.bib
+        identifier_path: Path to identifier_collection.json
+        add_order_path: Path to add_order.json
+    """
+    # Write back to files with UTF-8 encoding
+    bib_string = bibtexparser.write_string(library)
+    with open(bib_path, "w", encoding="utf-8") as f:
+        f.write(bib_string)
+
+    with open(identifier_path, "w", encoding="utf-8") as f:
+        json.dump(identifier_collection, f, indent=2, ensure_ascii=False)
+
+    with open(add_order_path, "w", encoding="utf-8") as f:
+        json.dump(add_order, f, indent=2, ensure_ascii=False)
 
 
 def append_to_files(
@@ -332,96 +435,66 @@ def append_to_files(
     try:
         backup_path = create_backup(workspace)
         logger.info(f"✓ Backup created: {backup_path}")
-    except RuntimeError as e:
+    except BackupError as e:
         logger.error(f"✗ Backup failed: {e}")
         return False
 
     try:
         # Load existing data
-        if bib_path.exists():
-            library = bibtexparser.parse_file(str(bib_path))
-        else:
-            library = bibtexparser.Library()
+        library, identifier_collection, add_order = _load_existing_data(
+            bib_path, identifier_path, add_order_path
+        )
 
-        identifier_collection: IdentifierCollection = {}
-        if identifier_path.exists():
-            with open(identifier_path, encoding="utf-8") as f:
-                raw_data = json.load(f)
-                identifier_collection = msgspec.convert(raw_data, type=dict[str, IdentifierData])
+        # Add new entries to data structures
+        _add_entries_to_data(new_entries, library, identifier_collection, add_order)
 
-        add_order: AddOrderList = []
-        if add_order_path.exists():
-            with open(add_order_path, encoding="utf-8") as f:
-                raw_data = json.load(f)
-                add_order = msgspec.convert(raw_data, type=list[str])
-
-        # Add new entries
-        for new_key, entry_data, identifier_data in new_entries:
-            logger.debug(f"Processing entry: {new_key}")
-            logger.debug(f"Entry data type: {type(entry_data)}")
-            logger.debug(
-                f"Entry data keys: {list(entry_data.keys()) if hasattr(entry_data, 'keys') else 'Not a dict'}"  # noqa: E501
-            )
-
-            # Add to library
-            for entry_key, entry in entry_data.items():
-                logger.debug(f"Adding entry {entry_key} of type {type(entry)}")
-                library.add(entry)  # Use library.add() instead of library.entries.append()
-
-            # Add to identifier collection
-            identifier_collection.update(identifier_data)
-
-            # Add to add_order
-            add_order.append(new_key)
-
-            logger.debug(f"Added entry: {new_key}")
-
-        # Write back to files with UTF-8 encoding
-        bib_string = bibtexparser.write_string(library)
-        with open(bib_path, "w", encoding="utf-8") as f:
-            f.write(bib_string)
-
-        with open(identifier_path, "w", encoding="utf-8") as f:
-            json.dump(identifier_collection, f, indent=2, ensure_ascii=False)
-
-        with open(add_order_path, "w", encoding="utf-8") as f:
-            json.dump(add_order, f, indent=2, ensure_ascii=False)
+        # Write data back to files
+        _write_data_files(
+            library, identifier_collection, add_order, bib_path, identifier_path, add_order_path
+        )
 
         logger.info(f"Successfully appended {len(new_entries)} entries")
         return True
 
+    except OSError as e:
+        raise FileOperationError(f"Failed to write files: {e}") from e
     except Exception as e:
-        logger.error(f"Failed to append entries: {e}")
-        return False
+        # Keep Exception for bibtexparser write errors
+        raise FileOperationError(f"Failed to append entries: {e}") from e
 
 
-def add_entries_from_staging(workspace: Path) -> tuple[bool, list[str]]:
-    """Add new entries from staging directory to the main data files.
+def cleanup_processed_files(config: WorkspaceConfig, processed_slugs: list[str]) -> None:
+    """Delete processed staging files after successful addition.
 
     Args:
-        workspace: Path to the workspace root
+        config: Workspace configuration
+        processed_slugs: List of slugs to clean up
+    """
+    for slug in processed_slugs:
+        bib_file = config.staging_dir / f"{slug}.bib"
+        json_file = config.staging_dir / f"{slug}.json"
+
+        try:
+            bib_file.unlink()
+            json_file.unlink()
+            logger.info(f"Deleted processed staging files: {slug}")
+        except OSError as e:
+            logger.error(f"Failed to delete staging files for {slug}: {e}")
+            # Don't fail the whole operation for cleanup issues
+
+
+def process_staging_pairs(
+    pairs: list[tuple[str, Path, Path]], existing_keys: set[str]
+) -> tuple[list[tuple[str, dict[str, Entry], dict[str, EntryIdentifierData]]], list[str]]:
+    """Process all staging pairs and collect new entries.
+
+    Args:
+        pairs: List of (slug, bib_path, json_path) tuples
+        existing_keys: Set of existing citekeys to check against
 
     Returns:
-        Tuple of (success, list_of_processed_slugs)
+        Tuple of (new_entries, processed_slugs)
     """
-    logger.info("Starting add entries from staging workflow")
-
-    # Define paths
-    staging_dir = workspace / "staging"
-    bib_path = workspace / "bib" / "library.bib"
-    identifier_path = workspace / "data" / "identifier_collection.json"
-    add_order_path = workspace / "data" / "add_order.json"
-
-    # Find staging pairs
-    pairs = find_staging_pairs(staging_dir)
-    if not pairs:
-        logger.info("No staging pairs found")
-        return True, []
-
-    # Load existing keys
-    existing_keys = load_existing_keys(bib_path, identifier_path, add_order_path)
-
-    # Process each pair
     new_entries: list[tuple[str, dict[str, Entry], dict[str, EntryIdentifierData]]] = []
     processed_slugs: list[str] = []
 
@@ -442,27 +515,44 @@ def add_entries_from_staging(workspace: Path) -> tuple[bool, list[str]]:
         else:
             logger.warning(f"Skipped staging pair: {slug}")
 
+    return new_entries, processed_slugs
+
+
+def add_entries_from_staging(workspace: Path) -> tuple[bool, list[str]]:
+    """Add new entries from staging directory to the main data files.
+
+    Args:
+        workspace: Path to the workspace root
+
+    Returns:
+        Tuple of (success, list_of_processed_slugs)
+    """
+    logger.info("Starting add entries from staging workflow")
+
+    # Create configuration
+    config = WorkspaceConfig.from_workspace(workspace)
+
+    # Find staging pairs
+    pairs = find_staging_pairs(config.staging_dir)
+    if not pairs:
+        logger.info("No staging pairs found")
+        return True, []
+
+    # Load existing keys and process staging pairs
+    existing_keys = load_existing_keys(config)
+    new_entries, processed_slugs = process_staging_pairs(pairs, existing_keys)
+
     if not new_entries:
         logger.info("No new entries to add")
         return True, []
 
     # Append to data files
-    success = append_to_files(new_entries, bib_path, identifier_path, add_order_path)
+    success = append_to_files(
+        new_entries, config.bib_path, config.identifier_path, config.add_order_path
+    )
 
     if success:
-        # Delete processed staging files
-        for slug in processed_slugs:
-            bib_file = staging_dir / f"{slug}.bib"
-            json_file = staging_dir / f"{slug}.json"
-
-            try:
-                bib_file.unlink()
-                json_file.unlink()
-                logger.info(f"Deleted processed staging files: {slug}")
-            except Exception as e:
-                logger.error(f"Failed to delete staging files for {slug}: {e}")
-                # Don't fail the whole operation for cleanup issues
-
+        cleanup_processed_files(config, processed_slugs)
         logger.info(f"Successfully added {len(new_entries)} new entries")
     else:
         logger.error("Failed to append entries, staging files preserved")

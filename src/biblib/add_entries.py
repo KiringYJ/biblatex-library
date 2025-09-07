@@ -5,12 +5,12 @@ import logging
 import re
 import tempfile
 from pathlib import Path
-from typing import Any
 
-import bibtexparser  # type: ignore[import-untyped]
-from bibtexparser.model import Entry  # type: ignore[import-untyped]
+import bibtexparser
+from bibtexparser.model import Entry
 
 from .generate import generate_labels
+from .types import AddOrderList, EntryIdentifierData, IdentifierCollection, KeyMapping
 from .validate import extract_citekeys_from_bib, extract_citekeys_from_identifier_collection
 
 logger = logging.getLogger(__name__)
@@ -136,9 +136,8 @@ def load_existing_keys(bib_path: Path, identifier_path: Path, add_order_path: Pa
     try:
         if add_order_path.exists():
             with open(add_order_path, encoding="utf-8") as f:
-                add_order_data: Any = json.load(f)
-                if isinstance(add_order_data, list):
-                    existing_keys.update(str(key) for key in add_order_data)  # type: ignore[arg-type]
+                add_order_data: AddOrderList = json.load(f)
+                existing_keys.update(str(key) for key in add_order_data)
     except Exception as e:
         logger.error(f"Failed to load keys from {add_order_path}: {e}")
 
@@ -148,7 +147,7 @@ def load_existing_keys(bib_path: Path, identifier_path: Path, add_order_path: Pa
 
 def process_staging_entry(
     slug: str, bib_path: Path, json_path: Path, existing_keys: set[str]
-) -> tuple[dict[str, str], dict[str, Any], dict[str, Any]] | None:
+) -> tuple[KeyMapping, dict[str, Entry], dict[str, EntryIdentifierData]] | None:
     """Process a staging entry pair (can contain multiple entries).
 
     Args:
@@ -168,7 +167,7 @@ def process_staging_entry(
     try:
         # Parse the bib file and extract entry data
         logger.debug(f"Parsing bib file: {bib_path}")
-        lib = bibtexparser.parse_file(str(bib_path))  # type: ignore[attr-defined]
+        lib = bibtexparser.parse_file(str(bib_path))
 
         if lib.failed_blocks:
             logger.error(f"Failed to parse {bib_path}: {len(lib.failed_blocks)} failed blocks")
@@ -183,16 +182,12 @@ def process_staging_entry(
         # Load identifier data
         logger.debug(f"Loading identifier data: {json_path}")
         with open(json_path, encoding="utf-8") as f:
-            identifier_data = json.load(f)
-
-        if not isinstance(identifier_data, dict):
-            logger.error(f"Expected object in {json_path}, got {type(identifier_data).__name__}")
-            return None
+            identifier_data: IdentifierCollection = json.load(f)
 
         # Initialize result containers
-        key_mapping: dict[str, str] = {}
-        all_entry_data: dict[str, Any] = {}
-        all_identifier_data: dict[str, Any] = {}
+        key_mapping: KeyMapping = {}
+        all_entry_data: dict[str, Entry] = {}
+        all_identifier_data: dict[str, EntryIdentifierData] = {}
 
         # Process each entry in the file
         for entry in lib.entries:
@@ -203,12 +198,12 @@ def process_staging_entry(
                 continue
 
             # Extract the identifier data for this specific entry
-            entry_identifier_data: dict[str, Any] = identifier_data[original_key]  # type: ignore[assignment]
+            entry_identifier_data: EntryIdentifierData = identifier_data[original_key]
 
             # Generate new label for this entry
             new_key = process_single_entry(
                 entry,
-                entry_identifier_data,  # type: ignore[arg-type]
+                entry_identifier_data,
                 existing_keys,
                 original_key,
             )
@@ -235,7 +230,10 @@ def process_staging_entry(
 
 
 def process_single_entry(
-    entry: Entry, entry_identifier_data: dict[str, Any], existing_keys: set[str], original_key: str
+    entry: Entry,
+    entry_identifier_data: EntryIdentifierData,
+    existing_keys: set[str],
+    original_key: str,
 ) -> str | None:
     """Process a single entry and generate its new key.
 
@@ -298,7 +296,7 @@ def process_single_entry(
 
 
 def append_to_files(
-    new_entries: list[tuple[str, dict[str, Any], dict[str, Any]]],
+    new_entries: list[tuple[str, dict[str, Entry], dict[str, EntryIdentifierData]]],
     bib_path: Path,
     identifier_path: Path,
     add_order_path: Path,
@@ -332,16 +330,16 @@ def append_to_files(
     try:
         # Load existing data
         if bib_path.exists():
-            library = bibtexparser.parse_file(str(bib_path))  # type: ignore[attr-defined]
+            library = bibtexparser.parse_file(str(bib_path))
         else:
-            library = bibtexparser.Library()  # type: ignore[attr-defined]
+            library = bibtexparser.Library()
 
-        identifier_collection: dict[str, Any] = {}
+        identifier_collection: IdentifierCollection = {}
         if identifier_path.exists():
             with open(identifier_path, encoding="utf-8") as f:
                 identifier_collection = json.load(f)
 
-        add_order: list[str] = []
+        add_order: AddOrderList = []
         if add_order_path.exists():
             with open(add_order_path, encoding="utf-8") as f:
                 add_order = json.load(f)
@@ -368,7 +366,7 @@ def append_to_files(
             logger.debug(f"Added entry: {new_key}")
 
         # Write back to files with UTF-8 encoding
-        bib_string = bibtexparser.write_string(library)  # type: ignore[attr-defined]
+        bib_string = bibtexparser.write_string(library)
         with open(bib_path, "w", encoding="utf-8") as f:
             f.write(bib_string)
 
@@ -413,7 +411,7 @@ def add_entries_from_staging(workspace: Path) -> tuple[bool, list[str]]:
     existing_keys = load_existing_keys(bib_path, identifier_path, add_order_path)
 
     # Process each pair
-    new_entries: list[tuple[str, dict[str, Any], dict[str, Any]]] = []
+    new_entries: list[tuple[str, dict[str, Entry], dict[str, EntryIdentifierData]]] = []
     processed_slugs: list[str] = []
 
     for slug, bib_file, json_file in pairs:

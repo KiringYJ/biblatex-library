@@ -3,9 +3,12 @@
 import json
 import logging
 from pathlib import Path
-from typing import Any, cast
 
-import bibtexparser  # type: ignore[import-untyped]
+import bibtexparser
+from bibtexparser.library import Block
+from bibtexparser.model import Entry
+
+from .types import AddOrderList, IdentifierCollection
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +34,7 @@ def sort_alphabetically(library_path: Path, identifier_path: Path, add_order_pat
         raise ValueError(f"Expected list in {add_order_path}, got {type(citekeys_data)}")
 
     # Type assertion for better type checking
-    citekeys = cast(list[str], citekeys_data)
+    citekeys: AddOrderList = citekeys_data
 
     # Sort citekeys alphabetically
     sorted_citekeys = sorted(citekeys)
@@ -66,7 +69,7 @@ def sort_by_add_order(library_path: Path, identifier_path: Path, add_order_path:
         raise ValueError(f"Expected list in {add_order_path}, got {type(citekey_order_data)}")
 
     # Type assertion for better type checking
-    citekey_order = cast(list[str], citekey_order_data)
+    citekey_order: AddOrderList = citekey_order_data
 
     # Sort library.bib entries
     _sort_library_bib(library_path, citekey_order)
@@ -85,14 +88,14 @@ def _sort_library_bib(library_path: Path, citekey_order: list[str]) -> None:
         citekey_order: List of citekeys in desired order
     """
     # Parse the .bib file
-    library = bibtexparser.parse_file(str(library_path))  # type: ignore[arg-type]
+    library = bibtexparser.parse_file(str(library_path))
 
     # Create a mapping from citekey to entry for efficient lookup
-    entry_map: dict[str, Any] = {entry.key: entry for entry in library.entries}  # type: ignore[attr-defined]
+    entry_map: dict[str, Entry] = {entry.key: entry for entry in library.entries}
 
     # Build sorted entries list based on citekey_order
-    sorted_entries: list[Any] = []
-    missing_entries: list[Any] = []
+    sorted_entries: list[Entry] = []
+    missing_entries: list[Entry] = []
 
     for citekey in citekey_order:
         if citekey in entry_map:
@@ -101,27 +104,27 @@ def _sort_library_bib(library_path: Path, citekey_order: list[str]) -> None:
             logger.warning(f"Citekey '{citekey}' not found in library.bib")
 
     # Add any entries that weren't in the order list (shouldn't happen in well-maintained data)
-    for entry in library.entries:  # type: ignore[attr-defined]
-        if entry.key not in citekey_order:  # type: ignore[attr-defined]
+    for entry in library.entries:
+        if entry.key not in citekey_order:
             missing_entries.append(entry)
-            logger.warning(f"Entry '{entry.key}' found in library.bib but not in citekey order")  # type: ignore[attr-defined]
+            logger.warning(f"Entry '{entry.key}' found in library.bib but not in citekey order")
 
     # Create a new library with the sorted entries and other blocks
-    sorted_blocks: list[Any] = []
+    sorted_blocks: list[Block] = []
 
     # Add non-entry blocks (comments, preambles, strings) first
-    for block in library.blocks:  # type: ignore[attr-defined]
-        if block not in library.entries:  # type: ignore[attr-defined]
+    for block in library.blocks:
+        if block not in library.entries:
             sorted_blocks.append(block)
 
     # Add sorted entries
     sorted_blocks.extend(sorted_entries + missing_entries)
 
     # Create new library with sorted blocks
-    new_library = bibtexparser.Library(sorted_blocks)  # type: ignore[call-arg]
+    new_library = bibtexparser.Library(sorted_blocks)
 
     # Write back to file with explicit UTF-8 encoding
-    bibtex_str = bibtexparser.write_string(new_library)  # type: ignore[arg-type]
+    bibtex_str = bibtexparser.write_string(new_library)
     with open(library_path, "w", encoding="utf-8") as f:
         f.write(str(bibtex_str))  # Ensure we write a string
 
@@ -143,10 +146,10 @@ def _sort_identifier_collection(identifier_path: Path, citekey_order: list[str])
         raise ValueError(f"Expected dict in {identifier_path}, got {type(data_raw)}")
 
     # Type assertion for better type checking
-    data: dict[str, Any] = cast(dict[str, Any], data_raw)
+    data: IdentifierCollection = data_raw
 
     # Create ordered dictionary based on citekey_order
-    sorted_data: dict[str, Any] = {}
+    sorted_data: IdentifierCollection = {}
     missing_keys: list[str] = []
 
     for citekey in citekey_order:

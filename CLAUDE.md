@@ -477,6 +477,34 @@ with open("data.json", "w", encoding="utf-8") as f:
 
 **Pre‑commit (required)**: Run **Ruff lint with **`--fix`** before the Ruff formatter**, then the type‑checker hook, then direct **biber validation** of the `.bib` file. This avoids churn, since lint fixes may require reformatting. Pre-commit hooks now use UV for faster execution and focus on actual bibliography validation rather than full LaTeX compilation.
 
+### Type Safety Policy (Strictly Enforced)
+
+**Zero-tolerance policy**: `Any` and `type: ignore` are **BANNED** from this codebase.
+
+**Rules:**
+1. **NO `Any` types allowed** - Use specific types, TypedDict, or proper type stubs
+2. **NO `type: ignore` comments allowed** - Fix the underlying type issue instead
+3. **NO `cast()` with weak types** - Replace `cast(list[Any], data)` with proper type annotations
+4. **External packages without stubs** - Create proper type stubs in `stubs/` directory
+
+**Implementation standards:**
+- **JSON data**: Use TypedDict definitions from `src/biblib/types.py`
+  - `IdentifierCollection` instead of `dict[str, Any]`
+  - `AddOrderList` instead of `list[Any]`
+  - `EntryIdentifierData` for structured data
+- **External libraries**: Create comprehensive type stubs
+  - `stubs/bibtexparser/` contains full type definitions
+  - Covers `model.pyi`, `library.pyi`, `__init__.pyi`
+- **Type assertions**: Use proper type annotations after runtime checks
+  ```python
+  # BANNED: cast(dict[str, Any], data)
+  # CORRECT: data_dict: IdentifierCollection = data
+  ```
+
+**Validation**: Type checker must report **zero errors**. Warnings about "partially unknown" types from JSON loading are acceptable since `json.load()` inherently returns `Any` and we validate at runtime with proper type narrowing.
+
+**Rationale**: Strong typing prevents runtime errors, improves code clarity, enables better IDE support, and catches bugs at development time rather than production. JSON loading warnings are unavoidable but controlled through runtime validation.
+
 ---
 
 ## 19) Logging Policy (Full)

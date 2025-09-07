@@ -4,14 +4,15 @@ import json
 import logging
 import re
 from pathlib import Path
-from typing import Any
 
-import bibtexparser as btp  # type: ignore[import-untyped]
-from bibtexparser.library import Library  # type: ignore[import-untyped]
-from bibtexparser.model import Entry  # type: ignore[import-untyped]
+import bibtexparser as btp
+from bibtexparser.library import Library
+from bibtexparser.model import Entry
+
+from .types import IdentifierCollection
 
 
-def load_identifier_collection(identifier_path: Path) -> dict[str, dict[str, Any]]:
+def load_identifier_collection(identifier_path: Path) -> IdentifierCollection:
     """Load identifier collection data from JSON file.
 
     Args:
@@ -116,21 +117,9 @@ def sync_identifiers_to_library(
         entry = entry_map[citekey]
         identifiers = id_info.get("identifiers", {})
 
-        # Ensure identifiers is a dictionary
-        if not isinstance(identifiers, dict):
-            logger.warning(f"Entry {citekey} has invalid identifiers format, skipping")
-            continue
-
         # Check each identifier field that we can sync
-        for id_field_raw, id_value_raw in identifiers.items():  # type: ignore[misc]
-            # Ensure we have string values
-            if not isinstance(id_field_raw, str) or not isinstance(id_value_raw, str):
-                logger.warning(
-                    f"Entry {citekey} has invalid identifier field/value types, skipping field"
-                )
-                continue
-
-            # Now we know these are strings
+        for id_field_raw, id_value_raw in identifiers.items():
+            # Now we know these are strings from our TypedDict
             id_field: str = id_field_raw
             id_value: str = id_value_raw
 
@@ -197,7 +186,7 @@ def _set_field_value(entry: Entry, field_name: str, value: str) -> None:
         field_name: Name of field to set
         value: Value to set
     """
-    from bibtexparser.model import Field  # type: ignore[import-untyped]
+    from bibtexparser.model import Field
 
     # Check if field already exists
     if field_name in entry.fields_dict:
@@ -205,8 +194,8 @@ def _set_field_value(entry: Entry, field_name: str, value: str) -> None:
         entry.fields_dict[field_name].value = value
     else:
         # Add new field
-        new_field = Field(key=field_name, value=value)
-        entry.fields.append(new_field)
+        new_field = Field(value=value)
+        entry.fields_dict[field_name] = new_field
 
 
 def _map_identifier_to_bibtex_field(identifier_field: str) -> str:

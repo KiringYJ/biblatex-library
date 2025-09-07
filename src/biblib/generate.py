@@ -6,9 +6,10 @@ import logging
 import re
 import unicodedata
 from pathlib import Path
-from typing import Any, cast
 
-import bibtexparser  # type: ignore[import-untyped]
+import bibtexparser
+
+from .types import IdentifierCollection
 
 logger = logging.getLogger(__name__)
 
@@ -114,17 +115,17 @@ def parse_bib_entries(bib_path: Path) -> dict[str, dict[str, str]]:
     logger.debug(f"Parsing .bib file for label generation: {bib_path}")
 
     try:
-        lib = bibtexparser.parse_file(str(bib_path))  # type: ignore[attr-defined]
+        lib = bibtexparser.parse_file(str(bib_path))
 
-        if lib.failed_blocks:  # type: ignore[attr-defined]
-            failed_keys = [str(block) for block in lib.failed_blocks]  # type: ignore[attr-defined]
-            raise ValueError(f"Failed to parse {len(lib.failed_blocks)} blocks: {failed_keys}")  # type: ignore[attr-defined]
+        if lib.failed_blocks:
+            failed_keys = [str(block) for block in lib.failed_blocks]
+            raise ValueError(f"Failed to parse {len(lib.failed_blocks)} blocks: {failed_keys}")
 
         entries: dict[str, dict[str, str]] = {}
-        for entry in lib.entries:  # type: ignore[attr-defined]
-            entry_key = entry.key  # type: ignore[attr-defined]
+        for entry in lib.entries:
+            entry_key = entry.key
             entry_data: dict[str, str] = {
-                "type": entry.entry_type,  # type: ignore[attr-defined]
+                "type": entry.entry_type,
                 "key": entry_key,
                 "author": "",
                 "year": "",
@@ -133,25 +134,25 @@ def parse_bib_entries(bib_path: Path) -> dict[str, dict[str, str]]:
             }
 
             # Extract fields using bibtexparser v2 API
-            fields_dict = entry.fields_dict  # type: ignore[attr-defined]
+            fields_dict = entry.fields_dict
 
             # Extract author field
             if "author" in fields_dict:
-                entry_data["author"] = fields_dict["author"].value  # type: ignore[attr-defined]
+                entry_data["author"] = fields_dict["author"].value
 
             # Extract editor field (fallback when no author)
             if "editor" in fields_dict:
-                entry_data["editor"] = fields_dict["editor"].value  # type: ignore[attr-defined]
+                entry_data["editor"] = fields_dict["editor"].value
 
             # Extract sortname field
             if "sortname" in fields_dict:
-                entry_data["sortname"] = fields_dict["sortname"].value  # type: ignore[attr-defined]
+                entry_data["sortname"] = fields_dict["sortname"].value
 
             # Extract year field (check date first, then year)
             if "date" in fields_dict:
-                entry_data["year"] = fields_dict["date"].value  # type: ignore[attr-defined]
+                entry_data["year"] = fields_dict["date"].value
             elif "year" in fields_dict:
-                entry_data["year"] = fields_dict["year"].value  # type: ignore[attr-defined]
+                entry_data["year"] = fields_dict["year"].value
 
             entries[entry_key] = entry_data
 
@@ -162,7 +163,7 @@ def parse_bib_entries(bib_path: Path) -> dict[str, dict[str, str]]:
         raise ValueError(f"Failed to parse {bib_path}: {e}") from e
 
 
-def load_identifier_collection(identifier_path: Path) -> dict[str, Any]:
+def load_identifier_collection(identifier_path: Path) -> IdentifierCollection:
     """Load identifier collection from JSON file.
 
     Args:
@@ -188,7 +189,7 @@ def load_identifier_collection(identifier_path: Path) -> dict[str, Any]:
             raise ValueError(f"Expected object, got {type(data).__name__}")
 
         # Type assertion after runtime check
-        data_dict = cast(dict[str, Any], data)
+        data_dict: IdentifierCollection = data
         logger.debug(f"Loaded {len(data_dict)} identifiers")
         return data_dict
 

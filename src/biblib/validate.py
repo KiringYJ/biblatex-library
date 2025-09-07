@@ -4,9 +4,10 @@ import json
 import logging
 import re
 from pathlib import Path
-from typing import Any, cast
 
-import bibtexparser  # type: ignore[import-untyped]
+import bibtexparser
+
+from .types import AddOrderList, IdentifierCollection
 
 logger = logging.getLogger(__name__)
 
@@ -30,13 +31,13 @@ def extract_citekeys_from_bib(bib_path: Path) -> set[str]:
     logger.debug(f"Parsing .bib file: {bib_path}")
 
     try:
-        lib = bibtexparser.parse_file(str(bib_path))  # type: ignore[attr-defined]
+        lib = bibtexparser.parse_file(str(bib_path))
 
-        if lib.failed_blocks:  # type: ignore[attr-defined]
-            failed_keys = [str(block) for block in lib.failed_blocks]  # type: ignore[attr-defined]
-            raise ValueError(f"Failed to parse {len(lib.failed_blocks)} blocks: {failed_keys}")  # type: ignore[attr-defined]
+        if lib.failed_blocks:
+            failed_keys = [str(block) for block in lib.failed_blocks]
+            raise ValueError(f"Failed to parse {len(lib.failed_blocks)} blocks: {failed_keys}")
 
-        citekeys = {entry.key for entry in lib.entries}  # type: ignore[attr-defined]
+        citekeys = {entry.key for entry in lib.entries}
         logger.debug(f"Found {len(citekeys)} citekeys in {bib_path.name}")
 
         return citekeys
@@ -70,9 +71,16 @@ def extract_citekeys_from_add_order(add_order_path: Path) -> set[str]:
         if not isinstance(data, list):
             raise ValueError(f"Expected array, got {type(data).__name__}")
 
-        # Convert to set, ensuring all items are strings
-        data_list = cast(list[Any], data)
-        citekeys = {str(item) for item in data_list}
+        # Validate all items are strings using a comprehension that pyright handles better
+        non_strings = [i for i, item in enumerate(data) if not isinstance(item, str)]
+        if non_strings:
+            first_bad = non_strings[0]
+            bad_type = type(data[first_bad]).__name__
+            raise ValueError(f"Expected string at index {first_bad}, got {bad_type}")
+
+        # Now we can safely assign the properly validated data
+        data_list: AddOrderList = data
+        citekeys = {item for item in data_list}  # No need for str() conversion
         logger.debug(f"Found {len(citekeys)} citekeys in {add_order_path.name}")
 
         return citekeys
@@ -101,13 +109,13 @@ def extract_citekeys_from_identifier_collection(identifier_path: Path) -> set[st
 
     try:
         with open(identifier_path, encoding="utf-8") as f:
-            data: Any = json.load(f)
+            data = json.load(f)
 
         if not isinstance(data, dict):
             raise ValueError(f"Expected object, got {type(data).__name__}")
 
         # Convert keys to set of strings
-        data_dict = cast(dict[str, Any], data)
+        data_dict: IdentifierCollection = data
         citekeys = {str(key) for key in data_dict.keys()}
         logger.debug(f"Found {len(citekeys)} citekeys in {identifier_path.name}")
 
@@ -340,7 +348,7 @@ def _fix_add_order_file(add_order_path: Path, replacement_map: dict[str, str]) -
 
     # Replace citekeys in the list
     if isinstance(data, list):
-        data_list = cast(list[Any], data)
+        data_list: AddOrderList = data
         for i, key in enumerate(data_list):
             key_str = str(key)
             if key_str in replacement_map:
@@ -364,8 +372,8 @@ def _fix_identifier_collection_file(identifier_path: Path, replacement_map: dict
 
     # Replace keys in the dictionary
     if isinstance(data, dict):
-        data_dict = cast(dict[str, Any], data)
-        new_data: dict[str, Any] = {}
+        data_dict: IdentifierCollection = data
+        new_data: IdentifierCollection = {}
         for old_key, value in data_dict.items():
             new_key = replacement_map.get(old_key, old_key)
             new_data[new_key] = value

@@ -55,8 +55,8 @@ def test_extract_citekeys_from_identifier_collection():
     with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
         json.dump(
             {
-                "key1": {"identifiers": {"doi": "10.1000/test1"}},
-                "key2": {"identifiers": {"isbn": "1234567890"}},
+                "key1": {"main_identifier": "doi", "identifiers": {"doi": "10.1000/test1"}},
+                "key2": {"main_identifier": "isbn", "identifiers": {"isbn": "1234567890"}},
             },
             f,
         )
@@ -96,8 +96,8 @@ def test_validate_citekey_consistency_success():
         identifier_path.write_text(
             json.dumps(
                 {
-                    "key1": {"identifiers": {"doi": "10.1000/test1"}},
-                    "key2": {"identifiers": {"isbn": "1234567890"}},
+                    "key1": {"main_identifier": "doi", "identifiers": {"doi": "10.1000/test1"}},
+                    "key2": {"main_identifier": "isbn", "identifiers": {"isbn": "1234567890"}},
                 }
             )
         )
@@ -133,8 +133,8 @@ def test_validate_citekey_consistency_failure():
         identifier_path.write_text(
             json.dumps(
                 {
-                    "key1": {"identifiers": {"doi": "10.1000/test1"}},
-                    "key2": {"identifiers": {"isbn": "1234567890"}},
+                    "key1": {"main_identifier": "doi", "identifiers": {"doi": "10.1000/test1"}},
+                    "key2": {"main_identifier": "isbn", "identifiers": {"isbn": "1234567890"}},
                 }
             )
         )

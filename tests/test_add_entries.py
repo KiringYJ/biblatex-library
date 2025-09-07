@@ -52,7 +52,9 @@ def test_process_staging_entry_success():
     author = {Smith, John},
     year = {2025}
 }"""
-        json_content = {"temp-key": {"identifiers": {"doi": "10.1000/test"}}}
+        json_content = {
+            "temp-key": {"main_identifier": "doi", "identifiers": {"doi": "10.1000/test"}}
+        }
 
         bib_file = workspace / "test.bib"
         json_file = workspace / "test.json"
@@ -92,7 +94,9 @@ def test_process_staging_entry_duplicate_key():
     author = {Smith, John},
     year = {2025}
 }"""
-        json_content = {"temp-key": {"identifiers": {"doi": "10.1000/test"}}}
+        json_content = {
+            "temp-key": {"main_identifier": "doi", "identifiers": {"doi": "10.1000/test"}}
+        }
 
         bib_file = workspace / "test.bib"
         json_file = workspace / "test.json"
@@ -130,7 +134,9 @@ def test_add_entries_from_staging_integration():
     author = {Smith, John},
     year = {2025}
 }"""
-        json_content = {"temp-key": {"identifiers": {"doi": "10.1000/test"}}}
+        json_content = {
+            "temp-key": {"main_identifier": "doi", "identifiers": {"doi": "10.1000/test"}}
+        }
 
         (staging / "2025-01-15-test.bib").write_text(bib_content, encoding="utf-8")
         (staging / "2025-01-15-test.json").write_text(

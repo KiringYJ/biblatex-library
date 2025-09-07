@@ -294,7 +294,7 @@ def create_parser() -> argparse.ArgumentParser:
         default="alphabetical",
         choices=["alphabetical", "add-order"],
         help="Sort mode: 'alphabetical' sorts by citekey alphabetically (default), "
-        "'add-order' sorts to match add_order.json sequence",
+        + "'add-order' sorts to match add_order.json sequence",
     )
     sort_parser.set_defaults(func=cmd_sort)
 

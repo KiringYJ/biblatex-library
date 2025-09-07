@@ -16,21 +16,17 @@
     "venvPath": ".",
     "venv": ".venv",
     "pythonVersion": "3.12",
-    // Overall strictness - strict mode for better type safety
+    // Strict mode covers most type checking rules
     "typeCheckingMode": "strict",
     // Stub paths for type checking
     "stubPath": "stubs",
-    // Specific type checking rules to match Pylance
-    "reportUnknownArgumentType": "warning", // JSON loading creates unknown argument types that we validate at runtime
-    "reportUnknownVariableType": "warning", // JSON loading creates partially unknown types, but we validate at runtime
-    "reportUnknownMemberType": "warning",
-    "reportMissingTypeStubs": "warning",
-    "reportImportCycles": "error",
-    "reportUnusedImport": "error",
-    "reportUnusedClass": "error",
-    "reportUnusedFunction": "error",
-    "reportUnusedVariable": "error",
-    "reportDuplicateImport": "error",
+    // Additional strictness beyond default "strict" mode
+    "reportImplicitStringConcatenation": "error", // Explicit string concatenation
+    "reportUnnecessaryIsInstance": "error", // Remove redundant isinstance
+    "reportUnnecessaryCast": "error", // Remove redundant casts
+    "reportUnnecessaryComparison": "error", // Remove redundant comparisons
+    "reportUnnecessaryContains": "error", // Remove redundant contains
+    "reportUnusedCoroutine": "error", // No forgotten awaits
     // Make "src" imports work without relative dots
     "executionEnvironments": [
         {

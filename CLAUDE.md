@@ -187,7 +187,6 @@ This repo maintains a curated **biblatex** library and tooling to:
 biblatex-library/
 ├─ bib/
 │  ├─ library.bib                 # canonical database
-│  ├─ strings.bib                 # @STRING abbreviations
 │  └─ generated/                  # derived exports
 │     └─ cited.bib
 ├─ data/
@@ -243,8 +242,6 @@ biblatex-library/
 
 ---
 
----
-
 ## 10) Data Model Notes (Biblatex vs BibTeX)
 
 **Three-file synchronization requirement**
@@ -282,8 +279,6 @@ When working with citekeys/labels, **ALWAYS** update these three files simultane
 
 ---
 
----
-
 ## 11) Build & Run Quickstart
 
 ### Python (Windows PowerShell)
@@ -312,8 +307,6 @@ When working with citekeys/labels, **ALWAYS** update these three files simultane
 - Preferred recipes:
   - `latexmk (XeLaTeX+biber)` for biblatex demos
 - **Python interpreter**: Set to `${workspaceFolder}\.venv\Scripts\python.exe` in settings
-
----
 
 ---
 
@@ -348,8 +341,6 @@ uv run blx validate
 
 ---
 
----
-
 ## 13) .bib Parsing & Writing Policy (bibtexparser v2)
 
 **Policy**
@@ -359,8 +350,6 @@ uv run blx validate
 
 * Check `lib.failed_blocks` and fail CI if non‑empty.
 * Use **latexcodec/pylatexenc** for LaTeX↔Unicode conversion of field values when exporting to CSL‑JSON or other formats.
-
----
 
 ---
 
@@ -424,8 +413,6 @@ with open("data.json", "w", encoding="utf-8") as f:
 
 ---
 
----
-
 ## 15) Add Order Ledger
 
 **Ledger**
@@ -443,8 +430,6 @@ with open("data.json", "w", encoding="utf-8") as f:
 
 ---
 
----
-
 ## 16) Custom biblatex Style: `biblatex-yj`
 
 - **Repository name**: `biblatex-yj`; **style id**: `yj` (and variants like `yj-trad-alpha`).
@@ -454,14 +439,10 @@ with open("data.json", "w", encoding="utf-8") as f:
 
 ---
 
----
-
 ## 17) Examples
 
 - `latex/examples/biblatex-spbasic/` — `style=biblatex-spbasic`
 - `latex/examples/alphabetic/` — `style=alphabetic`
-
----
 
 ---
 
@@ -495,8 +476,6 @@ with open("data.json", "w", encoding="utf-8") as f:
 **Copilot policy (enforced)**: Use **Copilot Code Actions/Chat** to fix lint and type issues **before** running tests or any script. Re‑run steps (1)–(3) until clean.
 
 **Pre‑commit (required)**: Run **Ruff lint with **`--fix`** before the Ruff formatter**, then the type‑checker hook, then direct **biber validation** of the `.bib` file. This avoids churn, since lint fixes may require reformatting. Pre-commit hooks now use UV for faster execution and focus on actual bibliography validation rather than full LaTeX compilation.
-
----
 
 ---
 
@@ -557,15 +536,11 @@ with open("data.json", "w", encoding="utf-8") as f:
 
 ---
 
----
-
 ## 20) Contribution Rules
 
 - Feature branches only; no versioned names (e.g., `processV2`). Delete superseded code.
 - Small PRs with clear commit messages; add tests where behavior changes.
 - Prefer explicit names; shallow control flow; no drive‑by abstractions.
-
----
 
 ---
 
@@ -588,8 +563,6 @@ with open("data.json", "w", encoding="utf-8") as f:
 - **Don’t hedge**; don’t accept `TODO` placeholders in production paths; don’t proceed without reproducing a reported issue.
 - **Don’t manually parse **`` (no regex/tokenizers). Always use **bibtexparser v2** for I/O and transforms.
 - **Don’t use **``** for diagnostics**; use `logging` (levels/handlers) instead.
-
----
 
 ---
 
@@ -640,8 +613,6 @@ revert: feat(cli): add experimental subcommand   # reverts prior commit
 feat(style)!: drop deprecated `presort` handling
 BREAKING CHANGE: Users must switch to `sortkey` via sourcemap; see docs.
 ```
-
----
 
 ---
 
@@ -750,8 +721,6 @@ Add a `pre-commit` local hook to refuse commits if no backup was created in the 
 
 ---
 
----
-
 ## 24) Incident Response (Detailed)
 
 **Detection**
@@ -785,8 +754,6 @@ Add a `pre-commit` local hook to refuse commits if no backup was created in the 
 - Review and improve monitoring/alerting on CI and data integrity checks.
 - Consider automated backups or snapshots before critical operations.
 - Enhance documentation and training on the importance of the triple-file integrity and backup procedures.
-
----
 
 ---
 
@@ -938,8 +905,6 @@ For any code that handles data files:
 - [ ] **Backup compliance**: Any production operations include mandatory backup
 
 **Remember: Your bibliography is irreplaceable. Test data is replaceable. Always choose safety.**
-
----
 
 ---
 

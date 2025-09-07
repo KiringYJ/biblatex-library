@@ -124,6 +124,9 @@ tex/**/build/
 # Project-specific generated artifacts
 # -----------------------------
 
+# Backup directories (created by mandatory backup protocol)
+staging/backup-*/
+
 # Backup files (created during testing/fixing)
 *.backup
 *.bak

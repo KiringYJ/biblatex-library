@@ -190,6 +190,9 @@ def process_staging_entry(
             logger.error(f"Entry key '{original_key}' not found in identifier data")
             return None
 
+        # Extract the identifier data for this specific entry
+        entry_identifier_data: dict[str, Any] = identifier_data[original_key]  # type: ignore[assignment]
+
         # Generate new label
         # Create temporary files for label generation
 
@@ -208,7 +211,7 @@ def process_staging_entry(
         with tempfile.NamedTemporaryFile(
             mode="w", suffix=".json", delete=False, encoding="utf-8"
         ) as temp_json:
-            json.dump({original_key: identifier_data}, temp_json, indent=2)
+            json.dump({original_key: entry_identifier_data}, temp_json, indent=2)
             temp_json_path = Path(temp_json.name)
 
         try:
@@ -236,7 +239,7 @@ def process_staging_entry(
 
         # Prepare return data
         new_entry_data: dict[str, Any] = {new_key: entry}
-        new_identifier_data: dict[str, Any] = {new_key: identifier_data[original_key]}
+        new_identifier_data: dict[str, Any] = {new_key: entry_identifier_data}
 
         return new_key, new_entry_data, new_identifier_data
 

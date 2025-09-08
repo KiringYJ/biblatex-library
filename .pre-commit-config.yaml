@@ -57,6 +57,16 @@ repos:
         files: ^bib/library\.bib$
         pass_filenames: false
 
+      # Post-commit cleanup of staging backups
+      - id: cleanup-staging-backups
+        name: Clean up staging backup directories
+        entry: powershell
+        args: ["-Command", "if (Test-Path 'staging/backup-*') { Write-Host 'Cleaning up staging backup directories...'; Remove-Item 'staging/backup-*' -Recurse -Force; Write-Host '✓ Staging backup cleanup completed' } else { Write-Host 'No staging backup directories to clean up' }"]
+        language: system
+        stages: [post-commit]
+        always_run: true
+        pass_filenames: false
+
   # Small hygiene checks
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
@@ -92,3 +102,6 @@ exclude: |
     ^latex/.+/(build|out)/|
     ^examples/.+/(build|out)/
   )
+
+# Configure default hook types to include post-commit hooks
+default_install_hook_types: [pre-commit, post-commit]

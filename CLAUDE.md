@@ -91,7 +91,7 @@ Copy-Item data/identifier_collection.json $backup/
 Copy-Item data/add_order.json $backup/
 ```
 
-Skip = reject. Keep last ≥5 backups.
+**Automatic cleanup**: Post-commit hook automatically removes all staging backup directories since git provides full version history.
 
 ### 3.3 Production Data Protection
 **Rule: NEVER test or debug on production data.** If realistic data required, copy or sample—never operate in‑place.
@@ -382,7 +382,6 @@ When working with citekeys/labels, **ALWAYS** update these three files simultane
 
 - Preferred recipes:
   - `latexmk (XeLaTeX+biber)` for biblatex demos
-- **Python interpreter**: Set to `${workspaceFolder}\.venv\Scripts\python.exe` in settings
 
 ---
 

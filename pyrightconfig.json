@@ -19,7 +19,7 @@
     // Strict mode covers most type checking rules
     "typeCheckingMode": "strict",
     // Stub paths for type checking
-    "stubPath": "stubs",
+    "stubPath": "typings",
     // Additional strictness beyond default "strict" mode
     "reportImplicitStringConcatenation": "error", // Explicit string concatenation
     "reportUnnecessaryIsInstance": "error", // Remove redundant isinstance

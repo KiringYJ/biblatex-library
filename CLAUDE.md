@@ -563,7 +563,7 @@ with open("data.json", "w", encoding="utf-8") as f:
 1. **NO `Any` types allowed** - Use specific types, TypedDict, or proper type stubs
 2. **NO `type: ignore` comments allowed** - Fix the underlying type issue instead
 3. **NO `cast()` with weak types** - Replace `cast(list[Any], data)` with proper type annotations
-4. **External packages without stubs** - Create proper type stubs in `stubs/` directory
+4. **External packages without stubs** - Create proper type stubs in `typings/` directory
 
 **Implementation standards:**
 - **JSON data**: Use TypedDict definitions from `src/biblib/types.py`
@@ -571,7 +571,7 @@ with open("data.json", "w", encoding="utf-8") as f:
   - `AddOrderList` instead of `list[Any]`
   - `IdentifierData` for structured identifier data (unified type across all modules)
 - **External libraries**: Create comprehensive type stubs
-  - `stubs/bibtexparser/` contains full type definitions
+  - `typings/bibtexparser/` contains full type definitions
   - Covers `model.pyi`, `library.pyi`, `__init__.pyi`
 - **Type assertions**: Use proper type annotations after runtime checks
   ```python

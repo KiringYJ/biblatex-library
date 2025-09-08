@@ -214,6 +214,29 @@ Add runtime assertions if silent no‑ops are possible.
 - **Test failures**: 0 (all functionality preserved)
 - **Function length average**: Reduced from 80+ lines to <30 lines for complex operations
 
+### 8.6 Template Generation Implementation (September 2025)
+**Problem solved**: Manual creation of identifier collection JSON files for staging workflow was error-prone and time-consuming.
+
+**Solution implemented**:
+- Created `src/biblib/template.py` module with `generate_staging_templates()` function
+- Added intelligent identifier extraction from .bib files with priority-based main identifier selection
+- Implemented CLI command `blx template` with overwrite protection
+- Added comprehensive type safety using unified `IdentifierData` TypedDict
+
+**Features delivered**:
+- **Automated JSON generation**: Processes all .bib files in staging directory
+- **Smart identifier priority**: doi > isbn > mrnumber > url for main identifier selection
+- **Safe workflow**: Skips existing .json files unless `--overwrite` specified
+- **Type consistency**: Uses unified `IdentifierData` type across entire codebase
+
+**Type system consolidation**:
+- Eliminated duplicate `EntryIdentifierData` TypedDict class
+- Unified on single `IdentifierData` type for all identifier collections
+- Maintained 0 pyright errors throughout consolidation process
+- Updated 15+ type annotations across `template.py` and `add_entries.py`
+
+**Impact**: Streamlined staging workflow, eliminated manual JSON creation, improved developer experience, reduced error potential.
+
 ---
 
 ## 9) Encoding & File I/O Policy
@@ -375,6 +398,8 @@ uv run blx validate
 **Core commands**
 
 - `uv run blx validate` — JSON Schema + `biber --tool` checks
+- `uv run blx add` — process staging directory entries with atomic updates
+- `uv run blx template` — generate identifier collection JSON templates from staging .bib files
 - `uv run blx sort alphabetical` — sort library.bib and identifier_collection.json alphabetically by citekey
 - `uv run blx sort add-order` — sort library.bib and identifier_collection.json to match add_order.json sequence
 - `uv run blx generate-labels` — generate labels for biblatex entries
@@ -544,7 +569,7 @@ with open("data.json", "w", encoding="utf-8") as f:
 - **JSON data**: Use TypedDict definitions from `src/biblib/types.py`
   - `IdentifierCollection` instead of `dict[str, Any]`
   - `AddOrderList` instead of `list[Any]`
-  - `EntryIdentifierData` for structured data
+  - `IdentifierData` for structured identifier data (unified type across all modules)
 - **External libraries**: Create comprehensive type stubs
   - `stubs/bibtexparser/` contains full type definitions
   - Covers `model.pyi`, `library.pyi`, `__init__.pyi`

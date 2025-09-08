@@ -51,6 +51,9 @@ uv run blx validate
 # Add new entries from staging directory
 uv run blx add
 
+# Generate staging templates from .bib files
+uv run blx template
+
 # Generate consistent citekey labels
 uv run blx generate-labels
 
@@ -114,6 +117,35 @@ uv run blx add [--workspace PATH]
 6. 🗑️ **Cleans up** processed staging files
 
 **File Naming Pattern:** `YYYY-MM-DD-description.(bib|json)`
+
+#### Template Generation (`blx template`)
+
+Generates identifier collection JSON templates from staging .bib files to streamline the staging workflow:
+
+```bash
+uv run blx template [--overwrite] [--workspace PATH]
+```
+
+**Process Flow:**
+1. 🔍 **Scans** `staging/` directory for `.bib` files
+2. 📖 **Parses** bibliographic entries to extract identifiers
+3. 🏷️ **Determines** main identifier using priority order: `doi` > `isbn` > `mrnumber` > `url`
+4. 📝 **Generates** corresponding `.json` template files
+5. ⚡ **Skips** existing `.json` files (unless `--overwrite` is used)
+
+**Identifier Priority:**
+- **DOI** (highest priority) - Digital Object Identifier
+- **ISBN** - International Standard Book Number
+- **MR Number** - Mathematical Reviews number
+- **URL** (lowest priority) - Web address
+
+**Features:**
+- 🎯 **Automated workflow** - No manual JSON creation needed
+- 🔄 **Safe defaults** - Skips existing files to prevent overwrites
+- 📋 **Template structure** - Generates proper `identifier_collection.json` format
+- 🌍 **Unicode support** - Handles international bibliography entries
+
+**File Processing:** For each `staging/example.bib`, generates `staging/example.json` with extracted identifiers and automatically selected main identifier.
 
 #### Label Generation (`blx generate-labels`)
 
@@ -305,6 +337,90 @@ INFO biblib.cli:166 – ✓ Sort operation completed successfully
 **Exit codes:**
 - `0` - Sorting completed successfully
 - `1` - Sorting failed or error occurred
+
+### Template Generation
+
+The `template` command streamlines the staging workflow by automatically generating identifier collection JSON templates from .bib files:
+
+```bash
+blx template [options]
+```
+
+**What it generates:**
+- **JSON templates** - Creates `.json` files for corresponding `.bib` files in staging directory
+- **Identifier extraction** - Automatically extracts DOIs, ISBNs, MR numbers, URLs from bibliography entries
+- **Main identifier selection** - Uses priority-based selection (doi > isbn > mrnumber > url)
+
+**Options:**
+- `--overwrite` - Overwrite existing .json files (default: skip existing files)
+- `-v, --verbose` - Show INFO level messages (use `-vv` for DEBUG)
+- `--workspace WORKSPACE` - Specify workspace directory (default: current directory)
+
+**Examples:**
+
+```bash
+# Generate templates for all .bib files in staging/
+blx template
+
+# Generate templates, overwriting existing .json files
+blx template --overwrite
+
+# Generate templates with verbose output
+blx -v template
+
+# Generate templates for different project
+blx --workspace /path/to/project template
+```
+
+**Sample output:**
+
+```
+$ blx -v template
+INFO biblib.cli:302 – Generating identifier collection templates from staging .bib files
+INFO biblib.template:156 – Processing staging/2024-01-15-new-paper.bib
+INFO biblib.template:187 – Selected main identifier: doi (10.1234/example.2024)
+INFO biblib.template:201 – Generated staging/2024-01-15-new-paper.json
+INFO biblib.template:156 – Processing staging/2024-01-20-conference.bib
+INFO biblib.template:187 – Selected main identifier: url (https://example.com/paper)
+INFO biblib.template:201 – Generated staging/2024-01-20-conference.json
+INFO biblib.cli:320 – ✓ Generated 2 identifier collection templates
+```
+
+**File Processing Example:**
+
+Input: `staging/2024-01-15-paper.bib`
+```bibtex
+@article{tempkey,
+  title = {Example Paper},
+  author = {Smith, John},
+  year = {2024},
+  doi = {10.1234/example.2024},
+  url = {https://example.com/paper}
+}
+```
+
+Generated: `staging/2024-01-15-paper.json`
+```json
+{
+  "tempkey": {
+    "main_identifier": "10.1234/example.2024",
+    "identifiers": {
+      "doi": "10.1234/example.2024",
+      "url": "https://example.com/paper"
+    }
+  }
+}
+```
+
+**Use cases:**
+- **Streamlined staging** - Eliminate manual JSON creation for new entries
+- **Consistent workflow** - Ensure all staging files have proper identifier metadata
+- **Batch processing** - Generate templates for multiple bibliography files at once
+- **Error prevention** - Avoid missing identifier files when adding entries
+
+**Exit codes:**
+- `0` - Templates generated successfully
+- `1` - Generation failed or error occurred
 
 ## Architecture & Data Safety
 

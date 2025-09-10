@@ -4,10 +4,10 @@
     // --- LaTeX Workshop tools ---
     "latex-workshop.latex.tools": [
         {
-            "name": "latexmk-xelatex",
+            "name": "latexmk-lualatex",
             "command": "latexmk",
             "args": [
-                "-xelatex",
+                "-lualatex",
                 "-synctex=1",
                 "-interaction=nonstopmode",
                 "-file-line-error",
@@ -16,10 +16,10 @@
             ]
         },
         {
-            "name": "latexmk-xelatex-shell-escape",
+            "name": "latexmk-lualatex-shell-escape",
             "command": "latexmk",
             "args": [
-                "-xelatex",
+                "-lualatex",
                 "-synctex=1",
                 "-interaction=nonstopmode",
                 "-file-line-error",
@@ -29,8 +29,8 @@
             ]
         },
         {
-            "name": "xelatex",
-            "command": "xelatex",
+            "name": "lualatex",
+            "command": "lualatex",
             "args": [
                 "-synctex=1",
                 "-interaction=nonstopmode",
@@ -48,28 +48,28 @@
     ],
     "latex-workshop.latex.recipes": [
         {
-            "name": "latexmk (XeLaTeX + biber)",
+            "name": "latexmk (LuaLaTeX + biber)",
             "tools": [
-                "latexmk-xelatex"
+                "latexmk-lualatex"
             ]
         },
         {
-            "name": "latexmk (XeLaTeX + biber, shell-escape)",
+            "name": "latexmk (LuaLaTeX + biber, shell-escape)",
             "tools": [
-                "latexmk-xelatex-shell-escape"
+                "latexmk-lualatex-shell-escape"
             ]
         },
         {
-            "name": "XeLaTeX ➜ biber ➜ XeLaTeX ×2 (manual)",
+            "name": "LuaLaTeX ➜ biber ➜ LuaLaTeX ×2 (manual)",
             "tools": [
-                "xelatex",
+                "lualatex",
                 "biber",
-                "xelatex",
-                "xelatex"
+                "lualatex",
+                "lualatex"
             ]
         }
     ],
-    "latex-workshop.latex.recipe.default": "latexmk (XeLaTeX + biber)",
+    "latex-workshop.latex.recipe.default": "latexmk (LuaLaTeX + biber)",
     "latex-workshop.latex.autoBuild.run": "onSave",
     "latex-workshop.view.pdf.viewer": "tab",
     "latex-workshop.formatting.latex": "tex-fmt",

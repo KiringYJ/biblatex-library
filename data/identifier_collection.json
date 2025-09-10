@@ -1272,5 +1272,13 @@
     "identifiers": {
       "arxiv": "2503.01800"
     }
+  },
+  "freitag-2009-429f26d8": {
+    "main_identifier": "doi",
+    "identifiers": {
+      "isbn13": "9783540939825",
+      "mrnumber": "2513384",
+      "doi": "10.1007/978-3-540-93983-2"
+    }
   }
 }

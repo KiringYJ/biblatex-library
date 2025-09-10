@@ -31,7 +31,7 @@ def _extract_identifiers_from_entry(entry: Entry) -> dict[str, str]:
     # Common identifier field mappings
     identifier_fields = {
         "doi": "doi",
-        "isbn": "isbn",
+        "isbn": "isbn13",  # Map bib 'isbn' to 'isbn13' in output
         "url": "url",
         "mrnumber": "mrnumber",
         "eprint": "eprint",  # arXiv
@@ -52,6 +52,9 @@ def _extract_identifiers_from_entry(entry: Entry) -> dict[str, str]:
                     identifier_value = identifier_value.replace("https://doi.org/", "")
                 elif identifier_key == "eprint" and identifier_value.startswith("arXiv:"):
                     identifier_value = identifier_value.replace("arXiv:", "")
+                elif identifier_key == "isbn13":
+                    # Remove all hyphens from ISBN
+                    identifier_value = identifier_value.replace("-", "")
 
                 identifiers[identifier_key] = identifier_value
 

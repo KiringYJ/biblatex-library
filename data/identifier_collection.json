@@ -977,7 +977,7 @@
       "isbn13": "9788870881059"
     }
   },
-  "univalent-2013-547bacad": {
+  "hott-2013-547bacad": {
     "main_identifier": "url",
     "identifiers": {
       "url": "https://homotopytypetheory.org/book"
@@ -1241,7 +1241,7 @@
       "doi": "10.4310/cntp.2023.v17.n3.a4"
     }
   },
-  "vanstraten-2017-8e6047fa": {
+  "cydb-2017-8e6047fa": {
     "main_identifier": "url",
     "identifiers": {
       "url": "https://cydb.mathematik.uni-mainz.de/"
@@ -1287,7 +1287,7 @@
       "arxiv": "1502.05996"
     }
   },
-  "olver-2010-fa11482d": {
+  "dlmf-2010-fa11482d": {
     "main_identifier": "url",
     "identifiers": {
       "url": "https://dlmf.nist.gov/"

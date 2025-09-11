@@ -237,6 +237,21 @@ Add runtime assertions if silent no‑ops are possible.
 
 **Impact**: Streamlined staging workflow, eliminated manual JSON creation, improved developer experience, reduced error potential.
 
+### 8.7 Label Generation Enhancement (September 2025)
+**Problem solved**: Label generation always used author/editor lastname, which wasn't optimal for entries with organizational references or standard sources.
+
+**Solution implemented**:
+- Enhanced `generate_labels()` function to prioritize `shorthand` field when available
+- Modified label generation logic: `shorthand` > `author` > `editor` for lastname component
+- Applied same Unicode normalization and cleaning to shorthand values
+- Maintained backward compatibility for entries without shorthand field
+
+**Example improvement**:
+- **Before**: `olver-2010-fa11482d` (using author lastname "Olver")
+- **After**: `dlmf-2010-fa11482d` (using shorthand "DLMF")
+
+**Impact**: More intuitive and recognizable citation keys for standard references, improved consistency with common bibliography practices.
+
 ---
 
 ## 9) Encoding & File I/O Policy

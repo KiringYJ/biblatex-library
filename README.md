@@ -157,7 +157,8 @@ uv run blx generate-labels [-o OUTPUT] [--workspace PATH]
 
 **Features:**
 - 🎯 **Deterministic** label generation: `lastname-year-hash8`
-- 🔄 **Collision handling** with automatic hash adjustment
+- � **Shorthand priority**: Uses `shorthand` field when available instead of author lastname
+- �🔄 **Collision handling** with automatic hash adjustment
 - 📝 **JSON output** mapping original keys to generated labels
 - 🌍 **Unicode support** for international author names
 
@@ -228,7 +229,7 @@ blx generate-labels [options]
 ```
 
 **What it generates:**
-- **lastname** - Extracted from author/editor field, normalized and cleaned
+- **lastname** - Extracted from `shorthand` field (preferred) or author/editor lastname, normalized and cleaned
 - **year** - Extracted from date/year field (4-digit years only)
 - **hash** - 8-character SHA-256 hash of the main identifier from identifier_collection.json
 

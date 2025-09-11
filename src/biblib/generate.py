@@ -131,6 +131,7 @@ def parse_bib_entries(bib_path: Path) -> dict[str, dict[str, str]]:
                 "year": "",
                 "sortname": "",
                 "editor": "",
+                "shorthand": "",
             }
 
             # Extract fields using bibtexparser v2 API
@@ -147,6 +148,10 @@ def parse_bib_entries(bib_path: Path) -> dict[str, dict[str, str]]:
             # Extract sortname field
             if "sortname" in fields_dict:
                 entry_data["sortname"] = fields_dict["sortname"].value
+
+            # Extract shorthand field
+            if "shorthand" in fields_dict:
+                entry_data["shorthand"] = fields_dict["shorthand"].value
 
             # Extract year field (check date first, then year)
             if "date" in fields_dict:
@@ -215,9 +220,18 @@ def generate_labels(bib_path: Path, identifier_path: Path) -> dict[str, str]:
     labels: dict[str, str] = {}
 
     for entry_key, entry_data in entries.items():
-        # Extract lastname and year - use author if available, otherwise editor
-        author_field = entry_data.get("author", "") or entry_data.get("editor", "")
-        lastname = extract_lastname(author_field, entry_data.get("sortname", ""))
+        # Check if shorthand field exists and use it instead of author/editor lastname
+        shorthand = entry_data.get("shorthand", "").strip()
+        if shorthand:
+            # Use shorthand directly, normalize and clean it
+            shorthand = unicodedata.normalize("NFD", shorthand)
+            shorthand = "".join(c for c in shorthand if unicodedata.category(c) != "Mn")
+            lastname = re.sub(r"[^a-zA-Z]", "", shorthand).lower() or "unknown"
+        else:
+            # Extract lastname and year - use author if available, otherwise editor
+            author_field = entry_data.get("author", "") or entry_data.get("editor", "")
+            lastname = extract_lastname(author_field, entry_data.get("sortname", ""))
+
         year = extract_year(entry_data.get("year", ""))
 
         # Get identifier for hashing

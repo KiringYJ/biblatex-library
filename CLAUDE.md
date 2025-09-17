@@ -252,6 +252,23 @@ Add runtime assertions if silent no‑ops are possible.
 
 **Impact**: More intuitive and recognizable citation keys for standard references, improved consistency with common bibliography practices.
 
+### 8.8 Python Runtime Upgrade (September 2025)
+**Upgrade completed**: Python runtime upgraded from 3.12 to 3.13 across development environment.
+
+**Changes made**:
+- Updated `pyrightconfig.json`: `"pythonVersion": "3.12"` → `"pythonVersion": "3.13"`
+- Updated build documentation in CLAUDE.md to reflect Python 3.13 requirement
+- Updated GitHub CI workflow (`.github/workflows/ci.yml`) to use Python 3.13
+- Verified all existing functionality with Python 3.13.7
+- Maintained full backward compatibility and zero regressions
+
+**Benefits**:
+- Access to Python 3.13 performance improvements and new features
+- Continued excellent type checking support with latest language features
+- Future-proofed development environment
+
+**Impact**: Improved development experience with latest Python features while maintaining all existing functionality.
+
 ---
 
 ## 9) Encoding & File I/O Policy
@@ -374,7 +391,7 @@ When working with citekeys/labels, **ALWAYS** update these three files simultane
 
 ### Python (Windows PowerShell)
 
-- Use Python **3.12** with UV package manager:
+- Use Python **3.13** with UV package manager:
   ```powershell
   # Install dependencies and create virtual environment
   uv sync --dev

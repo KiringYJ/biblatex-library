@@ -2,10 +2,14 @@
 % Load biblatex with alphabetic style
 \usepackage[
   backend=biber,
-  style=biblatex-spbasic
+  style=biblatex-spbasic,
+  date=year,
+  labeldate=year
 ]{biblatex}
+\usepackage{biblatex-shortfields}
 \usepackage{hyperref}
 \usepackage[margin=1in]{geometry}
+\usepackage{amsfonts}
 
 % Point to the main bibliography
 \addbibresource{../../../bib/library.bib}

@@ -15,7 +15,7 @@
     // Interpreter / venv discovery
     "venvPath": ".",
     "venv": ".venv",
-    "pythonVersion": "3.12",
+    "pythonVersion": "3.13",
     // Strict mode covers most type checking rules
     "typeCheckingMode": "strict",
     // Stub paths for type checking

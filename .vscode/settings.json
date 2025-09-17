@@ -86,9 +86,6 @@
         "editor.tabSize": 4,
         "editor.insertSpaces": false
     },
-    // --- Python Language Server (Pylance) Configuration ---
-    "python.analysis.autoImportCompletions": true,
-    "python.analysis.diagnosticMode": "workspace",
     // --- Python Formatting and Linting ---
     "[python]": {
         "editor.formatOnSave": true,
@@ -97,5 +94,7 @@
             "source.fixAll": "explicit",
             "source.organizeImports": "explicit"
         }
-    }
+    },
+    // --- Python Analysis ---
+    "python.analysis.typeCheckingMode": "strict"
 }

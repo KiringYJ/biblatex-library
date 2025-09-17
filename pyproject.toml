@@ -7,13 +7,13 @@ name = "biblib"
 version = "0.1.0"
 description = "Tools for a curated biblatex library: validate, sort, convert (CSL-JSON/BibTeX), enrich."
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.13"
 license = { file = "LICENSE" }
 authors = [{ name = "Yi-Jing Tseng" }]
 keywords = ["biblatex", "bibtex", "CSL-JSON", "biber", "bibliography"]
 classifiers = [
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
@@ -49,15 +49,35 @@ packages = ["src/biblib"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py312"
+target-version = "py313"
+respect-gitignore = true
+extend-exclude = [
+    "build",
+    "dist",
+    ".venv",
+    "latex/**/build",
+    "latex/**/out",
+    "examples/**/build",
+    "examples/**/out",
+]
+src = ["src", "tests"]
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "B", "UP"]
+# Start pragmatic: core errors + import sorting + safe upgrades + bugbears
+select = ["E", "F", "I", "UP", "B"]
+# Add ignores here as you go; keep empty initially
 ignore = []
-fixable = ["ALL"]
+# Don't auto-fix "commented-out code" (if you enable ERA later)
+unfixable = ["ERA001"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["biblib"] # your package name under src/
 
 [tool.ruff.format]
 docstring-code-format = true
+indent-style = "space"
+quote-style = "double"
+skip-magic-trailing-comma = false
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -68,7 +88,7 @@ markers = [
 
 [tool.pyright]
 typeCheckingMode = "strict"
-pythonVersion = "3.12"
+pythonVersion = "3.13"
 venvPath = "."
 venv = ".venv"
 include = ["src", "tests"]

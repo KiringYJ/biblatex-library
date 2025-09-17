@@ -25,9 +25,6 @@ jobs:
         with:
           version: "latest"
 
-      - name: Set up Python
-        run: uv python install 3.13
-
       - name: Install TeX Live (for biber validation)
         run: |
           sudo apt-get update
@@ -35,7 +32,7 @@ jobs:
 
       - name: Install project and dependencies
         run: uv sync --dev
-        # UV automatically creates venv and installs all dependencies
+        # UV automatically installs the Python version from pyproject.toml and all dependencies
 
       - name: Create generated directory
         run: mkdir -p bib/generated
@@ -56,11 +53,9 @@ jobs:
         with:
           version: "latest"
 
-      - name: Set up Python
-        run: uv python install 3.13
-
       - name: Install project (dev)
         run: uv sync --dev
+        # UV automatically installs the Python version specified in pyproject.toml requires-python
 
       - name: Run pytest (if tests/ exists)
         if: ${{ hashFiles('tests/**') != '' }}

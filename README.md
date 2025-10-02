@@ -10,6 +10,7 @@ A production-grade bibliographic database with powerful Python tooling for valid
 - **Automatic validation** ensuring data consistency across all formats
 - **Smart citekey generation** with collision detection and stable identifiers
 - **Staging workflow** for safe batch operations with automatic backup
+- **Schema-aware normalization** to upgrade legacy BibTeX fields (e.g., rename `year` → `date`)
 
 🔧 **Production-Ready Architecture**
 - **Comprehensive error handling** with specific exception types
@@ -62,6 +63,10 @@ uv run blx sort alphabetical
 
 # Sort database by chronological add order
 uv run blx sort add-order
+
+# Normalize legacy fields (dry run first)
+uv run blx normalize year-to-date --dry-run
+uv run blx normalize year-to-date
 
 # Verbose validation with detailed progress
 uv run blx -v validate
@@ -338,6 +343,41 @@ INFO biblib.cli:166 – ✓ Sort operation completed successfully
 **Exit codes:**
 - `0` - Sorting completed successfully
 - `1` - Sorting failed or error occurred
+
+#### Normalization (`blx normalize`)
+
+Applies targeted migrations to keep legacy data aligned with BibLaTeX conventions:
+
+```bash
+# Preview entries that would be updated
+uv run blx normalize year-to-date --dry-run
+
+# Apply the transformation
+uv run blx normalize year-to-date
+```
+
+**Features:**
+- 🔁 **Field upgrades** – renames `year` to `date` when entries lack a BibLaTeX `date` field
+- 🛡️ **Safe previews** – `--dry-run` reports affected citekeys without touching files
+- 📂 **Workspace aware** – respects `--workspace` for multi-repo setups
+
+**Options:**
+- `--dry-run` – Show planned changes without modifying `library.bib`
+- `--workspace PATH` – Run against another project directory
+- `-v, --verbose` – List up to 10 affected citekeys when combined with `--dry-run`
+
+**Example output:**
+
+```
+$ uv run blx normalize year-to-date --dry-run
+INFO biblib.cli:236 – Dry run complete: 4 entries would be converted from year to date
+INFO biblib.cli:243 – Affected entries: example-1998, sample-2001, legacy-1987...
+
+$ uv run blx normalize year-to-date
+INFO biblib.cli:239 – ✓ Converted 4 entries from year to date fields
+```
+
+Use normalization after importing BibTeX-era data or whenever validation reports missing `date` fields.
 
 ### Template Generation
 

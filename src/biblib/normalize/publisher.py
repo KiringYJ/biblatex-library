@@ -54,6 +54,13 @@ def normalize_publisher_location(
     fixed: list[str] = []
 
     for entry in library.entries:
+        if entry.entry_type.lower() == "article":
+            logger.debug(
+                "Skipping publisher/location normalization for article entry: %s",
+                entry.key,
+            )
+            continue
+
         if not _needs_location(entry):
             continue
 

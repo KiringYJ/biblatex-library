@@ -73,3 +73,23 @@ def test_normalize_publisher_location_flags_multicomma(tmp_path: Path) -> None:
     assert report.fixed == []
     after = bib_path.read_text(encoding="utf-8")
     assert after == before
+
+
+def test_normalize_publisher_location_skips_articles(tmp_path: Path) -> None:
+    bib_content = """@article{entry-article,
+  title = {Journal Piece},
+  publisher = {Journal Press, New York}
+}
+"""
+    bib_path = _write_bib(tmp_path, bib_content)
+
+    report = normalize_publisher_location(bib_path)
+
+    assert report.flagged == []
+    assert report.fixed == []
+
+    library = bibtexparser.parse_file(str(bib_path))
+    entry_article = next(entry for entry in library.entries if entry.key == "entry-article")
+
+    assert "location" not in entry_article.fields_dict
+    assert entry_article.fields_dict["publisher"].value == "Journal Press, New York"

@@ -10,7 +10,7 @@ A production-grade bibliographic database with powerful Python tooling for valid
 - **Automatic validation** ensuring data consistency across all formats
 - **Smart citekey generation** with collision detection and stable identifiers
 - **Staging workflow** for safe batch operations with automatic backup
-- **Schema-aware normalization** to upgrade legacy BibTeX fields (rename `year` → `date`, split `publisher, location` pairs, modernize arXiv eprint fields)
+- **Schema-aware normalization** to upgrade legacy BibTeX fields (rename `year` → `date`, split `publisher, location` pairs, modernize arXiv eprint fields, convert LaTeX accent macros to Unicode)
 
 🔧 **Production-Ready Architecture**
 - **Comprehensive error handling** with specific exception types
@@ -75,6 +75,10 @@ uv run blx normalize publisher-location
 # Normalize eprint fields
 uv run blx normalize eprint-fields --dry-run
 uv run blx normalize eprint-fields
+
+# Convert LaTeX accent macros
+uv run blx normalize latex-accents --dry-run
+uv run blx normalize latex-accents
 
 # Verbose validation with detailed progress
 uv run blx -v validate
@@ -368,12 +372,17 @@ uv run blx normalize publisher-location
 # Normalize arXiv eprint metadata
 uv run blx normalize eprint-fields --dry-run
 uv run blx normalize eprint-fields
+
+# Convert LaTeX accent macros into Unicode
+uv run blx normalize latex-accents --dry-run
+uv run blx normalize latex-accents
 ```
 
 **Available actions:**
 - `year-to-date` – renames `year` to `date` when entries lack a BibLaTeX `date` field
 - `publisher-location` – flags entries missing `location` and splits `Publisher, City` pairs automatically
 - `eprint-fields` – renames `archiveprefix`/`primaryclass` to `eprinttype`/`eprintclass` and lowercases `arXiv` values
+- `latex-accents` – converts LaTeX accent commands (e.g. `Jos\'e`, `Fran{\c{c}}ois`) into normalized Unicode text
 
 **Shared features:**
 - 🛡️ **Safe previews** – `--dry-run` reports affected citekeys without touching files
@@ -400,6 +409,12 @@ $ uv run blx normalize eprint-fields
 INFO biblib.cli:294 – ✓ Applied: eprint field normalization touched 5 entries
 INFO biblib.cli:304 – Renamed archiveprefix→eprinttype for 5 entries
 INFO biblib.cli:304 – Lowercased eprinttype for 4 entries
+
+$ uv run blx normalize latex-accents --dry-run -v
+INFO biblib.cli:324 – Dry run complete: converted LaTeX accents in 8 fields across 4 entries
+INFO biblib.cli:335 – example-1984: author, title, note
+INFO biblib.cli:335 – sample-1991: title
+INFO biblib.cli:338 – ... and 2 more entries
 ```
 
 Use normalization after importing BibTeX-era data, spotting combined publisher/location strings, or whenever validation reports missing `date` fields.

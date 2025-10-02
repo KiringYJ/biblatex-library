@@ -8,6 +8,7 @@ from pathlib import Path
 
 from .add_entries import add_entries_from_staging
 from .generate import generate_labels
+from .normalize.accents import normalize_latex_accents
 from .normalize.dates import rename_year_to_date_fields
 from .normalize.eprint import normalize_eprint_fields
 from .normalize.publisher import normalize_publisher_location
@@ -314,6 +315,30 @@ def cmd_normalize(args: argparse.Namespace) -> None:
 
             sys.exit(0)
 
+        if args.action == "latex-accents":
+            report = normalize_latex_accents(bib_path, dry_run=args.dry_run)
+
+            action_prefix = "Dry run complete" if args.dry_run else "✓ Applied"
+            if report.total_fields:
+                logger.info(
+                    "%s: converted LaTeX accents in %d fields across %d entries",
+                    action_prefix,
+                    report.total_fields,
+                    len(report.converted),
+                )
+            else:
+                logger.info("%s: no LaTeX accent changes required", action_prefix)
+
+            if args.verbose and report.total_fields:
+                preview_items = list(report.converted.items())[:5]
+                for key, fields in preview_items:
+                    logger.info("%s: %s", key, ", ".join(fields))
+                remaining = len(report.converted) - len(preview_items)
+                if remaining > 0:
+                    logger.info("... and %d more entries", remaining)
+
+            sys.exit(0)
+
         logger.error(f"Unknown normalization action: {args.action}")
         sys.exit(1)
 
@@ -447,12 +472,13 @@ def create_parser() -> argparse.ArgumentParser:
     )
     normalize_parser.add_argument(
         "action",
-        choices=["year-to-date", "publisher-location", "eprint-fields"],
+        choices=["year-to-date", "publisher-location", "eprint-fields", "latex-accents"],
         help=(
             "Choose normalization action. 'year-to-date' renames entries with year but no date "
             "to use the date field. 'publisher-location' splits combined publisher/location "
             "values and flags missing locations. 'eprint-fields' migrates legacy arXiv fields "
-            "and normalizes the eprinttype value."
+            "and normalizes the eprinttype value. 'latex-accents' converts LaTeX accent "
+            "commands into their Unicode equivalents."
         ),
     )
     normalize_parser.add_argument(

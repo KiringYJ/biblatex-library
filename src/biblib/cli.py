@@ -8,6 +8,7 @@ from pathlib import Path
 
 from .add_entries import add_entries_from_staging
 from .generate import generate_labels
+from .normalize.dates import rename_year_to_date_fields
 from .sort import sort_alphabetically, sort_by_add_order
 from .sync import sync_identifiers_to_library
 from .template import generate_staging_templates
@@ -219,6 +220,44 @@ def cmd_sync(args: argparse.Namespace) -> None:
         sys.exit(1)
 
 
+def cmd_normalize(args: argparse.Namespace) -> None:
+    """Apply normalization routines to the library."""
+    workspace = Path(args.workspace)
+
+    bib_path = workspace / "bib" / "library.bib"
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        if args.action == "year-to-date":
+            updated_count, updated_keys = rename_year_to_date_fields(bib_path, dry_run=args.dry_run)
+
+            if args.dry_run:
+                logger.info(
+                    "Dry run complete: %d entries would be converted from year to date",
+                    updated_count,
+                )
+            else:
+                logger.info(
+                    "✓ Converted %d entries from year to date fields",
+                    updated_count,
+                )
+
+            if args.verbose and updated_keys:
+                preview = ", ".join(updated_keys[:10])
+                suffix = "..." if len(updated_keys) > 10 else ""
+                logger.info("Affected entries: %s%s", preview, suffix)
+
+            sys.exit(0)
+
+        logger.error(f"Unknown normalization action: {args.action}")
+        sys.exit(1)
+
+    except (FileNotFoundError, ValueError) as exc:
+        logger.error(f"Normalize error: {exc}")
+        sys.exit(1)
+
+
 def cmd_add(args: argparse.Namespace) -> None:
     """Add new entries from staging files to the main library."""
     workspace = Path(args.workspace)
@@ -270,7 +309,7 @@ def create_parser() -> argparse.ArgumentParser:
     """Create the argument parser for the CLI."""
     parser = argparse.ArgumentParser(
         prog="blx",
-        description="Tools for a curated biblatex library: validate, sort, sync, enrich.",
+        description="Tools for a curated biblatex library: validate, sort, sync, normalize.",
     )
 
     parser.add_argument(
@@ -337,6 +376,25 @@ def create_parser() -> argparse.ArgumentParser:
         help="Comma-separated list of fields to sync (default: isbn,doi,url,arxiv,mrnumber,zbl)",
     )
     sync_parser.set_defaults(func=cmd_sync)
+
+    # normalize subcommand
+    normalize_parser = subparsers.add_parser(
+        "normalize", help="Apply normalization routines to library data"
+    )
+    normalize_parser.add_argument(
+        "action",
+        choices=["year-to-date"],
+        help=(
+            "Choose normalization action. 'year-to-date' renames entries with year but no date "
+            "to use the date field."
+        ),
+    )
+    normalize_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Preview changes without modifying files",
+    )
+    normalize_parser.set_defaults(func=cmd_normalize)
 
     # add subcommand
     add_parser = subparsers.add_parser(

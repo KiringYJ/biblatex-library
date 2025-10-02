@@ -9,6 +9,7 @@ from pathlib import Path
 from .add_entries import add_entries_from_staging
 from .generate import generate_labels
 from .normalize.dates import rename_year_to_date_fields
+from .normalize.publisher import normalize_publisher_location
 from .sort import sort_alphabetically, sort_by_add_order
 from .sync import sync_identifiers_to_library
 from .template import generate_staging_templates
@@ -250,6 +251,34 @@ def cmd_normalize(args: argparse.Namespace) -> None:
 
             sys.exit(0)
 
+        if args.action == "publisher-location":
+            report = normalize_publisher_location(bib_path, dry_run=args.dry_run)
+
+            if report.fixed:
+                message = (
+                    "Dry run complete: %d entries would have publisher/location split"
+                    if args.dry_run
+                    else "✓ Split publisher/location for %d entries"
+                )
+                logger.info(message, len(report.fixed))
+                if args.verbose:
+                    preview = ", ".join(report.fixed[:10])
+                    suffix = "..." if len(report.fixed) > 10 else ""
+                    logger.info("Split entries: %s%s", preview, suffix)
+
+            fixed_set = set(report.fixed)
+            remaining = [key for key in report.flagged if key not in fixed_set]
+            if remaining:
+                preview = ", ".join(remaining[:10])
+                suffix = "..." if len(remaining) > 10 else ""
+                logger.warning(
+                    "Entries with publisher but unresolved location: %s%s", preview, suffix
+                )
+            elif not report.fixed:
+                logger.info("No publisher/location issues found")
+
+            sys.exit(0)
+
         logger.error(f"Unknown normalization action: {args.action}")
         sys.exit(1)
 
@@ -383,10 +412,11 @@ def create_parser() -> argparse.ArgumentParser:
     )
     normalize_parser.add_argument(
         "action",
-        choices=["year-to-date"],
+        choices=["year-to-date", "publisher-location"],
         help=(
             "Choose normalization action. 'year-to-date' renames entries with year but no date "
-            "to use the date field."
+            "to use the date field. 'publisher-location' splits combined publisher/location "
+            "values and flags missing locations."
         ),
     )
     normalize_parser.add_argument(

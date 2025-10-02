@@ -10,7 +10,7 @@ A production-grade bibliographic database with powerful Python tooling for valid
 - **Automatic validation** ensuring data consistency across all formats
 - **Smart citekey generation** with collision detection and stable identifiers
 - **Staging workflow** for safe batch operations with automatic backup
-- **Schema-aware normalization** to upgrade legacy BibTeX fields (e.g., rename `year` → `date`)
+- **Schema-aware normalization** to upgrade legacy BibTeX fields (rename `year` → `date`, split `publisher, location` pairs)
 
 🔧 **Production-Ready Architecture**
 - **Comprehensive error handling** with specific exception types
@@ -67,6 +67,10 @@ uv run blx sort add-order
 # Normalize legacy fields (dry run first)
 uv run blx normalize year-to-date --dry-run
 uv run blx normalize year-to-date
+
+# Split publisher/location pairs
+uv run blx normalize publisher-location --dry-run
+uv run blx normalize publisher-location
 
 # Verbose validation with detailed progress
 uv run blx -v validate
@@ -349,22 +353,28 @@ INFO biblib.cli:166 – ✓ Sort operation completed successfully
 Applies targeted migrations to keep legacy data aligned with BibLaTeX conventions:
 
 ```bash
-# Preview entries that would be updated
+# Normalize legacy year fields
 uv run blx normalize year-to-date --dry-run
-
-# Apply the transformation
 uv run blx normalize year-to-date
+
+# Split combined publisher/location values
+uv run blx normalize publisher-location --dry-run
+uv run blx normalize publisher-location
 ```
 
-**Features:**
-- 🔁 **Field upgrades** – renames `year` to `date` when entries lack a BibLaTeX `date` field
+**Available actions:**
+- `year-to-date` – renames `year` to `date` when entries lack a BibLaTeX `date` field
+- `publisher-location` – flags entries missing `location` and splits `Publisher, City` pairs automatically
+
+**Shared features:**
 - 🛡️ **Safe previews** – `--dry-run` reports affected citekeys without touching files
 - 📂 **Workspace aware** – respects `--workspace` for multi-repo setups
+- 🔎 **Verbose insight** – `-v`/`-vv` surfaces up to 10 example citekeys per action
 
 **Options:**
 - `--dry-run` – Show planned changes without modifying `library.bib`
 - `--workspace PATH` – Run against another project directory
-- `-v, --verbose` – List up to 10 affected citekeys when combined with `--dry-run`
+- `-v, --verbose` – Print sample citekeys for each action
 
 **Example output:**
 
@@ -373,11 +383,12 @@ $ uv run blx normalize year-to-date --dry-run
 INFO biblib.cli:236 – Dry run complete: 4 entries would be converted from year to date
 INFO biblib.cli:243 – Affected entries: example-1998, sample-2001, legacy-1987...
 
-$ uv run blx normalize year-to-date
-INFO biblib.cli:239 – ✓ Converted 4 entries from year to date fields
+$ uv run blx normalize publisher-location
+INFO biblib.cli:252 – ✓ Split publisher/location for 3 entries
+WARNING biblib.cli:259 – Entries with publisher but unresolved location: legacy-1980...
 ```
 
-Use normalization after importing BibTeX-era data or whenever validation reports missing `date` fields.
+Use normalization after importing BibTeX-era data, spotting combined publisher/location strings, or whenever validation reports missing `date` fields.
 
 ### Template Generation
 

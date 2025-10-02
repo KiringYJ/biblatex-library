@@ -1292,5 +1292,81 @@
     "identifiers": {
       "url": "https://dlmf.nist.gov/"
     }
+  },
+  "alim-2024-5b70cd5e": {
+    "main_identifier": "arxiv",
+    "identifiers": {
+      "arxiv": "2406.17852"
+    }
+  },
+  "alim-2023-de7fb1f0": {
+    "main_identifier": "doi",
+    "identifiers": {
+      "mrnumber": "4576764",
+      "doi": "10.1007/s00220-022-04571-y"
+    }
+  },
+  "bridgeland-2020-7a4fdc8b": {
+    "main_identifier": "doi",
+    "identifiers": {
+      "mrnumber": "4120815",
+      "doi": "10.4310/jdg/1594260015"
+    }
+  },
+  "chuang-2023-30069ef3": {
+    "main_identifier": "doi",
+    "identifiers": {
+      "mrnumber": "4590129",
+      "doi": "10.1016/j.geomphys.2023.104860"
+    }
+  },
+  "kashaev-2016-63d691c5": {
+    "main_identifier": "doi",
+    "identifiers": {
+      "mrnumber": "3537342",
+      "doi": "10.1007/s00220-015-2499-1"
+    }
+  },
+  "costin-2009-6f3f9e9b": {
+    "main_identifier": "doi",
+    "identifiers": {
+      "isbn13": "9781420070316",
+      "mrnumber": "2474083",
+      "doi": "10.1201/9781420070323"
+    }
+  },
+  "krefl-2010-3389cf62": {
+    "main_identifier": "doi",
+    "identifiers": {
+      "mrnumber": "2611000",
+      "doi": "10.1016/j.nuclphysb.2010.01.002"
+    }
+  },
+  "gopakumar-2001-d6b8f4c3": {
+    "main_identifier": "doi",
+    "identifiers": {
+      "mrnumber": "1876065",
+      "doi": "10.1090/amsip/023/03"
+    }
+  },
+  "rosenblatt-2013-43f5170e": {
+    "main_identifier": "url",
+    "identifiers": {
+      "isbn13": "9781321513295",
+      "mrnumber": "3322026",
+      "url": "http://rave.ohiolink.edu/etdc/view?acc_num=osu1373987953"
+    }
+  },
+  "sinha-2000-c6cf9be1": {
+    "main_identifier": "arxiv",
+    "identifiers": {
+      "arxiv": "hep-th/0012136"
+    }
+  },
+  "krefl-2009-d1c56d3a": {
+    "main_identifier": "arxiv",
+    "identifiers": {
+      "arxiv": "0902.0616"
+    }
   }
 }

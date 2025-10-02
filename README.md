@@ -10,7 +10,7 @@ A production-grade bibliographic database with powerful Python tooling for valid
 - **Automatic validation** ensuring data consistency across all formats
 - **Smart citekey generation** with collision detection and stable identifiers
 - **Staging workflow** for safe batch operations with automatic backup
-- **Schema-aware normalization** to upgrade legacy BibTeX fields (rename `year` → `date`, split `publisher, location` pairs)
+- **Schema-aware normalization** to upgrade legacy BibTeX fields (rename `year` → `date`, split `publisher, location` pairs, modernize arXiv eprint fields)
 
 🔧 **Production-Ready Architecture**
 - **Comprehensive error handling** with specific exception types
@@ -71,6 +71,10 @@ uv run blx normalize year-to-date
 # Split publisher/location pairs
 uv run blx normalize publisher-location --dry-run
 uv run blx normalize publisher-location
+
+# Normalize eprint fields
+uv run blx normalize eprint-fields --dry-run
+uv run blx normalize eprint-fields
 
 # Verbose validation with detailed progress
 uv run blx -v validate
@@ -360,11 +364,16 @@ uv run blx normalize year-to-date
 # Split combined publisher/location values
 uv run blx normalize publisher-location --dry-run
 uv run blx normalize publisher-location
+
+# Normalize arXiv eprint metadata
+uv run blx normalize eprint-fields --dry-run
+uv run blx normalize eprint-fields
 ```
 
 **Available actions:**
 - `year-to-date` – renames `year` to `date` when entries lack a BibLaTeX `date` field
 - `publisher-location` – flags entries missing `location` and splits `Publisher, City` pairs automatically
+- `eprint-fields` – renames `archiveprefix`/`primaryclass` to `eprinttype`/`eprintclass` and lowercases `arXiv` values
 
 **Shared features:**
 - 🛡️ **Safe previews** – `--dry-run` reports affected citekeys without touching files
@@ -386,6 +395,11 @@ INFO biblib.cli:243 – Affected entries: example-1998, sample-2001, legacy-1987
 $ uv run blx normalize publisher-location
 INFO biblib.cli:252 – ✓ Split publisher/location for 3 entries
 WARNING biblib.cli:259 – Entries with publisher but unresolved location: legacy-1980...
+
+$ uv run blx normalize eprint-fields
+INFO biblib.cli:294 – ✓ Applied: eprint field normalization touched 5 entries
+INFO biblib.cli:304 – Renamed archiveprefix→eprinttype for 5 entries
+INFO biblib.cli:304 – Lowercased eprinttype for 4 entries
 ```
 
 Use normalization after importing BibTeX-era data, spotting combined publisher/location strings, or whenever validation reports missing `date` fields.

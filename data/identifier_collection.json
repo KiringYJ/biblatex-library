@@ -1361,5 +1361,20 @@
     "identifiers": {
       "arxiv": "0902.0616"
     }
+  },
+  "hill-1986-da0e1065": {
+    "main_identifier": "isbn13",
+    "identifiers": {
+      "isbn13": "9780198538042",
+      "mrnumber": "853914"
+    }
+  },
+  "hug-2020-550d3f24": {
+    "main_identifier": "doi",
+    "identifiers": {
+      "isbn13": "9783030501792",
+      "mrnumber": "4180684",
+      "doi": "10.1007/978-3-030-50180-8"
+    }
   }
 }

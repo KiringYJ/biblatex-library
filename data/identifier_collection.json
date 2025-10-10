@@ -1376,5 +1376,18 @@
       "mrnumber": "4180684",
       "doi": "10.1007/978-3-030-50180-8"
     }
+  },
+  "schellekens-2016-30994489": {
+    "main_identifier": "url",
+    "identifiers": {
+      "url": "https://www.nikhef.nl/~t58/StringLectures2016.pdf"
+    }
+  },
+  "candelas-1990-d4a7e515": {
+    "main_identifier": "doi",
+    "identifiers": {
+      "mrnumber": "1068113",
+      "doi": "10.1016/0550-3213(90)90577-Z"
+    }
   }
 }

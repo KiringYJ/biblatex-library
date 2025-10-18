@@ -1396,5 +1396,12 @@
       "mrnumber": "3435594",
       "doi": "10.1007/JHEP10(2015)045"
     }
+  },
+  "narukawa-2004-00c94aa0": {
+    "main_identifier": "doi",
+    "identifiers": {
+      "mrnumber": "2101221",
+      "doi": "10.1016/j.aim.2003.11.009"
+    }
   }
 }

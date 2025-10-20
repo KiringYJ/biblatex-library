@@ -1410,5 +1410,40 @@
       "mrnumber": "4420566",
       "doi": "10.1007/s00023-021-01129-x"
     }
+  },
+  "coman-2023-4c6d2131": {
+    "main_identifier": "doi",
+    "identifiers": {
+      "mrnumber": "4580528",
+      "doi": "10.1007/s00220-022-04579-4"
+    }
+  },
+  "faddeev-2001-4a1e713b": {
+    "main_identifier": "doi",
+    "identifiers": {
+      "mrnumber": "1828812",
+      "doi": "10.1007/s002200100412"
+    }
+  },
+  "ecalle-1981-8c402eea": {
+    "main_identifier": "url",
+    "identifiers": {
+      "mrnumber": "670417",
+      "url": "http://sites.mathdoc.fr/PMO/PDF/E_ECALLE_81_05.pdf"
+    }
+  },
+  "ecalle-1981-45b9511e": {
+    "main_identifier": "url",
+    "identifiers": {
+      "mrnumber": "670418",
+      "url": "http://sites.mathdoc.fr/PMO/PDF/E_ECALLE_81_06.pdf"
+    }
+  },
+  "ecalle-1985-adc0b00c": {
+    "main_identifier": "url",
+    "identifiers": {
+      "mrnumber": "852210",
+      "url": "http://sites.mathdoc.fr/PMO/PDF/E_ECALLE_85_05.pdf"
+    }
   }
 }

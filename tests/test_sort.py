@@ -180,7 +180,7 @@ def test_sort_with_invalid_identifier_collection_format(
 @pytest.fixture(autouse=True)
 def cleanup_temp_files(
     temp_library_bib: Path, temp_identifier_collection: Path, temp_add_order: Path
-) -> Generator[None, None, None]:
+) -> Generator[None]:
     """Clean up temporary files after each test."""
     yield
     for path in [temp_library_bib, temp_identifier_collection, temp_add_order]:

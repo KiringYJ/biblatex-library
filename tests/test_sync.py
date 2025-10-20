@@ -15,7 +15,7 @@ from biblib.sync import (
 
 
 @pytest.fixture
-def temp_identifier_collection() -> Generator[Path, None, None]:
+def temp_identifier_collection() -> Generator[Path]:
     """Create a temporary identifier collection JSON file."""
     data = {
         "test-entry-1": {
@@ -51,7 +51,7 @@ def temp_identifier_collection() -> Generator[Path, None, None]:
 
 
 @pytest.fixture
-def temp_library_bib() -> Generator[Path, None, None]:
+def temp_library_bib() -> Generator[Path]:
     """Create a temporary library.bib file with test entries."""
     content = """@book{test-entry-1,
   author = {Test, Author},

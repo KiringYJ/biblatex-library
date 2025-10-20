@@ -1403,5 +1403,12 @@
       "mrnumber": "2101221",
       "doi": "10.1016/j.aim.2003.11.009"
     }
+  },
+  "alexandrov-2022-70cab959": {
+    "main_identifier": "doi",
+    "identifiers": {
+      "mrnumber": "4420566",
+      "doi": "10.1007/s00023-021-01129-x"
+    }
   }
 }

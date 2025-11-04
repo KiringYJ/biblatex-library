@@ -1445,5 +1445,11 @@
       "mrnumber": "852210",
       "url": "http://sites.mathdoc.fr/PMO/PDF/E_ECALLE_85_05.pdf"
     }
+  },
+  "milewski-2019-f9341aa1": {
+    "main_identifier": "isbn13",
+    "identifiers": {
+      "isbn13": "9780464243878"
+    }
   }
 }

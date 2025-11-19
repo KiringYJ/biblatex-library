@@ -40,6 +40,31 @@ repos:
         pass_filenames: false
         files: ^(src/.*\.py|tests/.*\.py|pyproject\.toml)$
 
+      # Normalize library data
+      - id: normalize-latex-accents
+        name: Normalize LaTeX accents
+        entry: uv
+        args: ["run", "blx", "normalize", "latex-accents"]
+        language: system
+        files: ^bib/library\.bib$
+        pass_filenames: false
+
+      - id: normalize-dates
+        name: Normalize dates (year -> date)
+        entry: uv
+        args: ["run", "blx", "normalize", "year-to-date"]
+        language: system
+        files: ^bib/library\.bib$
+        pass_filenames: false
+
+      - id: normalize-eprint
+        name: Normalize eprint fields
+        entry: uv
+        args: ["run", "blx", "normalize", "eprint-fields"]
+        language: system
+        files: ^bib/library\.bib$
+        pass_filenames: false
+
       - id: validate-citekey-consistency
         name: Validate citekey consistency and labels
         entry: uv

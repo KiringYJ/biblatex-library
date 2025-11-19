@@ -28,16 +28,29 @@ def _extract_identifiers_from_entry(entry: Entry) -> dict[str, str]:
     """
     identifiers: dict[str, str] = {}
 
+    # Check if this is an arXiv entry based on archiveprefix or eprinttype
+    is_arxiv = False
+
+    # Create a case-insensitive lookup for fields to handle variations like archivePrefix
+    fields_lower = {k.lower(): v for k, v in entry.fields_dict.items()}
+
+    for type_field in ["archiveprefix", "eprinttype"]:
+        if type_field in fields_lower:
+            value = str(fields_lower[type_field].value).strip().lower()
+            if value == "arxiv":
+                is_arxiv = True
+                break
+
     # Common identifier field mappings
     identifier_fields = {
         "doi": "doi",
         "isbn": "isbn13",  # Map bib 'isbn' to 'isbn13' in output
         "url": "url",
         "mrnumber": "mrnumber",
-        "eprint": "eprint",  # arXiv
+        "eprint": "arxiv" if is_arxiv else "eprint",  # Map eprint to arxiv if it's an arXiv entry
         "zbl": "zbl",
         "mathscinet": "mrnumber",  # Alternative field name
-        "arxiv": "eprint",  # Alternative field name
+        "arxiv": "arxiv",  # Explicit arxiv field maps to arxiv
     }
 
     for field_name, field_obj in entry.fields_dict.items():
@@ -51,6 +64,8 @@ def _extract_identifiers_from_entry(entry: Entry) -> dict[str, str]:
                 if identifier_key == "doi" and identifier_value.startswith("https://doi.org/"):
                     identifier_value = identifier_value.replace("https://doi.org/", "")
                 elif identifier_key == "eprint" and identifier_value.startswith("arXiv:"):
+                    identifier_value = identifier_value.replace("arXiv:", "")
+                elif identifier_key == "arxiv" and identifier_value.startswith("arXiv:"):
                     identifier_value = identifier_value.replace("arXiv:", "")
                 elif identifier_key == "isbn13":
                     # Remove all hyphens from ISBN

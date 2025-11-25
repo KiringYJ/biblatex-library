@@ -1505,5 +1505,37 @@
       "isbn13": "9780898740691",
       "mrnumber": "698779"
     }
+  },
+  "hadamard-unknown-17c3eaa1": {
+    "main_identifier": "doi",
+    "identifiers": {
+      "mrnumber": "1554900",
+      "doi": "10.1007/BF02417870"
+    }
+  },
+  "borel-unknown-5b40c994": {
+    "main_identifier": "url",
+    "identifiers": {
+      "mrnumber": "1504324",
+      "url": "http://www.numdam.org/item?id=BSMF_1898__26__238_0"
+    }
+  },
+  "li-2020-68ffc4bb": {
+    "main_identifier": "arxiv",
+    "identifiers": {
+      "arxiv": "2012.14175"
+    }
+  },
+  "perezmarco-2020-33a09058": {
+    "main_identifier": "arxiv",
+    "identifiers": {
+      "arxiv": "2011.10497"
+    }
+  },
+  "titchmarsh-1939-a02894dd": {
+    "main_identifier": "mrnumber",
+    "identifiers": {
+      "mrnumber": "3728294"
+    }
   }
 }

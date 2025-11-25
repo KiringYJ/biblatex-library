@@ -1537,5 +1537,13 @@
     "identifiers": {
       "mrnumber": "3728294"
     }
+  },
+  "whittaker-2021-6d23b81f": {
+    "main_identifier": "doi",
+    "identifiers": {
+      "isbn13": "9781316518939",
+      "mrnumber": "4286926",
+      "doi": "10.1017/9781009004091"
+    }
   }
 }

@@ -75,12 +75,12 @@ def extract_year(year_str: str) -> str:
     if not year_str:
         return "unknown"
 
-    # Extract 4-digit year (19xx or 20xx)
-    year_match = re.search(r"\b(19|20)\d{2}\b", year_str)
-    if year_match:
-        return year_match.group(0)
+    # Take the first part of a date range or ISO date
+    # e.g. "2023-05-15" -> "2023"
+    # e.g. "2023/2024" -> "2023"
+    year = year_str.split("/")[0].split("-")[0].strip()
 
-    return "unknown"
+    return year or "unknown"
 
 
 def create_hash(identifier: str) -> str:

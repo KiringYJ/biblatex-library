@@ -51,15 +51,18 @@ def test_extract_year():
     assert extract_year("1993/1994") == "1993"
 
     # Complex date with other text
-    assert extract_year("circa 1993") == "1993"
+    assert extract_year("circa 1993") == "circa 1993"
 
     # 20xx year
     assert extract_year("2023") == "2023"
 
+    # Older years
+    assert extract_year("1800") == "1800"
+    assert extract_year("1000") == "1000"
+
     # Invalid years
-    assert extract_year("1800") == "unknown"  # Too old
-    assert extract_year("3000") == "unknown"  # Too new
-    assert extract_year("abc") == "unknown"  # No year
+    assert extract_year("3000") == "3000"  # Just returns the value
+    assert extract_year("abc") == "abc"  # Just returns the value
     assert extract_year("") == "unknown"  # Empty
 
 

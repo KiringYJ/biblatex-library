@@ -1551,5 +1551,12 @@
     "identifiers": {
       "arxiv": "1405.0356"
     }
+  },
+  "lozanorobledo-2019-f1aaac95": {
+    "main_identifier": "isbn13",
+    "identifiers": {
+      "isbn13": "9781470450168",
+      "mrnumber": "3929694"
+    }
   }
 }

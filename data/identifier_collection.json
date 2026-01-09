@@ -1558,5 +1558,156 @@
       "isbn13": "9781470450168",
       "mrnumber": "3929694"
     }
+  },
+  "agoh-2014-d90dd522": {
+    "main_identifier": "doi",
+    "identifiers": {
+      "mrnumber": "3192396",
+      "doi": "10.37236/2940"
+    }
+  },
+  "krefl-2010-be44e129": {
+    "main_identifier": "arxiv",
+    "identifiers": {
+      "arxiv": "1001.5031"
+    }
+  },
+  "aganagic-2012-386ffcfc": {
+    "main_identifier": "doi",
+    "identifiers": {
+      "mrnumber": "3044935",
+      "doi": "10.1007/JHEP09(2012)084"
+    }
+  },
+  "young-2015-9be91531": {
+    "main_identifier": "doi",
+    "identifiers": {
+      "mrnumber": "3399924",
+      "doi": "10.4310/CNTP.2015.v9.n3.a1"
+    }
+  },
+  "goncharov-2026-adb69ae7": {
+    "main_identifier": "arxiv",
+    "identifiers": {
+      "arxiv": "2601.00472"
+    }
+  },
+  "doud-2019-cf5b2231": {
+    "main_identifier": "url",
+    "identifiers": {
+      "url": "https://mathdept.byu.edu/~doud/Transition/Transition.pdf"
+    }
+  },
+  "kim-2023-ffeda745": {
+    "main_identifier": "doi",
+    "identifiers": {
+      "mrnumber": "4635476",
+      "doi": "10.37236/11326"
+    }
+  },
+  "saldanha-1995-f748f307": {
+    "main_identifier": "doi",
+    "identifiers": {
+      "mrnumber": "1370508",
+      "doi": "10.11606/resimeusp.v2i2.74805",
+      "url": "https://revistas.usp.br/resenhasimeusp/article/view/74805"
+    }
+  },
+  "brown-2012-97b42538": {
+    "main_identifier": "doi",
+    "identifiers": {
+      "isbn13": "9784864970143",
+      "mrnumber": "3051238",
+      "doi": "10.2969/aspm/06310031"
+    }
+  },
+  "brown-2014-2925e708": {
+    "main_identifier": "doi",
+    "identifiers": {
+      "mrnumber": "3271288",
+      "doi": "10.1017/fms.2014.18"
+    }
+  },
+  "burgosgil-2020-776d0edb": {
+    "main_identifier": "doi",
+    "identifiers": {
+      "isbn13": "9783030370305",
+      "mrnumber": "4100670",
+      "doi": "10.1007/978-3-030-37031-2"
+    }
+  },
+  "okounkov-2014-b839d5c6": {
+    "main_identifier": "doi",
+    "identifiers": {
+      "doi": "10.1007/s10688-014-0054-z"
+    }
+  },
+  "alexandrov-2024-52f5f751": {
+    "main_identifier": "doi",
+    "identifiers": {
+      "mrnumber": "4843362",
+      "doi": "10.3842/SIGMA.2024.073"
+    }
+  },
+  "kontsevich-1992-5b22f567": {
+    "main_identifier": "doi",
+    "identifiers": {
+      "mrnumber": "1171758",
+      "doi": "10.1007/BF02099526"
+    }
+  },
+  "klebanov-1992-b0d909d1": {
+    "main_identifier": "mrnumber",
+    "identifiers": {
+      "mrnumber": "1231346",
+      "arxiv": "hep-th/9108019"
+    }
+  },
+  "aganagic-2012-82d40f90": {
+    "main_identifier": "doi",
+    "identifiers": {
+      "mrnumber": "3036500",
+      "doi": "10.1007/JHEP11(2012)019"
+    }
+  },
+  "gu-2024-19b7e857": {
+    "main_identifier": "doi",
+    "identifiers": {
+      "mrnumber": "4726814",
+      "doi": "10.21468/scipostphys.16.3.079"
+    }
+  },
+  "kapranov-2025-b0e5eb2d": {
+    "main_identifier": "arxiv",
+    "identifiers": {
+      "arxiv": "2512.22718"
+    }
+  },
+  "lockhart-2018-342a82ac": {
+    "main_identifier": "doi",
+    "identifiers": {
+      "mrnumber": "3891045",
+      "doi": "10.1007/jhep10(2018)051"
+    }
+  },
+  "alim-2023-93e34517": {
+    "main_identifier": "doi",
+    "identifiers": {
+      "mrnumber": "4555591",
+      "doi": "10.3842/SIGMA.2023.009"
+    }
+  },
+  "aharony-2000-e6e999d6": {
+    "main_identifier": "doi",
+    "identifiers": {
+      "mrnumber": "1743597",
+      "doi": "10.1016/S0370-1573(99)00083-6"
+    }
+  },
+  "jafferis-2008-7e8edd18": {
+    "main_identifier": "arxiv",
+    "identifiers": {
+      "arxiv": "0810.4909"
+    }
   }
 }

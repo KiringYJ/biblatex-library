@@ -1,9 +1,12 @@
 """Add new bibliography entries from staging files."""
 
+import datetime
 import json
 import logging
 import re
 import tempfile
+from dataclasses import dataclass
+from enum import Enum, auto
 from pathlib import Path
 
 import bibtexparser
@@ -22,6 +25,78 @@ from .types import (
 from .validate import extract_citekeys_from_bib, extract_citekeys_from_identifier_collection
 
 logger = logging.getLogger(__name__)
+
+
+class ProcessResult(Enum):
+    """Result status for entry processing."""
+
+    SUCCESS = auto()
+    DUPLICATE = auto()
+    ERROR = auto()
+
+
+@dataclass
+class EntryProcessResult:
+    """Result of processing a single entry."""
+
+    status: ProcessResult
+    original_key: str
+    new_key: str | None = None
+    duplicate_of: str | None = None  # The existing key that this duplicates
+    error_message: str | None = None
+
+
+def format_entry_as_bibtex(entry: Entry) -> str:
+    """Format an Entry object as a BibTeX string.
+
+    Args:
+        entry: The bibtex entry to format
+
+    Returns:
+        Formatted BibTeX string
+    """
+    lines = [f"@{entry.entry_type}{{{entry.key},"]
+    for field_name, field_value in entry.fields_dict.items():
+        lines.append(f"  {field_name} = {{{field_value.value}}},")
+    lines.append("}")
+    return "\n".join(lines)
+
+
+def log_skipped_entry(
+    entry: Entry,
+    original_key: str,
+    duplicate_key: str,
+    log_dir: Path,
+) -> Path:
+    """Log a skipped duplicate entry to a file for review.
+
+    Args:
+        entry: The bibtex entry that was skipped
+        original_key: The original key from staging
+        duplicate_key: The generated key that already exists
+        log_dir: Directory to store the log file
+
+    Returns:
+        Path to the log file
+    """
+    log_dir.mkdir(parents=True, exist_ok=True)
+
+    # Use a single file per day for easier review
+    date_str = datetime.datetime.now().strftime("%Y%m%d")
+    daily_log_file = log_dir / f"skipped_duplicates_{date_str}.bib"
+
+    with open(daily_log_file, "a", encoding="utf-8") as f:
+        f.write(f"% Skipped at {datetime.datetime.now().isoformat()}\n")
+        f.write(f"% Original staging key: {original_key}\n")
+        f.write(f"% Duplicates existing key: {duplicate_key}\n")
+        # Temporarily set entry key to original for logging
+        saved_key = entry.key
+        entry.key = original_key
+        f.write(format_entry_as_bibtex(entry))
+        entry.key = saved_key
+        f.write("\n\n")
+
+    return daily_log_file
 
 
 def create_backup(workspace: Path) -> str:
@@ -157,7 +232,11 @@ def load_existing_keys(config: WorkspaceConfig) -> set[str]:
 
 
 def process_staging_entry(
-    slug: str, bib_path: Path, json_path: Path, existing_keys: set[str]
+    slug: str,
+    bib_path: Path,
+    json_path: Path,
+    existing_keys: set[str],
+    log_dir: Path | None = None,
 ) -> tuple[KeyMapping, dict[str, Entry], dict[str, IdentifierData]] | None:
     """Process a staging entry pair (can contain multiple entries).
 
@@ -213,15 +292,36 @@ def process_staging_entry(
             entry_identifier_data: IdentifierData = identifier_data[original_key]
 
             # Generate new label for this entry
-            new_key = process_single_entry(
+            result = process_single_entry(
                 entry,
                 entry_identifier_data,
                 existing_keys,
                 original_key,
             )
-            if new_key is None:
-                logger.error(f"Failed to generate label for entry {original_key}")
+
+            if result.status == ProcessResult.DUPLICATE:
+                assert result.duplicate_of is not None  # Always set for DUPLICATE status
+                logger.warning(
+                    f"Skipping {original_key}: duplicates existing key {result.duplicate_of}"
+                )
+                # Log the skipped entry to a file for review
+                if log_dir is not None:
+                    log_file = log_skipped_entry(
+                        entry,
+                        original_key,
+                        result.duplicate_of,
+                        log_dir,
+                    )
+                    logger.info(f"Skipped entry logged to {log_file}")
                 continue
+
+            if result.status == ProcessResult.ERROR:
+                logger.error(result.error_message)
+                continue
+
+            # Success case
+            new_key = result.new_key
+            assert new_key is not None  # Should always have new_key on success
 
             # Store the mapping and data
             key_mapping[original_key] = new_key
@@ -247,7 +347,7 @@ def process_single_entry(
     entry_identifier_data: IdentifierData,
     existing_keys: set[str],
     original_key: str,
-) -> str | None:
+) -> EntryProcessResult:
     """Process a single entry and generate its new key.
 
     Args:
@@ -257,7 +357,7 @@ def process_single_entry(
         original_key: Original key of the entry
 
     Returns:
-        New generated key if successful, None otherwise
+        EntryProcessResult with status, keys, and any error information
     """
     try:
         # Write entry to temporary bib file
@@ -286,27 +386,41 @@ def process_single_entry(
             temp_json_path.unlink(missing_ok=True)
 
         if original_key not in generated_labels:
-            logger.error(f"Failed to generate label for {original_key}")
-            return None
+            return EntryProcessResult(
+                status=ProcessResult.ERROR,
+                original_key=original_key,
+                error_message=f"Failed to generate label for {original_key}",
+            )
 
         new_key = generated_labels[original_key]
 
         # Check for duplicates
         if new_key in existing_keys:
-            logger.warning(f"Skipping duplicate key: {new_key}")
-            return None
+            return EntryProcessResult(
+                status=ProcessResult.DUPLICATE,
+                original_key=original_key,
+                new_key=new_key,
+                duplicate_of=new_key,
+            )
 
         logger.info(f"Generated new key: {original_key} -> {new_key}")
 
         # Update entry with new key
         entry.key = new_key
 
-        return new_key
+        return EntryProcessResult(
+            status=ProcessResult.SUCCESS,
+            original_key=original_key,
+            new_key=new_key,
+        )
 
     except Exception as e:
         # Keep this as Exception since generate_labels can have various errors
-        logger.error(f"Error processing entry {original_key}: {e}")
-        return None
+        return EntryProcessResult(
+            status=ProcessResult.ERROR,
+            original_key=original_key,
+            error_message=f"Error processing entry {original_key}: {e}",
+        )
 
 
 def _load_existing_data(
@@ -483,13 +597,16 @@ def cleanup_processed_files(config: WorkspaceConfig, processed_slugs: list[str])
 
 
 def process_staging_pairs(
-    pairs: list[tuple[str, Path, Path]], existing_keys: set[str]
+    pairs: list[tuple[str, Path, Path]],
+    existing_keys: set[str],
+    log_dir: Path | None = None,
 ) -> tuple[list[tuple[str, dict[str, Entry], dict[str, IdentifierData]]], list[str]]:
     """Process all staging pairs and collect new entries.
 
     Args:
         pairs: List of (slug, bib_path, json_path) tuples
         existing_keys: Set of existing citekeys to check against
+        log_dir: Directory to store log files for skipped duplicates
 
     Returns:
         Tuple of (new_entries, processed_slugs)
@@ -498,7 +615,7 @@ def process_staging_pairs(
     processed_slugs: list[str] = []
 
     for slug, bib_file, json_file in pairs:
-        result = process_staging_entry(slug, bib_file, json_file, existing_keys)
+        result = process_staging_entry(slug, bib_file, json_file, existing_keys, log_dir)
         if result is not None:
             key_mapping, entry_data, identifier_data = result
 
@@ -539,7 +656,8 @@ def add_entries_from_staging(workspace: Path) -> tuple[bool, list[str]]:
 
     # Load existing keys and process staging pairs
     existing_keys = load_existing_keys(config)
-    new_entries, processed_slugs = process_staging_pairs(pairs, existing_keys)
+    log_dir = config.staging_dir / "logs"
+    new_entries, processed_slugs = process_staging_pairs(pairs, existing_keys, log_dir)
 
     if not new_entries:
         logger.info("No new entries to add")

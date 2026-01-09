@@ -21,6 +21,7 @@ class EprintNormalizationReport:
     renamed_type: list[str]
     renamed_class: list[str]
     normalized_type: list[str]
+    changed_entry_type: list[str]  # misc -> online for arXiv entries
 
 
 def normalize_eprint_fields(
@@ -31,6 +32,7 @@ def normalize_eprint_fields(
     - Renames ``archiveprefix`` → ``eprinttype``
     - Renames ``primaryclass`` → ``eprintclass``
     - Ensures ``eprinttype`` value uses lowercase ``arxiv``
+    - Changes entry type from ``misc`` to ``online`` for arXiv entries
 
     Args:
         library_path: Path to ``library.bib``
@@ -56,6 +58,7 @@ def normalize_eprint_fields(
     renamed_type: list[str] = []
     renamed_class: list[str] = []
     normalized_type: list[str] = []
+    changed_entry_type: list[str] = []
 
     for entry in library.entries:
         fields: MutableMapping[str, Field] = entry.fields_dict
@@ -70,7 +73,10 @@ def normalize_eprint_fields(
         if _normalize_eprinttype(entry, entry.fields_dict, archive_value, dry_run):
             normalized_type.append(entry.key)
 
-    if not dry_run and any([renamed_type, renamed_class, normalized_type]):
+        if _change_arxiv_entry_type(entry, dry_run):
+            changed_entry_type.append(entry.key)
+
+    if not dry_run and any([renamed_type, renamed_class, normalized_type, changed_entry_type]):
         logger.debug("Writing eprint normalization changes back to disk: %s", library_path)
         bibtex_string = bibtexparser.write_string(library)
         with open(library_path, "w", encoding="utf-8") as bib_file:
@@ -80,6 +86,7 @@ def normalize_eprint_fields(
         renamed_type=renamed_type,
         renamed_class=renamed_class,
         normalized_type=normalized_type,
+        changed_entry_type=changed_entry_type,
     )
 
 
@@ -148,6 +155,46 @@ def _normalize_eprinttype(
     else:
         _set_field(entry, "eprinttype", "arxiv")
 
+    return True
+
+
+def _change_arxiv_entry_type(entry: Entry, dry_run: bool) -> bool:
+    """Change entry type from misc to online for arXiv entries.
+
+    Args:
+        entry: The bibtex entry to check
+        dry_run: If True, don't actually modify the entry
+
+    Returns:
+        True if the entry type was changed, False otherwise
+    """
+    # Only change misc entries
+    if entry.entry_type.lower() != "misc":
+        return False
+
+    # Check if this is an arXiv entry (has eprinttype=arxiv or archiveprefix=arxiv)
+    fields = entry.fields_dict
+    eprinttype = fields.get("eprinttype")
+    archiveprefix = fields.get("archiveprefix")
+
+    is_arxiv = False
+    if eprinttype is not None and str(eprinttype.value).lower() == "arxiv":
+        is_arxiv = True
+    elif archiveprefix is not None and str(archiveprefix.value).lower() == "arxiv":
+        is_arxiv = True
+
+    if not is_arxiv:
+        return False
+
+    logger.info(
+        "Changing entry type for %s: 'misc' -> 'online'",
+        entry.key,
+    )
+
+    if dry_run:
+        return True
+
+    entry.entry_type = "online"
     return True
 
 

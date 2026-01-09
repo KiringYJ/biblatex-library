@@ -286,7 +286,10 @@ def cmd_normalize(args: argparse.Namespace) -> None:
 
             action_prefix = "Dry run complete" if args.dry_run else "✓ Applied"
             total_entries = len(
-                set(report.renamed_type) | set(report.renamed_class) | set(report.normalized_type)
+                set(report.renamed_type)
+                | set(report.renamed_class)
+                | set(report.normalized_type)
+                | set(report.changed_entry_type)
             )
 
             if total_entries:
@@ -302,6 +305,7 @@ def cmd_normalize(args: argparse.Namespace) -> None:
                 ("Renamed archiveprefix→eprinttype", report.renamed_type),
                 ("Renamed primaryclass→eprintclass", report.renamed_class),
                 ("Lowercased eprinttype", report.normalized_type),
+                ("Changed entry type misc→online", report.changed_entry_type),
             ]
 
             for label, keys in details:

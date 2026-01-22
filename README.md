@@ -12,10 +12,10 @@ A production-grade bibliographic database with powerful Python tooling for valid
 - **Staging workflow** for safe batch operations with automatic backup
 - **Schema-aware normalization** to upgrade legacy BibTeX fields (rename `year` → `date`, split `publisher, location` pairs, modernize arXiv eprint fields, convert LaTeX accent macros to Unicode)
 
-🔧 **Production-Ready Architecture**
+🛡️ **Production-Ready Architecture**
 - **Comprehensive error handling** with specific exception types
 - **Configuration management** with centralized workspace paths
-- **Type-safe operations** validated by strict pyright configuration
+- **Type-safe operations** validated by strict ty checks
 - **Atomic backup system** protecting against data corruption
 - **Modular design** with focused, single-responsibility functions
 
@@ -510,7 +510,7 @@ Generated: `staging/2024-01-15-paper.json`
 The biblatex-library employs enterprise-level architecture patterns ensuring data integrity and operational reliability:
 
 **🛡️ Type Safety & Error Handling**
-- **Zero-error policy**: All code passes strict `pyright` type checking
+- **Zero-error policy**: All code passes strict `ty` type checking
 - **Specific exception types**: `BackupError`, `FileOperationError`, `InvalidDataError`
 - **Graceful failure handling**: No silent errors or data corruption
 - **Comprehensive logging**: Structured logs for debugging and monitoring
@@ -611,7 +611,7 @@ ruff check . --fix
 ruff format .
 
 # 3. Type check
-pyright
+ty
 
 # 4. Run tests
 pytest
@@ -622,19 +622,7 @@ blx validate
 
 ### Type Checking Configuration
 
-This project uses **strict type checking** to ensure code quality:
-
-- **pyright** and **Pylance** are configured to use `strict` mode
-- Both tools use identical strictness settings to avoid inconsistencies
-- Configuration files:
-  - `pyrightconfig.json` - pyright/Pylance settings
-  - `.vscode/settings.json` - VS Code workspace settings
-
-**Key type checking rules:**
-- `reportUnknownArgumentType: error` - Catch untyped function arguments
-- `reportUnknownVariableType: error` - Catch variables with unknown types
-- `reportUnusedImport: error` - Remove unused imports
-- `reportUnusedVariable: error` - Remove unused variables
+This project uses **ty** as the default type checker to ensure code quality.
 
 This ensures **consistent type checking** across different development environments and tools.
 
@@ -663,7 +651,7 @@ latexmk -pdf -xelatex main.tex
 ## Contributing
 
 1. **Validation first** - Always run `blx validate` before committing
-2. **Quality gates** - Ensure ruff, pyright, and tests pass
+2. **Quality gates** - Ensure ruff, ty, and tests pass
 3. **Small PRs** - Keep changes focused and bisectable
 4. **Tests required** - Add tests for any behavior changes
 

@@ -105,7 +105,7 @@ All file I/O uses `encoding="utf-8"` with `ensure_ascii=False` for JSON. Failure
 
 ### 3.5 Mutation Preconditions
 - Tests green (new + existing)
-- `ruff check --fix` → `ruff format` → `pyright` = clean
+- `ruff check --fix` → `ruff format` → `ty` = clean
 - Backup timestamp < 5 minutes
 - Dry run (if available) reviewed
 
@@ -126,7 +126,7 @@ All file I/O uses `encoding="utf-8"` with `ensure_ascii=False` for JSON. Failure
 Order (must be followed):
 1. Ruff lint (auto‑fix)
 2. Ruff format
-3. Pyright (0 errors)
+3. Ty (0 errors)
 4. Tests (pytest)
 5. Domain validation: `uv run blx validate`
 
@@ -559,7 +559,7 @@ with open("data.json", "w", encoding="utf-8") as f:
 
 - **Formatting**: **Ruff formatter** is canonical. Run `ruff format`; configure in `pyproject.toml` / `ruff.toml`.
 - **Linting**: **Ruff** is the linter (fast; auto‑fix allowed). Configure in `[tool.ruff]` / `ruff.toml`.
-- **Type checking**: **Pylance** locally; **pyright** in CI. Pylance (Pyright engine) must show **0** errors in VS Code. Pyright can be configured in `pyrightconfig.json` or `[tool.pyright]`/`[tool.basedpyright]` in `pyproject.toml` (`pyrightconfig.json` takes precedence).
+- **Type checking**: **ty** locally and in CI. Run `uv run ty` from the repo root.
 - **Other**: JSON Schema checks, l3build tests for TeX, CSL smoke renders.
 
 ### Python quality gate (strict order; must pass **before** tests or running scripts)
@@ -572,9 +572,9 @@ with open("data.json", "w", encoding="utf-8") as f:
    ```powershell
    uv run ruff format .
    ```
-3. **Type check** (use **Pylance** locally; **CI uses pyright**)
+3. **Type check** (use **ty** locally and in CI)
    ```powershell
-   uv run pyright
+  uv run ty
    ```
    Treat **any** type error as a merge blocker.
 4. **Then** run tests / scripts
@@ -688,7 +688,7 @@ with open("data.json", "w", encoding="utf-8") as f:
 - Start with: “Let me research the codebase and create a plan before implementing.”
 - Propose at least one *simpler* alternative if the plan seems complex.
 - Batch related edits; keep functions short; explain data shapes.
-- **Before running tests or any script**: ensure `ruff check --fix`, `ruff format`, and `pyright` are clean. If not, **use Copilot** to auto‑fix and iterate until all checks pass; only then run tests or scripts.
+- **Before running tests or any script**: ensure `ruff check --fix`, `ruff format`, and `ty` are clean. If not, **use Copilot** to auto‑fix and iterate until all checks pass; only then run tests or scripts.
 - When uncertain, ask: *A (simple) vs B (flexible) — which do you prefer?*
 - **Flag missing tests/docs as hard blockers**; require proof (failing test or reproduction) for bug claims.
 
@@ -764,10 +764,10 @@ BREAKING CHANGE: Users must switch to `sortkey` via sourcemap; see docs.
    - Write the minimal code to make the new tests start failing meaningfully.
    - Iterate until **all tests (new + existing) pass**.
 3. **Eliminate type errors**
-   - Run: `uv run pyright`.
+  - Run: `uv run ty`.
    - 0 type errors required before touching production data files.
 4. **Static hygiene pass**
-   - `uv run ruff check . --fix` → `uv run ruff format .` → `uv run pyright` (stay green).
+  - `uv run ruff check . --fix` → `uv run ruff format .` → `uv run ty` (stay green).
 5. **Only then consider applying to canonical data** (`bib/library.bib`, `data/identifier_collection.json`, `data/add_order.json`).
 
 **Hard rule: triple‑file integrity**
@@ -813,7 +813,7 @@ Then:
 
 - [ ] New tests added & passing
 - [ ] Existing test suite fully green
-- [ ] `uv run pyright` = 0 errors
+- [ ] `uv run ty` = 0 errors
 - [ ] `uv run ruff check .` clean (after fixes)
 - [ ] Behavior change documented (if user‑visible)
 - [ ] Backup just created (timestamp < 5 min)
@@ -829,10 +829,10 @@ uv run python -m pytest tests/test_new_feature.py -q
 uv run python -m pytest -q
 
 # 3. Type + lint gates
-time uv run pyright
+time uv run ty
 uv run ruff check . --fix
 uv run ruff format .
-uv run pyright
+uv run ty
 
 # 4. Backup data
 $ts = Get-Date -Format 'yyyyMMdd-HHmmss'; $b="staging/backup-$ts"; New-Item -ItemType Directory $b | Out-Null; Copy-Item bib/library.bib,$(Join-Path data identifier_collection.json),$(Join-Path data add_order.json) -Destination $b

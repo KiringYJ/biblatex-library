@@ -1709,5 +1709,39 @@
     "identifiers": {
       "arxiv": "0810.4909"
     }
+  },
+  "kikuta-2024-c92a5ee2": {
+    "main_identifier": "doi",
+    "identifiers": {
+      "mrnumber": "4744772",
+      "doi": "10.1090/tran/9104"
+    }
+  },
+  "brini-2024-b7fb17b7": {
+    "main_identifier": "arxiv",
+    "identifiers": {
+      "arxiv": "2410.00118"
+    }
+  },
+  "alexandrov-2021-67b1617b": {
+    "main_identifier": "doi",
+    "identifiers": {
+      "mrnumber": "4308912",
+      "doi": "10.1007/s11005-021-01455-5"
+    }
+  },
+  "bridgeland-2024-368163f4": {
+    "main_identifier": "doi",
+    "identifiers": {
+      "mrnumber": "4843401",
+      "doi": "10.3842/SIGMA.2024.112"
+    }
+  },
+  "bridgeland-2025-446c0905": {
+    "main_identifier": "doi",
+    "identifiers": {
+      "mrnumber": "4847626",
+      "doi": "10.1016/j.aim.2024.110089"
+    }
   }
 }

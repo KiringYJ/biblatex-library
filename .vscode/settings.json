@@ -94,7 +94,5 @@
             "source.fixAll": "explicit",
             "source.organizeImports": "explicit"
         }
-    },
-    // --- Python Analysis ---
-    "python.analysis.typeCheckingMode": "strict"
+    }
 }

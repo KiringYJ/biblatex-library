@@ -86,14 +86,6 @@ markers = [
     "integration: marks tests as integration tests (require external dependencies like biber)",
 ]
 
-[tool.pyright]
-typeCheckingMode = "strict"
-pythonVersion = "3.13"
-venvPath = "."
-venv = ".venv"
-include = ["src", "tests"]
-reportMissingTypeStubs = false
-
 [dependency-groups]
 dev = [
     "check-jsonschema>=0.33.3",

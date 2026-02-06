@@ -1743,5 +1743,40 @@
       "mrnumber": "4847626",
       "doi": "10.1016/j.aim.2024.110089"
     }
+  },
+  "cheng-2004-c0e7e566": {
+    "main_identifier": "url",
+    "identifiers": {
+      "url": "https://faculty.kfupm.edu.sa/math/akca/papers/cheng.pdf",
+      "zbl": "1353.34075"
+    }
+  },
+  "chuang-2026-b66784f2": {
+    "main_identifier": "arxiv",
+    "identifiers": {
+      "arxiv": "2602.04539"
+    }
+  },
+  "bayer-2023-c7bd4f5f": {
+    "main_identifier": "doi",
+    "identifiers": {
+      "doi": "10.4171/ICM2022/80",
+      "isbn13": "9783985470617",
+      "mrnumber": "4680313"
+    }
+  },
+  "pasquetti-2010-c984dedf": {
+    "main_identifier": "doi",
+    "identifiers": {
+      "mrnumber": "2671567",
+      "doi": "10.1007/s00023-010-0044-5"
+    }
+  },
+  "cousosantamaria-2017-b93f05df": {
+    "main_identifier": "doi",
+    "identifiers": {
+      "mrnumber": "3733765",
+      "doi": "10.4310/CNTP.2017.v11.n4.a1"
+    }
   }
 }

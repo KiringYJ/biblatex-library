@@ -1778,5 +1778,25 @@
       "mrnumber": "3733765",
       "doi": "10.4310/CNTP.2017.v11.n4.a1"
     }
+  },
+  "tapp-2016-6d68e4bb": {
+    "main_identifier": "doi",
+    "identifiers": {
+      "isbn13": "9783319397986",
+      "mrnumber": "3559955",
+      "doi": "10.1007/978-3-319-39799-3"
+    }
+  },
+  "nikolaev-2024-f41119b1": {
+    "main_identifier": "arxiv",
+    "identifiers": {
+      "arxiv": "2410.17224"
+    }
+  },
+  "tulli-2026-e930696b": {
+    "main_identifier": "arxiv",
+    "identifiers": {
+      "arxiv": "2602.08805"
+    }
   }
 }

@@ -1798,5 +1798,34 @@
     "identifiers": {
       "arxiv": "2602.08805"
     }
+  },
+  "marker-2000-a887ddc0": {
+    "main_identifier": "doi",
+    "identifiers": {
+      "isbn13": "9780521780681",
+      "doi": "10.1017/9781009701464.002",
+      "mrnumber": "1773700"
+    }
+  },
+  "barrow-2011-5614b620": {
+    "main_identifier": "doi",
+    "identifiers": {
+      "isbn13": "9780521761444",
+      "doi": "10.1017/CBO9780511974236.014"
+    }
+  },
+  "sep-1995-cf435811": {
+    "main_identifier": "url",
+    "identifiers": {
+      "url": "https://plato.stanford.edu/"
+    }
+  },
+  "zee-1990-7fd76e2a": {
+    "main_identifier": "doi",
+    "identifiers": {
+      "isbn13": "9789810202330",
+      "doi": "10.1142/9789814503488_0019",
+      "mrnumber": "1082768"
+    }
   }
 }

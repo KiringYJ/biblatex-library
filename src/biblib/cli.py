@@ -11,6 +11,7 @@ from .generate import generate_labels
 from .normalize.accents import normalize_latex_accents
 from .normalize.dates import rename_year_to_date_fields
 from .normalize.eprint import normalize_eprint_fields
+from .normalize.isbn import normalize_isbn_fields
 from .normalize.publisher import normalize_publisher_location
 from .sort import sort_alphabetically, sort_by_add_order
 from .sync import sync_identifiers_to_library
@@ -343,6 +344,59 @@ def cmd_normalize(args: argparse.Namespace) -> None:
 
             sys.exit(0)
 
+        if args.action == "isbn":
+            identifier_path = workspace / "data" / "identifier_collection.json"
+            report = normalize_isbn_fields(bib_path, identifier_path, dry_run=args.dry_run)
+
+            action_prefix = "Dry run complete" if args.dry_run else "✓ Applied"
+            if report.total_converted:
+                logger.info(
+                    "%s: converted %d ISBN-10 values to ISBN-13 across %d entries",
+                    action_prefix,
+                    report.total_converted,
+                    len(report.converted),
+                )
+            else:
+                logger.info("%s: no ISBN conversions required", action_prefix)
+
+            if report.already_isbn13:
+                logger.info(
+                    "%d entries already have valid ISBN-13 values",
+                    len(report.already_isbn13),
+                )
+
+            if report.invalid:
+                logger.warning(
+                    "%d entries have invalid ISBN values that couldn't be converted",
+                    len(report.invalid),
+                )
+                if args.verbose:
+                    for key, value in list(report.invalid.items())[:5]:
+                        logger.warning("  %s: %s", key, value)
+
+            if report.identifier_converted:
+                logger.info(
+                    "%s: converted %d isbn13 values in identifier_collection.json",
+                    action_prefix,
+                    len(report.identifier_converted),
+                )
+                if args.verbose:
+                    for key, change in list(report.identifier_converted.items())[:5]:
+                        logger.info("  %s: %s", key, change)
+                    remaining = len(report.identifier_converted) - 5
+                    if remaining > 0:
+                        logger.info("  ... and %d more entries", remaining)
+
+            if args.verbose and report.converted:
+                preview_items = list(report.converted.items())[:5]
+                for key, conversions in preview_items:
+                    logger.info("%s: %s", key, "; ".join(conversions))
+                remaining = len(report.converted) - len(preview_items)
+                if remaining > 0:
+                    logger.info("... and %d more entries", remaining)
+
+            sys.exit(0)
+
         logger.error(f"Unknown normalization action: {args.action}")
         sys.exit(1)
 
@@ -476,13 +530,14 @@ def create_parser() -> argparse.ArgumentParser:
     )
     normalize_parser.add_argument(
         "action",
-        choices=["year-to-date", "publisher-location", "eprint-fields", "latex-accents"],
+        choices=["year-to-date", "publisher-location", "eprint-fields", "latex-accents", "isbn"],
         help=(
             "Choose normalization action. 'year-to-date' renames entries with year but no date "
             "to use the date field. 'publisher-location' splits combined publisher/location "
             "values and flags missing locations. 'eprint-fields' migrates legacy arXiv fields "
             "and normalizes the eprinttype value. 'latex-accents' converts LaTeX accent "
-            "commands into their Unicode equivalents."
+            "commands into their Unicode equivalents. 'isbn' converts ISBN-10 values to "
+            "ISBN-13 format."
         ),
     )
     normalize_parser.add_argument(

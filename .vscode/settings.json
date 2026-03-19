@@ -77,14 +77,16 @@
     "latex-workshop.bibtex-format.tab": "tab",
     "latex-workshop.bibtex-format.align-equal.enabled": false,
     "latex-workshop.bibtex-fields.sort.enabled": false,
-    "latex-workshop.bibtex-format.case": "lowercase",
+    "latex-workshop.bibtex-format.case.field": "lowercase",
+    "latex-workshop.bibtex-format.case.type": "lowercase",
     "latex-workshop.bibtex-format.surround": "Curly braces",
     "latex-workshop.bibtex-format.trailingComma": false,
     "latex-workshop.bibtex-format.sort.enabled": false,
     // Auto-format BibTeX files
     "[bibtex]": {
         "editor.tabSize": 4,
-        "editor.insertSpaces": false
+        "editor.insertSpaces": false,
+        "editor.formatOnSave": true
     },
     // --- Python Formatting and Linting ---
     "[python]": {

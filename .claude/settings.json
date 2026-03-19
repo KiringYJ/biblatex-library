@@ -1,0 +1,6 @@
+{
+  "enabledPlugins": {
+    "oh-my-claudecode@omc": true,
+    "ralph-loop@claude-plugins-official": true
+  }
+}

@@ -158,3 +158,8 @@ tex/biblatex-yj/build/
 
 # JetBrains (uncomment if you ever use it)
 # .idea/
+
+# -----------------------------
+# Claude Code (local-only settings)
+# -----------------------------
+.omc/

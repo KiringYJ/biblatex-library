@@ -1827,5 +1827,21 @@
       "doi": "10.1142/9789814503488_0019",
       "mrnumber": "1082768"
     }
+  },
+  "srivastava-1998-9ad67488": {
+    "main_identifier": "doi",
+    "identifiers": {
+      "isbn13": "9780387984124",
+      "mrnumber": "1619545",
+      "doi": "10.1007/978-3-642-85473-6"
+    }
+  },
+  "goncharov-2008-bbef37e8": {
+    "main_identifier": "doi",
+    "identifiers": {
+      "isbn13": "9783764386078",
+      "mrnumber": "2402412",
+      "doi": "10.1007/978-3-7643-8608-5_10"
+    }
   }
 }

@@ -68,6 +68,14 @@ repos:
         files: ^bib/library\.bib$
         pass_filenames: false
 
+      - id: normalize-isbn
+        name: Normalize ISBN (ISBN-10 -> ISBN-13)
+        entry: uv
+        args: ["run", "blx", "normalize", "isbn"]
+        language: system
+        files: ^(bib/library\.bib|data/identifier_collection\.json)$
+        pass_filenames: false
+
       - id: validate-citekey-consistency
         name: Validate citekey consistency and labels
         entry: uv

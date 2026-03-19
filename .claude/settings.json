@@ -1,6 +1,18 @@
 {
   "enabledPlugins": {
     "oh-my-claudecode@omc": true,
-    "ralph-loop@claude-plugins-official": true
+    "ralph-loop@claude-plugins-official": true,
+    "hookify@claude-plugins-official": true,
+    "claude-md-management@claude-plugins-official": true,
+    "skill-creator@claude-plugins-official": true,
+    "ty-lsp@ty-marketplace": true
+  },
+  "extraKnownMarketplaces": {
+    "ty-marketplace": {
+      "source": {
+        "source": "directory",
+        "path": ".claude/plugins/ty-marketplace"
+      }
+    }
   }
 }

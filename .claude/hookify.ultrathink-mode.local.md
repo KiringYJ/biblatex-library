@@ -1,9 +1,11 @@
-#!/usr/bin/env node
+---
+name: ultrathink-mode
+enabled: true
+event: prompt
+pattern: .*
+---
 
-// Always inject ultrathink + ultrawork mode on every prompt
-const output = {
-  continue: true,
-  additionalContext: `<think-mode>
+<think-mode>
 
 **ULTRATHINK MODE ENABLED** - Extended reasoning activated.
 
@@ -20,7 +22,3 @@ Use your extended thinking capabilities to provide the most thorough and well-re
 ---
 
 [MAGIC KEYWORD: ULTRAWORK]
-`
-};
-
-console.log(JSON.stringify(output));

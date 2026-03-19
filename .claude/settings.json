@@ -5,7 +5,8 @@
     "hookify@claude-plugins-official": true,
     "claude-md-management@claude-plugins-official": true,
     "skill-creator@claude-plugins-official": true,
-    "ty-lsp@ty-marketplace": true
+    "ty-lsp@ty-marketplace": true,
+    "claude-code-setup@claude-plugins-official": true
   },
   "extraKnownMarketplaces": {
     "ty-marketplace": {

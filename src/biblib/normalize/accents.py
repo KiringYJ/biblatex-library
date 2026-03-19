@@ -32,13 +32,24 @@ _ACCENT_COMBINING = {
     "v": "\u030c",  # caron
 }
 
-_ACCENT_COMMANDS = "".join(sorted(_ACCENT_COMBINING.keys()))
+# Split accent commands by type.  Letter accent commands (\r, \u, \v, ...)
+# followed directly by a letter are ambiguous with LaTeX font/control commands
+# (\rm, \bf, ...).  We require whitespace before a bare letter target for
+# letter accent commands to avoid false matches.
+_SYMBOL_ACCENT_CHARS = "".join(sorted(c for c in _ACCENT_COMBINING if not c.isalpha()))
+_LETTER_ACCENT_CHARS = "".join(sorted(c for c in _ACCENT_COMBINING if c.isalpha()))
 
-_BRACED_ACCENT_PATTERN = re.compile(
-    rf"\{{\\([{_ACCENT_COMMANDS}])(?:\s*\{{([^{{}}]+)\}}|([A-Za-z]))\}}"
+_BRACED_SYMBOL_ACCENT_RE = re.compile(
+    rf"\{{\\([{_SYMBOL_ACCENT_CHARS}])(?:\s*\{{([^{{}}]+)\}}|([A-Za-z]))\}}"
+)
+_BRACED_LETTER_ACCENT_RE = re.compile(
+    rf"\{{\\([{_LETTER_ACCENT_CHARS}])(?:\s*\{{([^{{}}]+)\}}|\s+([A-Za-z]))\}}"
 )
 
-_ACCENT_PATTERN = re.compile(rf"\\([{_ACCENT_COMMANDS}])(?:\s*\{{([^{{}}]+)\}}|([A-Za-z]))")
+_SYMBOL_ACCENT_RE = re.compile(rf"\\([{_SYMBOL_ACCENT_CHARS}])(?:\s*\{{([^{{}}]+)\}}|([A-Za-z]))")
+_LETTER_ACCENT_RE = re.compile(
+    rf"\\([{_LETTER_ACCENT_CHARS}])(?:\s*\{{([^{{}}]+)\}}|\s+([A-Za-z]))"
+)
 
 _SPECIAL_BASE_MAP = {
     "\\i": "i",
@@ -143,8 +154,10 @@ def _convert_value(value: str) -> str:
     if "\\" not in value:
         return value
 
-    updated = _BRACED_ACCENT_PATTERN.sub(_replace_accent, value)
-    updated = _ACCENT_PATTERN.sub(_replace_accent, updated)
+    updated = _BRACED_SYMBOL_ACCENT_RE.sub(_replace_accent, value)
+    updated = _BRACED_LETTER_ACCENT_RE.sub(_replace_accent, updated)
+    updated = _SYMBOL_ACCENT_RE.sub(_replace_accent, updated)
+    updated = _LETTER_ACCENT_RE.sub(_replace_accent, updated)
     updated = _replace_special_macros(updated)
     updated = _strip_nonascii_single_braces(updated)
     return updated

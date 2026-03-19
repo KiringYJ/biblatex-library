@@ -55,6 +55,31 @@ def test_normalize_latex_accents_updates_fields(tmp_path: Path) -> None:
     assert special_fields["note"].value == "Keep braces {L} around ascii"
 
 
+def test_normalize_latex_accents_preserves_font_commands(tmp_path: Path) -> None:
+    """Regression: \\rm, \\bf etc. are font commands, not accents."""
+    bib_content = r"""@incollection{font-cmds,
+  title = {Pentagon relation for {$\scr M_{0,5}^{\rm cyc}$}},
+  note = {Use {\bf bold} and {\it italic} here},
+  keywords = {The \r{o}le of accents}
+}
+"""
+    bib_path = _write_bib(tmp_path, bib_content)
+
+    report = normalize_latex_accents(bib_path)
+
+    # Only the braced \r{o} should be converted, not \rm, \bf, \it
+    assert report.converted == {"font-cmds": ["keywords"]}
+
+    library = bibtexparser.parse_file(str(bib_path))
+    entry = next(e for e in library.entries if e.key == "font-cmds")
+    fields = entry.fields_dict
+    assert r"\rm cyc" in fields["title"].value
+    assert r"\bf bold" in fields["note"].value
+    assert r"\it italic" in fields["note"].value
+    assert "o\u030a" not in fields["title"].value  # no ring accent on title
+    assert "r\u030ale" not in fields["keywords"].value  # \r{o} -> ů, not \role
+
+
 def test_normalize_latex_accents_dry_run(tmp_path: Path) -> None:
     bib_content = r"""@book{accented,
   author = {Jos\'e},

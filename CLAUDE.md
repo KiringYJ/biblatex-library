@@ -70,8 +70,8 @@ All file I/O uses `encoding="utf-8"` with `ensure_ascii=False` for JSON. Failure
 This repo maintains a curated **biblatex** library and tooling to:
 
 - Validate/normalize/sort the `.bib` database
-- Generate **CSL-JSON** and convert to **BibTeX**
-- Provide **biblatex** and **amsrefs** LaTeX examples
+- Generate **CSL-JSON** and convert to **BibTeX** (in progress)
+- Provide **biblatex** LaTeX examples
 - Host our custom biblatex style (`yj-standard`)
 
 ### Repository Layout
@@ -81,44 +81,45 @@ biblatex-library/
 ├─ bib/
 │  ├─ library.bib                 # canonical database
 │  └─ generated/                  # derived exports
-│     └─ cited.bib
+│     ├─ labels.json
+│     └─ library_bibertool.bib
 ├─ data/
 │  ├─ identifier_collection.json
-│  └─ identifier_collection.schema.json
+│  └─ add_order.json
 ├─ csl/
-│  ├─ schema/csl-data.json        # pinned CSL-JSON schema
-│  ├─ mappings/{types,fields}.yml # declarative maps biblatex<->CSL
-│  ├─ samples/*.json              # golden fixtures
-│  └─ README.md
+│  └─ schema/                     # (reserved for CSL-JSON schema)
 ├─ tex/
 │  └─ biblatex-yj/                # our style bundle
-│     ├─ yj-standard.bbx  yj-standard.cbx  (biblatex-yj.sty)
-│     ├─ examples/
-│     └─ l3build.lua
+│     ├─ yj-standard.bbx
+│     └─ yj-standard.cbx
 ├─ latex/
 │  └─ examples/
 │     ├─ biblatex-spbasic/
-│     ├─ alphabetic/
-│     └─ common/                  # optional preamble
+│     └─ alphabetic/
 ├─ src/
 │  └─ biblio/
-│     ├─ cli.py                   # `biblio` entry
-│     ├─ validate.py  normalize.py  sort.py  dedupe.py
-│     ├─ convert/
-│     │  ├─ biblatex_to_csl.py  csl_to_bibtex.py  biblatex_to_bibtex.py
-│     │  └─ mappings.py
-│     └─ util/                    # schema, biber_tooling, etc.
-├─ tests/                         # pytest + golden files
-├─ scripts/                       # e.g., bibexport wrapper
-├─ .claude/                       # Claude Code configuration
-│  ├─ settings.json               # plugin config (workbench + marketplace plugins)
-│  └─ hooks.json                  # prompt/tool hooks
-├─ .github/workflows/             # CI jobs
-│  ├─ ci.yml          # lint/tests/`biblio validate`
-│  ├─ csl.yml         # convert + pandoc --citeproc smoke render
-│  └─ tex-style.yml   # l3build + latexmk+biber artifacts
+│     ├─ cli.py                   # `biblio` entry point
+│     ├─ config.py                # BiblioConfig workspace resolution
+│     ├─ exceptions.py            # custom exception types
+│     ├─ types.py                 # TypedDict definitions
+│     ├─ validate.py  sort.py  generate.py  sync.py
+│     ├─ add_entries.py  template.py  init.py
+│     ├─ normalize/               # normalization subpackage
+│     │  ├─ accents.py  dates.py  eprint.py
+│     │  └─ isbn.py  publisher.py
+│     ├─ schema/
+│     │  └─ identifier_collection.schema.json
+│     ├─ convert/                  # (reserved for future converters)
+│     └─ util/                     # (reserved for utilities)
+├─ tests/                          # pytest suite
+├─ typings/                        # type stubs (bibtexparser)
+├─ .claude/                        # Claude Code configuration
+│  ├─ settings.json                # plugin config
+│  └─ hooks.json                   # prompt/tool hooks
+├─ .github/workflows/
+│  └─ ci.yml                       # lint/tests
 ├─ pyproject.toml                  # canonical deps & tool config
-└─ README.md  CONTRIBUTING.md  CITATION.cff  LICENSE
+└─ README.md  LICENSE
 ```
 
 **Rules**
@@ -218,8 +219,7 @@ Always verify external library operations succeed (check length/contents after m
 ## 9) Add Order Ledger
 
 - Canonical order lives in `data/add_order.json` (**append-only**); top-level key `order` is an array of entry keys.
-- `biblio order add KEY ...` — append to ledger
-- `biblio order check` — verify existence/duplicates
+- Managed automatically by `biblio add` (appends new keys) and `biblio sort add-order` (reorders to match).
 
 ---
 
@@ -252,13 +252,25 @@ Always verify external library operations succeed (check length/contents after m
 ## 13) The `biblio` CLI
 
 ```powershell
-uv run biblio validate                # JSON Schema + biber --tool checks
-uv run biblio add                     # process staging directory entries
-uv run biblio template                # generate identifier JSON templates from staging .bib
-uv run biblio sort alphabetical       # sort by citekey
-uv run biblio sort add-order          # sort to match add_order.json sequence
-uv run biblio generate-labels         # generate labels for biblatex entries
-uv run biblio normalize latex-accents # normalize LaTeX accent commands
-uv run biblio normalize year-to-date  # normalize year fields to date
-uv run biblio normalize eprint-fields # normalize eprint fields
+uv run biblio init                           # initialize new biblio workspace
+uv run biblio validate                       # consistency + label checks
+uv run biblio validate --fix                 # auto-fix citekey labels
+uv run biblio add                            # process staging directory entries
+uv run biblio template                       # generate identifier JSON templates from staging .bib
+uv run biblio sort alphabetical              # sort by citekey
+uv run biblio sort add-order                 # sort to match add_order.json sequence
+uv run biblio generate-labels                # generate labels for biblatex entries
+uv run biblio sync                           # sync identifiers → library.bib fields
+uv run biblio normalize year-to-date         # normalize year fields to date
+uv run biblio normalize publisher-location   # split publisher/location pairs
+uv run biblio normalize eprint-fields        # normalize eprint fields
+uv run biblio normalize latex-accents        # normalize LaTeX accent commands
+uv run biblio normalize isbn                 # convert ISBN-10 to ISBN-13
 ```
+
+**Global flags** (before the subcommand):
+- `--config PATH` — path to `biblio.toml` config file (default: auto-discover)
+- `--bib PATH` — override `.bib` file path
+- `--identifiers PATH` — override identifier collection JSON path
+- `--add-order PATH` — override add_order JSON path
+- `-v` / `-vv` — verbosity (INFO / DEBUG)

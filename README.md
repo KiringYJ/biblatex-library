@@ -5,7 +5,7 @@ A production-grade bibliographic database with powerful Python tooling for valid
 ## Features
 
 ✨ **Core Capabilities**
-- **Curated bibliographic database** (`bib/library.bib`) with 190+ high-quality entries
+- **Curated bibliographic database** (`bib/library.bib`) with 290+ high-quality entries
 - **Professional Python tooling** (`biblio` CLI) with zero-error type safety
 - **Automatic validation** ensuring data consistency across all formats
 - **Smart citekey generation** with collision detection and stable identifiers
@@ -80,14 +80,25 @@ uv run biblio normalize eprint-fields
 uv run biblio normalize latex-accents --dry-run
 uv run biblio normalize latex-accents
 
+# Normalize ISBN-10 to ISBN-13
+uv run biblio normalize isbn --dry-run
+uv run biblio normalize isbn
+
+# Initialize a new biblio workspace
+uv run biblio init
+
+# Sync identifier fields to library.bib
+uv run biblio sync --dry-run
+uv run biblio sync
+
 # Verbose validation with detailed progress
 uv run biblio -v validate
 
 # Automatically fix citekey mismatches
 uv run biblio validate --fix
 
-# Work with different project workspace
-uv run biblio --workspace /path/to/project validate
+# Work with a specific config file
+uv run biblio --config /path/to/biblio.toml validate
 ```
 
 ## The `biblio` CLI Tool
@@ -101,19 +112,15 @@ The `biblio` command-line tool provides enterprise-grade utilities for bibliogra
 Performs comprehensive consistency checks across all data sources:
 
 ```bash
-uv run biblio validate [--fix] [--workspace PATH]
+uv run biblio validate [--fix]
 ```
 
 **Validation Checks:**
 - ✅ **Citekey consistency** across `library.bib`, `identifier_collection.json`, and `add_order.json`
 - ✅ **Label validation** ensuring citekeys match generated format (`lastname-year-hash`)
-- ✅ **JSON Schema compliance** for all data files
-- ✅ **Biber compatibility** verification for LaTeX processing
-- ✅ **Unicode encoding** validation for international characters
 
 **Options:**
 - `--fix` - Automatically repair mismatched citekeys
-- `--workspace PATH` - Specify different project directory
 - `-v, --verbose` - Show detailed progress information
 - `-vv` - Enable debug-level logging
 
@@ -122,7 +129,7 @@ uv run biblio validate [--fix] [--workspace PATH]
 Safely processes entries from the staging directory with automatic backup:
 
 ```bash
-uv run biblio add [--workspace PATH]
+uv run biblio add
 ```
 
 **Process Flow:**
@@ -140,7 +147,7 @@ uv run biblio add [--workspace PATH]
 Generates identifier collection JSON templates from staging .bib files to streamline the staging workflow:
 
 ```bash
-uv run biblio template [--overwrite] [--workspace PATH]
+uv run biblio template [--overwrite]
 ```
 
 **Process Flow:**
@@ -169,7 +176,7 @@ uv run biblio template [--overwrite] [--workspace PATH]
 Creates consistent citekey labels for bibliographic entries:
 
 ```bash
-uv run biblio generate-labels [-o OUTPUT] [--workspace PATH]
+uv run biblio generate-labels [-o OUTPUT]
 ```
 
 **Features:**
@@ -201,12 +208,12 @@ uv run biblio sort add-order
 #### Working with Multiple Projects
 
 ```bash
-# Set workspace for all commands
-export BIBLIO_WORKSPACE=/path/to/project
-uv run biblio validate
+# Use a specific config file
+uv run biblio --config /path/to/biblio.toml validate
 
-# Or specify per command
-uv run biblio --workspace /path/to/project validate
+# Override individual file paths
+uv run biblio --bib /path/to/library.bib validate
+uv run biblio --identifiers /path/to/ids.json --add-order /path/to/order.json validate
 ```
 
 #### Staging Workflow
@@ -253,7 +260,6 @@ biblio generate-labels [options]
 **Options:**
 - `-o OUTPUT, --output OUTPUT` - Output file path (default: bib/generated/labels.json)
 - `-v, --verbose` - Show INFO level messages (use `-vv` for DEBUG)
-- `--workspace WORKSPACE` - Specify workspace directory (default: current directory)
 
 **Examples:**
 
@@ -266,9 +272,6 @@ biblio generate-labels -o my_labels.json
 
 # Generate labels with verbose output
 biblio -v generate-labels
-
-# Generate labels for different project
-biblio --workspace /path/to/project generate-labels
 ```
 
 **Sample output:**
@@ -313,7 +316,6 @@ biblio sort [mode] [options]
 
 **Options:**
 - `-v, --verbose` - Show INFO level messages (use `-vv` for DEBUG)
-- `--workspace WORKSPACE` - Specify workspace directory (default: current directory)
 
 **Examples:**
 
@@ -326,9 +328,6 @@ biblio sort add-order
 
 # Sort with verbose output
 biblio -v sort alphabetical
-
-# Sort different project
-biblio --workspace /path/to/project sort add-order
 ```
 
 **Sample output:**
@@ -383,15 +382,15 @@ uv run biblio normalize latex-accents
 - `publisher-location` – flags entries missing `location` and splits `Publisher, City` pairs automatically
 - `eprint-fields` – renames `archiveprefix`/`primaryclass` to `eprinttype`/`eprintclass` and lowercases `arXiv` values
 - `latex-accents` – converts LaTeX accent commands (e.g. `Jos\'e`, `Fran{\c{c}}ois`) into normalized Unicode text
+- `isbn` – converts ISBN-10 values to ISBN-13 format in both `library.bib` and `identifier_collection.json`
 
 **Shared features:**
 - 🛡️ **Safe previews** – `--dry-run` reports affected citekeys without touching files
-- 📂 **Workspace aware** – respects `--workspace` for multi-repo setups
+- 📂 **Config aware** – respects `--config` for multi-repo setups
 - 🔎 **Verbose insight** – `-v`/`-vv` surfaces up to 10 example citekeys per action
 
 **Options:**
-- `--dry-run` – Show planned changes without modifying `library.bib`
-- `--workspace PATH` – Run against another project directory
+- `--dry-run` – Show planned changes without modifying files
 - `-v, --verbose` – Print sample citekeys for each action
 
 **Example output:**
@@ -435,7 +434,6 @@ biblio template [options]
 **Options:**
 - `--overwrite` - Overwrite existing .json files (default: skip existing files)
 - `-v, --verbose` - Show INFO level messages (use `-vv` for DEBUG)
-- `--workspace WORKSPACE` - Specify workspace directory (default: current directory)
 
 **Examples:**
 
@@ -448,9 +446,6 @@ biblio template --overwrite
 
 # Generate templates with verbose output
 biblio -v template
-
-# Generate templates for different project
-biblio --workspace /path/to/project template
 ```
 
 **Sample output:**
@@ -561,7 +556,7 @@ The bibliography system maintains three synchronized data files:
 - Robust error recovery and logging
 
 **🧪 Testing & Verification**
-- Full test suite with 45+ test cases
+- Full test suite with 100+ test cases
 - Integration tests with real file operations
 - Type safety verified through static analysis
 - Continuous validation in development workflow
@@ -575,13 +570,18 @@ biblatex-library/
 │   └── generated/                  # Derived exports (auto-generated)
 ├── data/
 │   ├── add_order.json              # Chronological addition order
-│   └── identifier_collection.json # External identifier mappings
+│   └── identifier_collection.json  # External identifier mappings
 ├── src/
 │   └── biblio/                     # Python package
 │       ├── cli.py                  # Command-line interface
-│       ├── validate.py             # Validation logic
-│       └── ...                     # Other modules
-├── tests/                          # Test suite
+│       ├── config.py               # Workspace configuration
+│       ├── validate.py sort.py generate.py sync.py
+│       ├── add_entries.py template.py init.py
+│       ├── normalize/              # Normalization subpackage
+│       ├── schema/                 # JSON schema files
+│       └── types.py exceptions.py  # Type definitions & errors
+├── tests/                          # Test suite (100+ tests)
+├── typings/                        # Type stubs (bibtexparser)
 ├── latex/examples/                 # LaTeX demonstration documents
 └── tex/biblatex-yj/               # Custom biblatex style
 ```
@@ -655,7 +655,7 @@ latexmk -pdf -xelatex main.tex
 3. **Small PRs** - Keep changes focused and bisectable
 4. **Tests required** - Add tests for any behavior changes
 
-See `CLAUDE.md` for detailed development guidelines.
+See `CLAUDE.md` for detailed development guidelines and data safety protocols.
 
 ## Roadmap / TODO
 

@@ -6,7 +6,7 @@ A production-grade bibliographic database with powerful Python tooling for valid
 
 ✨ **Core Capabilities**
 - **Curated bibliographic database** (`bib/library.bib`) with 190+ high-quality entries
-- **Professional Python tooling** (`blx` CLI) with zero-error type safety
+- **Professional Python tooling** (`biblio` CLI) with zero-error type safety
 - **Automatic validation** ensuring data consistency across all formats
 - **Smart citekey generation** with collision detection and stable identifiers
 - **Staging workflow** for safe batch operations with automatic backup
@@ -47,61 +47,61 @@ pip install -e ".[dev]"
 
 ```bash
 # Validate entire database (comprehensive checks)
-uv run blx validate
+uv run biblio validate
 
 # Add new entries from staging directory
-uv run blx add
+uv run biblio add
 
 # Generate staging templates from .bib files
-uv run blx template
+uv run biblio template
 
 # Generate consistent citekey labels
-uv run blx generate-labels
+uv run biblio generate-labels
 
 # Sort database alphabetically by citekey
-uv run blx sort alphabetical
+uv run biblio sort alphabetical
 
 # Sort database by chronological add order
-uv run blx sort add-order
+uv run biblio sort add-order
 
 # Normalize legacy fields (dry run first)
-uv run blx normalize year-to-date --dry-run
-uv run blx normalize year-to-date
+uv run biblio normalize year-to-date --dry-run
+uv run biblio normalize year-to-date
 
 # Split publisher/location pairs
-uv run blx normalize publisher-location --dry-run
-uv run blx normalize publisher-location
+uv run biblio normalize publisher-location --dry-run
+uv run biblio normalize publisher-location
 
 # Normalize eprint fields
-uv run blx normalize eprint-fields --dry-run
-uv run blx normalize eprint-fields
+uv run biblio normalize eprint-fields --dry-run
+uv run biblio normalize eprint-fields
 
 # Convert LaTeX accent macros
-uv run blx normalize latex-accents --dry-run
-uv run blx normalize latex-accents
+uv run biblio normalize latex-accents --dry-run
+uv run biblio normalize latex-accents
 
 # Verbose validation with detailed progress
-uv run blx -v validate
+uv run biblio -v validate
 
 # Automatically fix citekey mismatches
-uv run blx validate --fix
+uv run biblio validate --fix
 
 # Work with different project workspace
-uv run blx --workspace /path/to/project validate
+uv run biblio --workspace /path/to/project validate
 ```
 
-## The `blx` CLI Tool
+## The `biblio` CLI Tool
 
-The `blx` command-line tool provides enterprise-grade utilities for bibliography management with comprehensive validation, error handling, and data safety features.
+The `biblio` command-line tool provides enterprise-grade utilities for bibliography management with comprehensive validation, error handling, and data safety features.
 
 ### Core Commands
 
-#### Validation (`blx validate`)
+#### Validation (`biblio validate`)
 
 Performs comprehensive consistency checks across all data sources:
 
 ```bash
-uv run blx validate [--fix] [--workspace PATH]
+uv run biblio validate [--fix] [--workspace PATH]
 ```
 
 **Validation Checks:**
@@ -117,12 +117,12 @@ uv run blx validate [--fix] [--workspace PATH]
 - `-v, --verbose` - Show detailed progress information
 - `-vv` - Enable debug-level logging
 
-#### Adding Entries (`blx add`)
+#### Adding Entries (`biblio add`)
 
 Safely processes entries from the staging directory with automatic backup:
 
 ```bash
-uv run blx add [--workspace PATH]
+uv run biblio add [--workspace PATH]
 ```
 
 **Process Flow:**
@@ -135,12 +135,12 @@ uv run blx add [--workspace PATH]
 
 **File Naming Pattern:** `YYYY-MM-DD-description.(bib|json)`
 
-#### Template Generation (`blx template`)
+#### Template Generation (`biblio template`)
 
 Generates identifier collection JSON templates from staging .bib files to streamline the staging workflow:
 
 ```bash
-uv run blx template [--overwrite] [--workspace PATH]
+uv run biblio template [--overwrite] [--workspace PATH]
 ```
 
 **Process Flow:**
@@ -164,12 +164,12 @@ uv run blx template [--overwrite] [--workspace PATH]
 
 **File Processing:** For each `staging/example.bib`, generates `staging/example.json` with extracted identifiers and automatically selected main identifier.
 
-#### Label Generation (`blx generate-labels`)
+#### Label Generation (`biblio generate-labels`)
 
 Creates consistent citekey labels for bibliographic entries:
 
 ```bash
-uv run blx generate-labels [-o OUTPUT] [--workspace PATH]
+uv run biblio generate-labels [-o OUTPUT] [--workspace PATH]
 ```
 
 **Features:**
@@ -179,16 +179,16 @@ uv run blx generate-labels [-o OUTPUT] [--workspace PATH]
 - 📝 **JSON output** mapping original keys to generated labels
 - 🌍 **Unicode support** for international author names
 
-#### Sorting (`blx sort`)
+#### Sorting (`biblio sort`)
 
 Reorders database entries with data integrity protection:
 
 ```bash
 # Sort alphabetically by citekey (recommended)
-uv run blx sort alphabetical
+uv run biblio sort alphabetical
 
 # Sort by chronological add order
-uv run blx sort add-order
+uv run biblio sort add-order
 ```
 
 **Safety Features:**
@@ -202,11 +202,11 @@ uv run blx sort add-order
 
 ```bash
 # Set workspace for all commands
-export BIBLIB_WORKSPACE=/path/to/project
-uv run blx validate
+export BIBLIO_WORKSPACE=/path/to/project
+uv run biblio validate
 
 # Or specify per command
-uv run blx --workspace /path/to/project validate
+uv run biblio --workspace /path/to/project validate
 ```
 
 #### Staging Workflow
@@ -222,19 +222,19 @@ uv run blx --workspace /path/to/project validate
 
 2. **Validate** before adding:
    ```bash
-   uv run blx validate
+   uv run biblio validate
    ```
 
 3. **Process** staging files:
    ```bash
-   uv run blx add
+   uv run biblio add
    ```
 
 4. **Verify** results:
    ```bash
-   uv run blx validate
-INFO biblib.validate:303 – ✓ Successfully fixed 2 citekeys
-INFO biblib.cli:98 – ✓ All citekey fixes applied successfully
+   uv run biblio validate
+INFO biblio.validate:303 – ✓ Successfully fixed 2 citekeys
+INFO biblio.cli:98 – ✓ All citekey fixes applied successfully
 ```
 
 ### Label Generation
@@ -242,7 +242,7 @@ INFO biblib.cli:98 – ✓ All citekey fixes applied successfully
 The `generate-labels` command creates citekeys in the format `lastname-year-<hash>`:
 
 ```bash
-blx generate-labels [options]
+biblio generate-labels [options]
 ```
 
 **What it generates:**
@@ -259,30 +259,30 @@ blx generate-labels [options]
 
 ```bash
 # Generate labels with default output
-blx generate-labels
+biblio generate-labels
 
 # Generate labels with custom output file
-blx generate-labels -o my_labels.json
+biblio generate-labels -o my_labels.json
 
 # Generate labels with verbose output
-blx -v generate-labels
+biblio -v generate-labels
 
 # Generate labels for different project
-blx --workspace /path/to/project generate-labels
+biblio --workspace /path/to/project generate-labels
 ```
 
 **Sample output:**
 
 ```
-$ blx -v generate-labels
-INFO biblib.cli:37 – Generating labels for biblatex entries
-INFO biblib.generate:211 – Generating labels for biblatex entries
-INFO biblib.generate:245 – Generated 195 labels
-INFO biblib.cli:50 – ✓ Generated 195 labels
-INFO biblib.cli:51 – ✓ Saved to: bib\generated\labels.json
-INFO biblib.cli:55 – Sample labels:
-INFO biblib.cli:59 –   bredon-1993-7908a921 -> bredon-1993-7908a921
-INFO biblib.cli:59 –   dubrovin-1985-b24c3982 -> dubrovin-1985-b24c3982
+$ biblio -v generate-labels
+INFO biblio.cli:37 – Generating labels for biblatex entries
+INFO biblio.generate:211 – Generating labels for biblatex entries
+INFO biblio.generate:245 – Generated 195 labels
+INFO biblio.cli:50 – ✓ Generated 195 labels
+INFO biblio.cli:51 – ✓ Saved to: bib\generated\labels.json
+INFO biblio.cli:55 – Sample labels:
+INFO biblio.cli:59 –   bredon-1993-7908a921 -> bredon-1993-7908a921
+INFO biblio.cli:59 –   dubrovin-1985-b24c3982 -> dubrovin-1985-b24c3982
 ```
 
 The generated JSON file maps original entry keys to suggested labels. This is useful for:
@@ -299,7 +299,7 @@ The generated JSON file maps original entry keys to suggested labels. This is us
 The `sort` command reorders `library.bib` and `identifier_collection.json` while preserving `add_order.json`:
 
 ```bash
-blx sort [mode] [options]
+biblio sort [mode] [options]
 ```
 
 **Sorting modes:**
@@ -319,32 +319,32 @@ blx sort [mode] [options]
 
 ```bash
 # Sort files alphabetically by citekey
-blx sort alphabetical
+biblio sort alphabetical
 
 # Sort files to match add_order.json sequence
-blx sort add-order
+biblio sort add-order
 
 # Sort with verbose output
-blx -v sort alphabetical
+biblio -v sort alphabetical
 
 # Sort different project
-blx --workspace /path/to/project sort add-order
+biblio --workspace /path/to/project sort add-order
 ```
 
 **Sample output:**
 
 ```
-$ blx -v sort alphabetical
-INFO biblib.cli:148 – Sorting files alphabetically by citekey
-INFO biblib.sort:32 – Sorting files alphabetically by citekey
-INFO biblib.sort:46 – ✓ Successfully sorted files alphabetically by citekey
-INFO biblib.cli:166 – ✓ Sort operation completed successfully
+$ biblio -v sort alphabetical
+INFO biblio.cli:148 – Sorting files alphabetically by citekey
+INFO biblio.sort:32 – Sorting files alphabetically by citekey
+INFO biblio.sort:46 – ✓ Successfully sorted files alphabetically by citekey
+INFO biblio.cli:166 – ✓ Sort operation completed successfully
 
-$ blx -v sort add-order
-INFO biblib.cli:156 – Sorting files to match add_order.json sequence
-INFO biblib.sort:75 – Sorting files to match add_order.json sequence
-INFO biblib.sort:89 – ✓ Successfully sorted files to match add_order.json sequence
-INFO biblib.cli:166 – ✓ Sort operation completed successfully
+$ biblio -v sort add-order
+INFO biblio.cli:156 – Sorting files to match add_order.json sequence
+INFO biblio.sort:75 – Sorting files to match add_order.json sequence
+INFO biblio.sort:89 – ✓ Successfully sorted files to match add_order.json sequence
+INFO biblio.cli:166 – ✓ Sort operation completed successfully
 ```
 
 **Use cases:**
@@ -356,26 +356,26 @@ INFO biblib.cli:166 – ✓ Sort operation completed successfully
 - `0` - Sorting completed successfully
 - `1` - Sorting failed or error occurred
 
-#### Normalization (`blx normalize`)
+#### Normalization (`biblio normalize`)
 
 Applies targeted migrations to keep legacy data aligned with BibLaTeX conventions:
 
 ```bash
 # Normalize legacy year fields
-uv run blx normalize year-to-date --dry-run
-uv run blx normalize year-to-date
+uv run biblio normalize year-to-date --dry-run
+uv run biblio normalize year-to-date
 
 # Split combined publisher/location values
-uv run blx normalize publisher-location --dry-run
-uv run blx normalize publisher-location
+uv run biblio normalize publisher-location --dry-run
+uv run biblio normalize publisher-location
 
 # Normalize arXiv eprint metadata
-uv run blx normalize eprint-fields --dry-run
-uv run blx normalize eprint-fields
+uv run biblio normalize eprint-fields --dry-run
+uv run biblio normalize eprint-fields
 
 # Convert LaTeX accent macros into Unicode
-uv run blx normalize latex-accents --dry-run
-uv run blx normalize latex-accents
+uv run biblio normalize latex-accents --dry-run
+uv run biblio normalize latex-accents
 ```
 
 **Available actions:**
@@ -397,24 +397,24 @@ uv run blx normalize latex-accents
 **Example output:**
 
 ```
-$ uv run blx normalize year-to-date --dry-run
-INFO biblib.cli:236 – Dry run complete: 4 entries would be converted from year to date
-INFO biblib.cli:243 – Affected entries: example-1998, sample-2001, legacy-1987...
+$ uv run biblio normalize year-to-date --dry-run
+INFO biblio.cli:236 – Dry run complete: 4 entries would be converted from year to date
+INFO biblio.cli:243 – Affected entries: example-1998, sample-2001, legacy-1987...
 
-$ uv run blx normalize publisher-location
-INFO biblib.cli:252 – ✓ Split publisher/location for 3 entries
-WARNING biblib.cli:259 – Entries with publisher but unresolved location: legacy-1980...
+$ uv run biblio normalize publisher-location
+INFO biblio.cli:252 – ✓ Split publisher/location for 3 entries
+WARNING biblio.cli:259 – Entries with publisher but unresolved location: legacy-1980...
 
-$ uv run blx normalize eprint-fields
-INFO biblib.cli:294 – ✓ Applied: eprint field normalization touched 5 entries
-INFO biblib.cli:304 – Renamed archiveprefix→eprinttype for 5 entries
-INFO biblib.cli:304 – Lowercased eprinttype for 4 entries
+$ uv run biblio normalize eprint-fields
+INFO biblio.cli:294 – ✓ Applied: eprint field normalization touched 5 entries
+INFO biblio.cli:304 – Renamed archiveprefix→eprinttype for 5 entries
+INFO biblio.cli:304 – Lowercased eprinttype for 4 entries
 
-$ uv run blx normalize latex-accents --dry-run -v
-INFO biblib.cli:324 – Dry run complete: converted LaTeX accents in 8 fields across 4 entries
-INFO biblib.cli:335 – example-1984: author, title, note
-INFO biblib.cli:335 – sample-1991: title
-INFO biblib.cli:338 – ... and 2 more entries
+$ uv run biblio normalize latex-accents --dry-run -v
+INFO biblio.cli:324 – Dry run complete: converted LaTeX accents in 8 fields across 4 entries
+INFO biblio.cli:335 – example-1984: author, title, note
+INFO biblio.cli:335 – sample-1991: title
+INFO biblio.cli:338 – ... and 2 more entries
 ```
 
 Use normalization after importing BibTeX-era data, spotting combined publisher/location strings, or whenever validation reports missing `date` fields.
@@ -424,7 +424,7 @@ Use normalization after importing BibTeX-era data, spotting combined publisher/l
 The `template` command streamlines the staging workflow by automatically generating identifier collection JSON templates from .bib files:
 
 ```bash
-blx template [options]
+biblio template [options]
 ```
 
 **What it generates:**
@@ -441,30 +441,30 @@ blx template [options]
 
 ```bash
 # Generate templates for all .bib files in staging/
-blx template
+biblio template
 
 # Generate templates, overwriting existing .json files
-blx template --overwrite
+biblio template --overwrite
 
 # Generate templates with verbose output
-blx -v template
+biblio -v template
 
 # Generate templates for different project
-blx --workspace /path/to/project template
+biblio --workspace /path/to/project template
 ```
 
 **Sample output:**
 
 ```
-$ blx -v template
-INFO biblib.cli:302 – Generating identifier collection templates from staging .bib files
-INFO biblib.template:156 – Processing staging/2024-01-15-new-paper.bib
-INFO biblib.template:187 – Selected main identifier: doi (10.1234/example.2024)
-INFO biblib.template:201 – Generated staging/2024-01-15-new-paper.json
-INFO biblib.template:156 – Processing staging/2024-01-20-conference.bib
-INFO biblib.template:187 – Selected main identifier: url (https://example.com/paper)
-INFO biblib.template:201 – Generated staging/2024-01-20-conference.json
-INFO biblib.cli:320 – ✓ Generated 2 identifier collection templates
+$ biblio -v template
+INFO biblio.cli:302 – Generating identifier collection templates from staging .bib files
+INFO biblio.template:156 – Processing staging/2024-01-15-new-paper.bib
+INFO biblio.template:187 – Selected main identifier: doi (10.1234/example.2024)
+INFO biblio.template:201 – Generated staging/2024-01-15-new-paper.json
+INFO biblio.template:156 – Processing staging/2024-01-20-conference.bib
+INFO biblio.template:187 – Selected main identifier: url (https://example.com/paper)
+INFO biblio.template:201 – Generated staging/2024-01-20-conference.json
+INFO biblio.cli:320 – ✓ Generated 2 identifier collection templates
 ```
 
 **File Processing Example:**
@@ -577,7 +577,7 @@ biblatex-library/
 │   ├── add_order.json              # Chronological addition order
 │   └── identifier_collection.json # External identifier mappings
 ├── src/
-│   └── biblib/                     # Python package
+│   └── biblio/                     # Python package
 │       ├── cli.py                  # Command-line interface
 │       ├── validate.py             # Validation logic
 │       └── ...                     # Other modules
@@ -617,7 +617,7 @@ ty
 pytest
 
 # 5. Validate library
-blx validate
+biblio validate
 ```
 
 ### Type Checking Configuration
@@ -633,7 +633,7 @@ This ensures **consistent type checking** across different development environme
 pytest
 
 # Run with coverage
-pytest --cov=biblib
+pytest --cov=biblio
 
 # Run specific test file
 pytest tests/test_validate.py -v
@@ -650,7 +650,7 @@ latexmk -pdf -xelatex main.tex
 
 ## Contributing
 
-1. **Validation first** - Always run `blx validate` before committing
+1. **Validation first** - Always run `biblio validate` before committing
 2. **Quality gates** - Ensure ruff, ty, and tests pass
 3. **Small PRs** - Keep changes focused and bisectable
 4. **Tests required** - Add tests for any behavior changes
@@ -664,7 +664,7 @@ See `CLAUDE.md` for detailed development guidelines.
   - Entry type conversion: `@online` → `@misc`, `@thesis` → `@phdthesis`/@mastersthesis`
   - Field conversion: `date` → `year`/`month`, `journaltitle` → `journal`, etc.
   - Integration with `biber --tool` for robust processing
-  - CLI: `blx convert input.bib output.bib`
+  - CLI: `biblio convert input.bib output.bib`
 
 ### Other Features
 - [ ] **CSL-JSON export** - Generate CSL-JSON for Pandoc/Zotero compatibility

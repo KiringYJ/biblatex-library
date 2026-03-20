@@ -2,7 +2,7 @@
 # Update hook versions with: pre-commit autoupdate
 #
 # NOTE: Data hooks (normalize, validate, biber) are in pre-commit-data-hooks.yaml.
-# Copy them to your workspace's .pre-commit-config.yaml after `blx init`.
+# Copy them to your workspace's .pre-commit-config.yaml after `biblio init`.
 repos:
   # Ruff: lint + format (run linter first so fixes get reformatted)
   - repo: https://github.com/astral-sh/ruff-pre-commit

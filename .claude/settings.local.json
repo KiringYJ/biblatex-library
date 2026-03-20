@@ -6,7 +6,7 @@
       "Bash(uv run pytest:*)",
       "Bash(uv run ruff:*)",
       "Bash(uv run ty:*)",
-      "Bash(uv run blx:*)",
+      "Bash(uv run biblio:*)",
       "Bash(uv run python:*)",
       "Bash(uv sync:*)",
       "Bash(uv pip:*)",

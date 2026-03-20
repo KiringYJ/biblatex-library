@@ -6,7 +6,7 @@ from pathlib import Path
 
 import bibtexparser
 
-from biblib.normalize.dates import rename_year_to_date_fields
+from biblio.normalize.dates import rename_year_to_date_fields
 
 
 def test_rename_year_to_date_updates_entries(tmp_path: Path) -> None:

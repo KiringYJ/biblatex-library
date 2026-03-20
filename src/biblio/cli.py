@@ -1,4 +1,4 @@
-"""Command-line interface for biblatex library tools."""
+"""Command-line interface for the biblio CLI."""
 
 import argparse
 import json
@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 from .add_entries import add_entries_from_staging
-from .config import BlxConfig
+from .config import BiblioConfig
 from .generate import generate_labels
 from .init import init_workspace
 from .normalize.accents import normalize_latex_accents
@@ -34,13 +34,13 @@ def setup_logging(verbosity: int = 0) -> None:
     )
 
 
-def resolve_config(args: argparse.Namespace) -> BlxConfig:
+def resolve_config(args: argparse.Namespace) -> BiblioConfig:
     """Build resolved config from CLI args, toml discovery, and defaults."""
     config_file: str | None = args.config
     if config_file:
-        config = BlxConfig.from_toml(Path(config_file))
+        config = BiblioConfig.from_toml(Path(config_file))
     else:
-        config = BlxConfig.discover()
+        config = BiblioConfig.discover()
 
     # Apply per-path CLI overrides
     bib: str | None = args.bib
@@ -58,7 +58,7 @@ def resolve_config(args: argparse.Namespace) -> BlxConfig:
 
 
 def cmd_init(args: argparse.Namespace) -> None:
-    """Initialize a new blx workspace."""
+    """Initialize a new biblio workspace."""
     target = Path(args.dir) if args.dir else Path.cwd()
     logger = logging.getLogger(__name__)
 
@@ -66,7 +66,7 @@ def cmd_init(args: argparse.Namespace) -> None:
         created = init_workspace(target, force=args.force)
         for path in created:
             logger.info("Created %s", path)
-        print(f"Initialized blx workspace in {target.resolve()}")
+        print(f"Initialized biblio workspace in {target.resolve()}")
     except FileExistsError as e:
         logger.error(str(e))
         sys.exit(1)
@@ -470,7 +470,7 @@ def cmd_template(args: argparse.Namespace) -> None:
 def create_parser() -> argparse.ArgumentParser:
     """Create the argument parser for the CLI."""
     parser = argparse.ArgumentParser(
-        prog="blx",
+        prog="biblio",
         description="Tools for a curated biblatex library: validate, sort, sync, normalize.",
     )
 
@@ -486,7 +486,7 @@ def create_parser() -> argparse.ArgumentParser:
         "--config",
         type=str,
         default=None,
-        help="Path to blx.toml config file (default: auto-discover from CWD upward)",
+        help="Path to biblio.toml config file (default: auto-discover from CWD upward)",
     )
 
     parser.add_argument(
@@ -515,7 +515,7 @@ def create_parser() -> argparse.ArgumentParser:
 
     # init subcommand
     init_parser = subparsers.add_parser(
-        "init", help="Initialize a new blx workspace with config and empty data files"
+        "init", help="Initialize a new biblio workspace with config and empty data files"
     )
     init_parser.add_argument(
         "dir",
@@ -526,7 +526,7 @@ def create_parser() -> argparse.ArgumentParser:
     init_parser.add_argument(
         "--force",
         action="store_true",
-        help="Overwrite existing blx.toml",
+        help="Overwrite existing biblio.toml",
     )
     init_parser.set_defaults(func=cmd_init)
 
@@ -625,7 +625,7 @@ def create_parser() -> argparse.ArgumentParser:
 
 
 def main() -> None:
-    """Main entry point for the blx CLI."""
+    """Main entry point for the biblio CLI."""
     parser = create_parser()
     args = parser.parse_args()
 

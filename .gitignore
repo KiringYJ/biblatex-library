@@ -15,6 +15,7 @@ $RECYCLE.BIN/
 __pycache__/
 *.py[cod]
 *$py.class
+src/biblio/_version.py
 
 # virtual envs
 .venv/

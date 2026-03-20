@@ -1,4 +1,4 @@
-"""Initialize a new blx workspace."""
+"""Initialize a new biblio workspace."""
 
 import logging
 from pathlib import Path
@@ -8,7 +8,7 @@ from .config import CONFIG_FILENAME
 logger = logging.getLogger(__name__)
 
 _DEFAULT_TOML = """\
-# blx workspace configuration
+# biblio workspace configuration
 # All paths are relative to this file's directory.
 
 [paths]
@@ -19,17 +19,17 @@ staging = "staging"
 """
 
 _EMPTY_BIB = """\
-% biblatex library — managed by blx
-% Add entries via `blx add` or edit directly.
+% biblatex library — managed by biblio
+% Add entries via `biblio add` or edit directly.
 """
 
 
 def init_workspace(target: Path, *, force: bool = False) -> list[str]:
-    """Scaffold a new blx workspace.
+    """Scaffold a new biblio workspace.
 
     Args:
         target: Directory to initialize
-        force: Overwrite existing blx.toml if present
+        force: Overwrite existing biblio.toml if present
 
     Returns:
         List of created file paths (relative to target)

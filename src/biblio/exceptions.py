@@ -1,8 +1,8 @@
-"""Custom exception types for biblib operations."""
+"""Custom exception types for biblio operations."""
 
 
 class BiblibError(Exception):
-    """Base exception for all biblib operations."""
+    """Base exception for all biblio operations."""
 
 
 class FileOperationError(BiblibError):
@@ -26,4 +26,4 @@ class BackupError(BiblibError):
 
 
 class ConfigError(BiblibError):
-    """Raised when blx configuration is invalid."""
+    """Raised when biblio configuration is invalid."""

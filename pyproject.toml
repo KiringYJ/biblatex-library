@@ -1,10 +1,10 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [project]
-name = "biblib"
-version = "0.1.0"
+name = "biblio"
+dynamic = ["version"]
 description = "Tools for a curated biblatex library: validate, sort, convert (CSL-JSON/BibTeX), enrich."
 readme = "README.md"
 requires-python = ">=3.13"
@@ -38,14 +38,20 @@ dev = [
 ]
 
 [project.scripts]
-blx = "biblib.cli:main"
+biblio = "biblio.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/KiringYJ/biblatex-library"
 Repository = "https://github.com/KiringYJ/biblatex-library"
 
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.build.hooks.vcs]
+version-file = "src/biblio/_version.py"
+
 [tool.hatch.build.targets.wheel]
-packages = ["src/biblib"]
+packages = ["src/biblio"]
 
 [tool.ruff]
 line-length = 100
@@ -71,7 +77,7 @@ ignore = []
 unfixable = ["ERA001"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["biblib"] # your package name under src/
+known-first-party = ["biblio"] # your package name under src/
 
 [tool.ruff.format]
 docstring-code-format = true

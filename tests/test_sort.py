@@ -8,7 +8,7 @@ from pathlib import Path
 import msgspec
 import pytest
 
-from biblib.sort import sort_alphabetically, sort_by_add_order
+from biblio.sort import sort_alphabetically, sort_by_add_order
 
 
 @pytest.fixture

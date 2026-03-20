@@ -4,7 +4,7 @@ import json
 import tempfile
 from pathlib import Path
 
-from biblib.generate import (
+from biblio.generate import (
     create_hash,
     extract_lastname,
     extract_year,

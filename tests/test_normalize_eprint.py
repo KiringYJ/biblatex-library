@@ -6,7 +6,7 @@ from pathlib import Path
 
 import bibtexparser
 
-from biblib.normalize.eprint import normalize_eprint_fields
+from biblio.normalize.eprint import normalize_eprint_fields
 
 
 def _write_bib(tmp_path: Path, content: str) -> Path:

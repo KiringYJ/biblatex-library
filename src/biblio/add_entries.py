@@ -13,7 +13,7 @@ import bibtexparser
 import msgspec
 from bibtexparser.model import Entry
 
-from .config import BlxConfig
+from .config import BiblioConfig
 from .exceptions import BackupError, FileOperationError, InvalidDataError
 from .generate import generate_labels
 from .types import (
@@ -99,7 +99,7 @@ def log_skipped_entry(
     return daily_log_file
 
 
-def create_backup(config: BlxConfig) -> str:
+def create_backup(config: BiblioConfig) -> str:
     """Create timestamped backup of core data files.
 
     Args:
@@ -187,7 +187,7 @@ def find_staging_pairs(staging_dir: Path) -> list[tuple[str, Path, Path]]:
     return pairs
 
 
-def load_existing_keys(config: BlxConfig) -> set[str]:
+def load_existing_keys(config: BiblioConfig) -> set[str]:
     """Load all existing citekeys from the three data files.
 
     Args:
@@ -524,7 +524,7 @@ def append_to_files(
     bib_path: Path,
     identifier_path: Path,
     add_order_path: Path,
-    config: BlxConfig,
+    config: BiblioConfig,
 ) -> bool:
     """Append new entries to the three data files.
 
@@ -576,7 +576,7 @@ def append_to_files(
         raise FileOperationError(f"Failed to append entries: {e}") from e
 
 
-def cleanup_processed_files(config: BlxConfig, processed_slugs: list[str]) -> None:
+def cleanup_processed_files(config: BiblioConfig, processed_slugs: list[str]) -> None:
     """Delete processed staging files after successful addition.
 
     Args:
@@ -634,7 +634,7 @@ def process_staging_pairs(
     return new_entries, processed_slugs
 
 
-def add_entries_from_staging(config: BlxConfig) -> tuple[bool, list[str]]:
+def add_entries_from_staging(config: BiblioConfig) -> tuple[bool, list[str]]:
     """Add new entries from staging directory to the main data files.
 
     Args:

@@ -1,4 +1,4 @@
-"""Type definitions for biblib data structures."""
+"""Type definitions for biblio data structures."""
 
 from __future__ import annotations
 

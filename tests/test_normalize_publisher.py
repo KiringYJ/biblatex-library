@@ -6,7 +6,7 @@ from pathlib import Path
 
 import bibtexparser
 
-from biblib.normalize.publisher import normalize_publisher_location
+from biblio.normalize.publisher import normalize_publisher_location
 
 
 def _write_bib(tmp_path: Path, content: str) -> Path:

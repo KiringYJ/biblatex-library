@@ -1,18 +1,18 @@
-"""Tests for BlxConfig: TOML parsing, discovery, overrides, and defaults."""
+"""Tests for BiblioConfig: TOML parsing, discovery, overrides, and defaults."""
 
 import tempfile
 from pathlib import Path
 
 import pytest
 
-from biblib.config import CONFIG_FILENAME, BlxConfig
-from biblib.exceptions import ConfigError
+from biblio.config import CONFIG_FILENAME, BiblioConfig
+from biblio.exceptions import ConfigError
 
 
 def test_defaults_creates_standard_layout():
     """Default config produces the original repo layout."""
     root = Path("/fake/root")
-    config = BlxConfig.defaults(root)
+    config = BiblioConfig.defaults(root)
 
     assert config.bib_path == root.resolve() / "bib" / "library.bib"
     assert config.identifier_path == root.resolve() / "data" / "identifier_collection.json"
@@ -27,14 +27,14 @@ def test_from_toml_with_defaults():
         toml_path = root / CONFIG_FILENAME
         toml_path.write_text("[paths]\n", encoding="utf-8")
 
-        config = BlxConfig.from_toml(toml_path)
+        config = BiblioConfig.from_toml(toml_path)
 
         assert config.bib_path == root / "bib" / "library.bib"
         assert config.identifier_path == root / "data" / "identifier_collection.json"
 
 
 def test_from_toml_custom_paths():
-    """Custom paths in blx.toml are resolved relative to config file directory."""
+    """Custom paths in biblio.toml are resolved relative to config file directory."""
     with tempfile.TemporaryDirectory() as tmpdir:
         root = Path(tmpdir)
         toml_path = root / CONFIG_FILENAME
@@ -43,7 +43,7 @@ def test_from_toml_custom_paths():
             encoding="utf-8",
         )
 
-        config = BlxConfig.from_toml(toml_path)
+        config = BiblioConfig.from_toml(toml_path)
 
         assert config.bib_path == (root / "my" / "refs.bib").resolve()
         assert config.identifier_path == (root / "my" / "ids.json").resolve()
@@ -58,7 +58,7 @@ def test_from_toml_no_paths_section():
         toml_path = root / CONFIG_FILENAME
         toml_path.write_text("# empty config\n", encoding="utf-8")
 
-        config = BlxConfig.from_toml(toml_path)
+        config = BiblioConfig.from_toml(toml_path)
 
         assert config.bib_path == (root / "bib" / "library.bib").resolve()
 
@@ -70,7 +70,7 @@ def test_from_toml_invalid_paths_type():
         toml_path.write_text('paths = "not a table"\n', encoding="utf-8")
 
         with pytest.raises(ConfigError, match="must be a table"):
-            BlxConfig.from_toml(toml_path)
+            BiblioConfig.from_toml(toml_path)
 
 
 def test_from_toml_invalid_path_value():
@@ -80,23 +80,23 @@ def test_from_toml_invalid_path_value():
         toml_path.write_text("[paths]\nbib = 42\n", encoding="utf-8")
 
         with pytest.raises(ConfigError, match="must be strings"):
-            BlxConfig.from_toml(toml_path)
+            BiblioConfig.from_toml(toml_path)
 
 
 def test_discover_finds_toml_in_cwd():
-    """discover() finds blx.toml in the start directory."""
+    """discover() finds biblio.toml in the start directory."""
     with tempfile.TemporaryDirectory() as tmpdir:
         root = Path(tmpdir)
         toml_path = root / CONFIG_FILENAME
         toml_path.write_text('[paths]\nbib = "custom.bib"\n', encoding="utf-8")
 
-        config = BlxConfig.discover(start=root)
+        config = BiblioConfig.discover(start=root)
 
         assert config.bib_path == (root / "custom.bib").resolve()
 
 
 def test_discover_walks_up():
-    """discover() walks up parent directories to find blx.toml."""
+    """discover() walks up parent directories to find biblio.toml."""
     with tempfile.TemporaryDirectory() as tmpdir:
         root = Path(tmpdir)
         toml_path = root / CONFIG_FILENAME
@@ -105,17 +105,17 @@ def test_discover_walks_up():
         child = root / "a" / "b" / "c"
         child.mkdir(parents=True)
 
-        config = BlxConfig.discover(start=child)
+        config = BiblioConfig.discover(start=child)
 
         assert config.bib_path == (root / "top.bib").resolve()
 
 
 def test_discover_falls_back_to_defaults():
-    """discover() returns defaults when no blx.toml exists anywhere."""
+    """discover() returns defaults when no biblio.toml exists anywhere."""
     with tempfile.TemporaryDirectory() as tmpdir:
         root = Path(tmpdir)
 
-        config = BlxConfig.discover(start=root)
+        config = BiblioConfig.discover(start=root)
 
         assert config.bib_path == root / "bib" / "library.bib"
         assert config.root == root
@@ -125,7 +125,7 @@ def test_with_overrides():
     """with_overrides replaces only specified paths."""
     with tempfile.TemporaryDirectory() as tmpdir:
         root = Path(tmpdir)
-        config = BlxConfig.defaults(root)
+        config = BiblioConfig.defaults(root)
         override_bib = root / "other" / "refs.bib"
 
         new_config = config.with_overrides(bib_path=override_bib)
@@ -141,7 +141,7 @@ def test_with_overrides_none_is_noop():
     """with_overrides with all None returns identical config."""
     with tempfile.TemporaryDirectory() as tmpdir:
         root = Path(tmpdir)
-        config = BlxConfig.defaults(root)
+        config = BiblioConfig.defaults(root)
 
         new_config = config.with_overrides()
 
@@ -151,6 +151,6 @@ def test_with_overrides_none_is_noop():
 
 def test_schema_path_exists():
     """Bundled schema file should exist on disk."""
-    schema = BlxConfig.schema_path()
+    schema = BiblioConfig.schema_path()
     assert schema.exists()
     assert schema.name == "identifier_collection.schema.json"

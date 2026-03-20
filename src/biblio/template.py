@@ -7,7 +7,7 @@ from pathlib import Path
 import bibtexparser
 from bibtexparser.model import Entry
 
-from .config import BlxConfig
+from .config import BiblioConfig
 from .exceptions import FileOperationError, InvalidDataError
 from .types import IdentifierData
 
@@ -164,7 +164,9 @@ def generate_identifier_template(bib_file: Path) -> dict[str, IdentifierData]:
         raise InvalidDataError(f"Failed to parse {bib_file}: {e}") from e
 
 
-def generate_staging_templates(config: BlxConfig, overwrite: bool = False) -> tuple[int, list[str]]:
+def generate_staging_templates(
+    config: BiblioConfig, overwrite: bool = False
+) -> tuple[int, list[str]]:
     """Generate identifier templates for all .bib files in staging without .json companions.
 
     Args:

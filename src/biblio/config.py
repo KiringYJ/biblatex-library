@@ -1,4 +1,4 @@
-"""Workspace configuration for biblib operations."""
+"""Workspace configuration for biblio operations."""
 
 import logging
 import tomllib
@@ -9,7 +9,7 @@ from .exceptions import ConfigError
 
 logger = logging.getLogger(__name__)
 
-CONFIG_FILENAME = "blx.toml"
+CONFIG_FILENAME = "biblio.toml"
 
 # Default relative paths (matching original repo layout)
 _DEFAULT_BIB = "bib/library.bib"
@@ -19,8 +19,8 @@ _DEFAULT_STAGING = "staging"
 
 
 @dataclass
-class BlxConfig:
-    """Resolved configuration for all blx operations.
+class BiblioConfig:
+    """Resolved configuration for all biblio operations.
 
     All paths are absolute after construction.
     """
@@ -32,7 +32,7 @@ class BlxConfig:
     staging_dir: Path
 
     @classmethod
-    def defaults(cls, root: Path) -> "BlxConfig":
+    def defaults(cls, root: Path) -> "BiblioConfig":
         """Create config with default paths rooted at the given directory."""
         root = root.resolve()
         return cls(
@@ -44,8 +44,8 @@ class BlxConfig:
         )
 
     @classmethod
-    def from_toml(cls, toml_path: Path) -> "BlxConfig":
-        """Parse a blx.toml file and resolve paths relative to its directory."""
+    def from_toml(cls, toml_path: Path) -> "BiblioConfig":
+        """Parse a biblio.toml file and resolve paths relative to its directory."""
         toml_path = toml_path.resolve()
         root = toml_path.parent
 
@@ -81,8 +81,8 @@ class BlxConfig:
         )
 
     @classmethod
-    def discover(cls, start: Path | None = None) -> "BlxConfig":
-        """Find blx.toml by walking up from start (default: CWD).
+    def discover(cls, start: Path | None = None) -> "BiblioConfig":
+        """Find biblio.toml by walking up from start (default: CWD).
 
         Falls back to defaults rooted at start if no config file found.
         """
@@ -109,9 +109,9 @@ class BlxConfig:
         identifier_path: Path | None = None,
         add_order_path: Path | None = None,
         staging_dir: Path | None = None,
-    ) -> "BlxConfig":
+    ) -> "BiblioConfig":
         """Return a new config with non-None values overriding the originals."""
-        return BlxConfig(
+        return BiblioConfig(
             root=self.root,
             bib_path=bib_path.resolve() if bib_path is not None else self.bib_path,
             identifier_path=(

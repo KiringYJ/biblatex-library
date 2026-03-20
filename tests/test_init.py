@@ -1,16 +1,16 @@
-"""Tests for blx init workspace scaffolding."""
+"""Tests for biblio init workspace scaffolding."""
 
 import tempfile
 from pathlib import Path
 
 import pytest
 
-from biblib.config import CONFIG_FILENAME
-from biblib.init import init_workspace
+from biblio.config import CONFIG_FILENAME
+from biblio.init import init_workspace
 
 
 def test_init_creates_all_files():
-    """init_workspace creates blx.toml and empty data files."""
+    """init_workspace creates biblio.toml and empty data files."""
     with tempfile.TemporaryDirectory() as tmpdir:
         target = Path(tmpdir)
         created = init_workspace(target)
@@ -29,7 +29,7 @@ def test_init_creates_all_files():
 
 
 def test_init_toml_content():
-    """Generated blx.toml contains [paths] section."""
+    """Generated biblio.toml contains [paths] section."""
     with tempfile.TemporaryDirectory() as tmpdir:
         target = Path(tmpdir)
         init_workspace(target)
@@ -52,7 +52,7 @@ def test_init_empty_data_files():
 
 
 def test_init_refuses_existing_toml():
-    """init_workspace raises FileExistsError if blx.toml already exists."""
+    """init_workspace raises FileExistsError if biblio.toml already exists."""
     with tempfile.TemporaryDirectory() as tmpdir:
         target = Path(tmpdir)
         (target / CONFIG_FILENAME).write_text("existing", encoding="utf-8")
@@ -62,7 +62,7 @@ def test_init_refuses_existing_toml():
 
 
 def test_init_force_overwrites_toml():
-    """--force overwrites existing blx.toml."""
+    """--force overwrites existing biblio.toml."""
     with tempfile.TemporaryDirectory() as tmpdir:
         target = Path(tmpdir)
         (target / CONFIG_FILENAME).write_text("old content", encoding="utf-8")

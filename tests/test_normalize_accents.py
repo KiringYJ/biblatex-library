@@ -6,7 +6,7 @@ from pathlib import Path
 
 import bibtexparser
 
-from biblib.normalize.accents import normalize_latex_accents
+from biblio.normalize.accents import normalize_latex_accents
 
 
 def _write_bib(tmp_path: Path, content: str) -> Path:

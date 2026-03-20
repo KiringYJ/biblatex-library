@@ -5,12 +5,12 @@ import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
-from biblib.add_entries import (
+from biblio.add_entries import (
     add_entries_from_staging,
     find_staging_pairs,
     process_staging_entry,
 )
-from biblib.config import BlxConfig
+from biblio.config import BiblioConfig
 
 
 def test_find_staging_pairs():
@@ -66,7 +66,7 @@ def test_process_staging_entry_success():
         # Mock existing data files (empty)
         existing_keys: set[str] = set()
 
-        with patch("biblib.add_entries.generate_labels") as mock_gen:
+        with patch("biblio.add_entries.generate_labels") as mock_gen:
             mock_gen.return_value = {"temp-key": "smith-2025-abc123"}
 
             result = process_staging_entry(
@@ -108,7 +108,7 @@ def test_process_staging_entry_duplicate_key():
         # Mock existing data with duplicate key
         existing_keys = {"smith-2025-abc123"}
 
-        with patch("biblib.add_entries.generate_labels") as mock_gen:
+        with patch("biblio.add_entries.generate_labels") as mock_gen:
             mock_gen.return_value = {"temp-key": "smith-2025-abc123"}
 
             result = process_staging_entry(
@@ -150,17 +150,17 @@ def test_add_entries_from_staging_integration():
         (workspace / "data" / "identifier_collection.json").write_text("{}", encoding="utf-8")
 
         with (
-            patch("biblib.add_entries.generate_labels") as mock_gen,
-            patch("biblib.add_entries.load_existing_keys") as mock_load,
+            patch("biblio.add_entries.generate_labels") as mock_gen,
+            patch("biblio.add_entries.load_existing_keys") as mock_load,
         ):
             mock_gen.return_value = {"temp-key": "smith-2025-abc123"}
             mock_load.return_value = set()
 
             # Mock the file operations since we're testing logic, not I/O
-            with patch("biblib.add_entries.append_to_files") as mock_append:
+            with patch("biblio.add_entries.append_to_files") as mock_append:
                 mock_append.return_value = True
 
-                config = BlxConfig.defaults(workspace)
+                config = BiblioConfig.defaults(workspace)
                 success, processed = add_entries_from_staging(config)
 
                 assert success is True
@@ -183,7 +183,7 @@ def test_invalid_staging_files():
         assert len(pairs) == 1  # Should find the pair
 
         # Processing should handle the invalid content gracefully
-        with patch("biblib.add_entries.generate_labels") as mock_gen:
+        with patch("biblio.add_entries.generate_labels") as mock_gen:
             mock_gen.side_effect = ValueError("Invalid bib format")
 
             result = process_staging_entry(

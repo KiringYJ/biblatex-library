@@ -6,7 +6,7 @@ from pathlib import Path
 
 import bibtexparser
 
-from biblib.normalize.isbn import (
+from biblio.normalize.isbn import (
     calculate_isbn13_check_digit,
     convert_isbn10_to_isbn13,
     extract_isbn_digits,

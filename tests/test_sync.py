@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from biblib.sync import (
+from biblio.sync import (
     load_bibtex_library,
     load_identifier_collection,
     sync_identifiers_to_library,

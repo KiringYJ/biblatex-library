@@ -203,7 +203,7 @@ def validate_citekey_labels(bib_path: Path, identifier_path: Path) -> bool:
     logger.info("Validating that citekeys match generated labels")
 
     # Import here to avoid circular imports
-    from biblib.generate import generate_labels
+    from biblio.generate import generate_labels
 
     try:
         # Generate what the labels should be
@@ -260,7 +260,7 @@ def fix_citekey_labels(bib_path: Path, add_order_path: Path, identifier_path: Pa
     logger.info("Fixing citekeys to match generated labels")
 
     # Import here to avoid circular imports
-    from biblib.generate import generate_labels
+    from biblio.generate import generate_labels
 
     try:
         # Generate what the labels should be

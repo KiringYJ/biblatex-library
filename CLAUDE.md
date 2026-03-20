@@ -11,7 +11,7 @@ This project uses centralized plugins from `claude-workbench`:
 - **`python`** — ruff/ty/uv workflow, Python logging rules, ty LSP, `/commit` + `/optimize` + `/pre-push` skills
 
 **Project-specific context** for those skills:
-- Validation gate: `uv run blx validate` (in addition to ruff/ty/pytest)
+- Validation gate: `uv run biblio validate` (in addition to ruff/ty/pytest)
 - Commit scopes: `cli`, `convert`, `csl`, `style`, `tex`, `examples`, `data`, `ledger`, `ci`, `docs`
 
 ---
@@ -24,7 +24,7 @@ The following three files form an atomic consistency set:
 2. `data/identifier_collection.json`
 3. `data/add_order.json`
 
-Any add/remove/rename/reorder of citekeys MUST update all three. Validation (`uv run blx validate`) is a merge blocker if inconsistent.
+Any add/remove/rename/reorder of citekeys MUST update all three. Validation (`uv run biblio validate`) is a merge blocker if inconsistent.
 
 ### 2.2 Backup Protocol (Mandatory Before Mutation)
 Prior to any modification of the triple set:
@@ -59,7 +59,7 @@ All file I/O uses `encoding="utf-8"` with `ensure_ascii=False` for JSON. Failure
 2. Inspect recent diffs (`git log -p`).
 3. Reproduce on `main`.
 4. Restore from backup if corruption present.
-5. Re-validate: `uv run blx validate`.
+5. Re-validate: `uv run biblio validate`.
 6. Add post-mortem note if systemic.
 7. Strengthen guardrails (tests/validation) before closing.
 
@@ -101,8 +101,8 @@ biblatex-library/
 │     ├─ alphabetic/
 │     └─ common/                  # optional preamble
 ├─ src/
-│  └─ biblib/
-│     ├─ cli.py                   # `blx` entry
+│  └─ biblio/
+│     ├─ cli.py                   # `biblio` entry
 │     ├─ validate.py  normalize.py  sort.py  dedupe.py
 │     ├─ convert/
 │     │  ├─ biblatex_to_csl.py  csl_to_bibtex.py  biblatex_to_bibtex.py
@@ -114,7 +114,7 @@ biblatex-library/
 │  ├─ settings.json               # plugin config (workbench + marketplace plugins)
 │  └─ hooks.json                  # prompt/tool hooks
 ├─ .github/workflows/             # CI jobs
-│  ├─ ci.yml          # lint/tests/`blx validate`
+│  ├─ ci.yml          # lint/tests/`biblio validate`
 │  ├─ csl.yml         # convert + pandoc --citeproc smoke render
 │  └─ tex-style.yml   # l3build + latexmk+biber artifacts
 ├─ pyproject.toml                  # canonical deps & tool config
@@ -144,10 +144,10 @@ When working with citekeys/labels, **ALWAYS** update these three files simultane
 **Required operations for citekey changes**
 - **Adding**: Add to all three files
 - **Removing**: Remove from all three files
-- **Renaming**: Update in all three files (use `blx validate --fix` for automated fixing)
+- **Renaming**: Update in all three files (use `biblio validate --fix` for automated fixing)
 - **Reordering**: Update `library.bib` and `identifier_collection.json`
 
-**Automation**: `blx validate --fix` auto-fixes citekey mismatches. Any inconsistency is a hard merge blocker.
+**Automation**: `biblio validate --fix` auto-fixes citekey mismatches. Any inconsistency is a hard merge blocker.
 
 ---
 
@@ -159,7 +159,7 @@ When working with citekeys/labels, **ALWAYS** update these three files simultane
 # Python 3.13 with UV package manager
 uv sync --dev
 uv run python -m pytest
-uv run blx validate
+uv run biblio validate
 ```
 
 ### LaTeX examples
@@ -218,8 +218,8 @@ Always verify external library operations succeed (check length/contents after m
 ## 9) Add Order Ledger
 
 - Canonical order lives in `data/add_order.json` (**append-only**); top-level key `order` is an array of entry keys.
-- `blx order add KEY ...` — append to ledger
-- `blx order check` — verify existence/duplicates
+- `biblio order add KEY ...` — append to ledger
+- `biblio order check` — verify existence/duplicates
 
 ---
 
@@ -242,23 +242,23 @@ Always verify external library operations succeed (check length/contents after m
 
 **Zero-tolerance**: `Any` and `type: ignore` are **BANNED**.
 
-- **JSON data**: Use TypedDict definitions from `src/biblib/types.py` (`IdentifierCollection`, `AddOrderList`, `IdentifierData`)
+- **JSON data**: Use TypedDict definitions from `src/biblio/types.py` (`IdentifierCollection`, `AddOrderList`, `IdentifierData`)
 - **External libraries**: Create type stubs in `typings/` (e.g., `typings/bibtexparser/`)
 - **No `cast()` with weak types** — use proper type annotations after runtime checks
 - Type checker must report **zero errors**. Warnings about "partially unknown" from `json.load()` are acceptable.
 
 ---
 
-## 13) The `blx` CLI
+## 13) The `biblio` CLI
 
 ```powershell
-uv run blx validate                # JSON Schema + biber --tool checks
-uv run blx add                     # process staging directory entries
-uv run blx template                # generate identifier JSON templates from staging .bib
-uv run blx sort alphabetical       # sort by citekey
-uv run blx sort add-order          # sort to match add_order.json sequence
-uv run blx generate-labels         # generate labels for biblatex entries
-uv run blx normalize latex-accents # normalize LaTeX accent commands
-uv run blx normalize year-to-date  # normalize year fields to date
-uv run blx normalize eprint-fields # normalize eprint fields
+uv run biblio validate                # JSON Schema + biber --tool checks
+uv run biblio add                     # process staging directory entries
+uv run biblio template                # generate identifier JSON templates from staging .bib
+uv run biblio sort alphabetical       # sort by citekey
+uv run biblio sort add-order          # sort to match add_order.json sequence
+uv run biblio generate-labels         # generate labels for biblatex entries
+uv run biblio normalize latex-accents # normalize LaTeX accent commands
+uv run biblio normalize year-to-date  # normalize year fields to date
+uv run biblio normalize eprint-fields # normalize eprint fields
 ```

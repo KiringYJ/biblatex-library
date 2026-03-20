@@ -131,6 +131,12 @@ staging/backup-*/
 *.backup
 *.bak
 
+# User data files (not part of tool distribution)
+bib/library.bib
+data/identifier_collection.json
+data/add_order.json
+blx.toml
+
 # Generated BibTeX/exports
 bib/generated/
 

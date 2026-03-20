@@ -14,8 +14,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  lint_and_validate:
-    name: Lint & validate (pre-commit)
+  lint:
+    name: Lint & type-check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,26 +25,22 @@ jobs:
         with:
           version: "latest"
 
-      - name: Install TeX Live (for biber validation)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y texlive-bibtex-extra biber
-
       - name: Install project and dependencies
         run: uv sync --dev
-        # UV automatically installs the Python version from pyproject.toml and all dependencies
 
-      - name: Create generated directory
-        run: mkdir -p bib/generated
+      - name: Ruff check
+        run: uv run ruff check .
 
-      - name: Run all validations (pre-commit)
-        run: uv run pre-commit run --all-files
-        # Runs all hooks: ruff, pyright, jsonschema, custom validation, biber validation, etc.
+      - name: Ruff format check
+        run: uv run ruff format --check .
+
+      - name: Type check (ty)
+        run: uv run ty check .
 
   tests:
     name: Unit tests
     runs-on: ubuntu-latest
-    needs: [lint_and_validate]
+    needs: [lint]
     steps:
       - uses: actions/checkout@v4
 
@@ -55,8 +51,7 @@ jobs:
 
       - name: Install project (dev)
         run: uv sync --dev
-        # UV automatically installs the Python version specified in pyproject.toml requires-python
 
-      - name: Run pytest (if tests/ exists)
+      - name: Run pytest
         if: ${{ hashFiles('tests/**') != '' }}
         run: uv run pytest -q

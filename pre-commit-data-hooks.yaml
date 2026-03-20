@@ -1,0 +1,69 @@
+# Data hooks for blx workspaces.
+# Copy these into your .pre-commit-config.yaml (under the `repos:` key)
+# after running `blx init` to set up your workspace.
+#
+# These hooks normalize and validate your bibliography data on each commit.
+# They require the blx CLI and (optionally) biber to be installed.
+
+  # Validate identifier_collection.json against schema
+  - repo: https://github.com/python-jsonschema/check-jsonschema
+    rev: 0.33.3
+    hooks:
+      - id: check-jsonschema
+        name: Validate identifier_collection.json
+        files: ^data/identifier_collection\.json$
+        args:
+          - --schemafile
+          - src/biblib/schema/identifier_collection.schema.json
+
+  # Normalize and validate library data
+  - repo: local
+    hooks:
+      - id: normalize-latex-accents
+        name: Normalize LaTeX accents
+        entry: uv
+        args: ["run", "blx", "normalize", "latex-accents"]
+        language: system
+        files: ^bib/library\.bib$
+        pass_filenames: false
+
+      - id: normalize-dates
+        name: Normalize dates (year -> date)
+        entry: uv
+        args: ["run", "blx", "normalize", "year-to-date"]
+        language: system
+        files: ^bib/library\.bib$
+        pass_filenames: false
+
+      - id: normalize-eprint
+        name: Normalize eprint fields
+        entry: uv
+        args: ["run", "blx", "normalize", "eprint-fields"]
+        language: system
+        files: ^bib/library\.bib$
+        pass_filenames: false
+
+      - id: normalize-isbn
+        name: Normalize ISBN (ISBN-10 -> ISBN-13)
+        entry: uv
+        args: ["run", "blx", "normalize", "isbn"]
+        language: system
+        files: ^(bib/library\.bib|data/identifier_collection\.json)$
+        pass_filenames: false
+
+      - id: validate-citekey-consistency
+        name: Validate citekey consistency and labels
+        entry: uv
+        args: ["run", "blx", "validate"]
+        language: system
+        files: ^(bib/library\.bib|data/add_order\.json|data/identifier_collection\.json)$
+        pass_filenames: false
+
+      # Direct biber validation of .bib file integrity
+      - id: biber-validate-bib
+        name: Validate library.bib with biber --tool
+        entry: biber
+        args: ["--tool", "--validate-datamodel", "--output-directory", "bib/generated", "bib/library.bib"]
+        language: system
+        files: ^bib/library\.bib$
+        pass_filenames: false

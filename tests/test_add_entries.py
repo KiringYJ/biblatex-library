@@ -10,6 +10,7 @@ from biblib.add_entries import (
     find_staging_pairs,
     process_staging_entry,
 )
+from biblib.config import BlxConfig
 
 
 def test_find_staging_pairs():
@@ -159,7 +160,8 @@ def test_add_entries_from_staging_integration():
             with patch("biblib.add_entries.append_to_files") as mock_append:
                 mock_append.return_value = True
 
-                success, processed = add_entries_from_staging(workspace)
+                config = BlxConfig.defaults(workspace)
+                success, processed = add_entries_from_staging(config)
 
                 assert success is True
                 assert len(processed) == 1

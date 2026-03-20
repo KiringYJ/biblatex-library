@@ -13,7 +13,7 @@ import bibtexparser
 import msgspec
 from bibtexparser.model import Entry
 
-from .config import WorkspaceConfig
+from .config import BlxConfig
 from .exceptions import BackupError, FileOperationError, InvalidDataError
 from .generate import generate_labels
 from .types import (
@@ -99,11 +99,11 @@ def log_skipped_entry(
     return daily_log_file
 
 
-def create_backup(workspace: Path) -> str:
+def create_backup(config: BlxConfig) -> str:
     """Create timestamped backup of core data files.
 
     Args:
-        workspace: Path to the workspace directory
+        config: Resolved workspace configuration
 
     Returns:
         Backup directory path
@@ -114,8 +114,7 @@ def create_backup(workspace: Path) -> str:
     import datetime
 
     timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-    backup_dir = workspace / "staging" / f"backup-{timestamp}"
-    config = WorkspaceConfig.from_workspace(workspace)
+    backup_dir = config.staging_dir / f"backup-{timestamp}"
 
     try:
         backup_dir.mkdir(parents=True, exist_ok=True)
@@ -188,7 +187,7 @@ def find_staging_pairs(staging_dir: Path) -> list[tuple[str, Path, Path]]:
     return pairs
 
 
-def load_existing_keys(config: WorkspaceConfig) -> set[str]:
+def load_existing_keys(config: BlxConfig) -> set[str]:
     """Load all existing citekeys from the three data files.
 
     Args:
@@ -525,6 +524,7 @@ def append_to_files(
     bib_path: Path,
     identifier_path: Path,
     add_order_path: Path,
+    config: BlxConfig,
 ) -> bool:
     """Append new entries to the three data files.
 
@@ -533,6 +533,7 @@ def append_to_files(
         bib_path: Path to library.bib
         identifier_path: Path to identifier_collection.json
         add_order_path: Path to add_order.json
+        config: Resolved workspace configuration (used for backup)
 
     Returns:
         True if successful, False otherwise
@@ -544,9 +545,8 @@ def append_to_files(
     logger.info(f"Appending {len(new_entries)} new entries to data files")
 
     # MANDATORY: Create backup before any data file modification
-    workspace = bib_path.parent.parent  # Go up from bib/ to workspace
     try:
-        backup_path = create_backup(workspace)
+        backup_path = create_backup(config)
         logger.info(f"✓ Backup created: {backup_path}")
     except BackupError as e:
         logger.error(f"✗ Backup failed: {e}")
@@ -576,7 +576,7 @@ def append_to_files(
         raise FileOperationError(f"Failed to append entries: {e}") from e
 
 
-def cleanup_processed_files(config: WorkspaceConfig, processed_slugs: list[str]) -> None:
+def cleanup_processed_files(config: BlxConfig, processed_slugs: list[str]) -> None:
     """Delete processed staging files after successful addition.
 
     Args:
@@ -634,19 +634,16 @@ def process_staging_pairs(
     return new_entries, processed_slugs
 
 
-def add_entries_from_staging(workspace: Path) -> tuple[bool, list[str]]:
+def add_entries_from_staging(config: BlxConfig) -> tuple[bool, list[str]]:
     """Add new entries from staging directory to the main data files.
 
     Args:
-        workspace: Path to the workspace root
+        config: Resolved workspace configuration
 
     Returns:
         Tuple of (success, list_of_processed_slugs)
     """
     logger.info("Starting add entries from staging workflow")
-
-    # Create configuration
-    config = WorkspaceConfig.from_workspace(workspace)
 
     # Find staging pairs
     pairs = find_staging_pairs(config.staging_dir)
@@ -665,7 +662,7 @@ def add_entries_from_staging(workspace: Path) -> tuple[bool, list[str]]:
 
     # Append to data files
     success = append_to_files(
-        new_entries, config.bib_path, config.identifier_path, config.add_order_path
+        new_entries, config.bib_path, config.identifier_path, config.add_order_path, config
     )
 
     if success:

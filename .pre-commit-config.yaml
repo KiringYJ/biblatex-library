@@ -1,5 +1,8 @@
 # Run `pre-commit install` once, then hooks run on each commit.
 # Update hook versions with: pre-commit autoupdate
+#
+# NOTE: Data hooks (normalize, validate, biber) are in pre-commit-data-hooks.yaml.
+# Copy them to your workspace's .pre-commit-config.yaml after `blx init`.
 repos:
   # Ruff: lint + format (run linter first so fixes get reformatted)
   - repo: https://github.com/astral-sh/ruff-pre-commit
@@ -20,21 +23,9 @@ repos:
         pass_filenames: false
         files: ^(src/.*\.py|tests/.*\.py|scripts/.*\.py|pyproject\.toml)$
 
-  # Validate your JSON against schemas (e.g., identifier_collection)
-  - repo: https://github.com/python-jsonschema/check-jsonschema
-    rev: 0.33.3
-    hooks:
-      - id: check-jsonschema
-        name: Validate identifier_collection.json
-        files: ^data/identifier_collection\.json$
-        args:
-          - --schemafile
-          - data/identifier_collection.schema.json
-
-  # Tests and custom validation (run after linting/formatting but before complex validation)
+  # Tests
   - repo: local
     hooks:
-      # Run tests to ensure all functionality works before validating data files
       - id: pytest
         name: Run pytest
         entry: uv
@@ -42,56 +33,6 @@ repos:
         language: system
         pass_filenames: false
         files: ^(src/.*\.py|tests/.*\.py|pyproject\.toml)$
-
-      # Normalize library data
-      - id: normalize-latex-accents
-        name: Normalize LaTeX accents
-        entry: uv
-        args: ["run", "blx", "normalize", "latex-accents"]
-        language: system
-        files: ^bib/library\.bib$
-        pass_filenames: false
-
-      - id: normalize-dates
-        name: Normalize dates (year -> date)
-        entry: uv
-        args: ["run", "blx", "normalize", "year-to-date"]
-        language: system
-        files: ^bib/library\.bib$
-        pass_filenames: false
-
-      - id: normalize-eprint
-        name: Normalize eprint fields
-        entry: uv
-        args: ["run", "blx", "normalize", "eprint-fields"]
-        language: system
-        files: ^bib/library\.bib$
-        pass_filenames: false
-
-      - id: normalize-isbn
-        name: Normalize ISBN (ISBN-10 -> ISBN-13)
-        entry: uv
-        args: ["run", "blx", "normalize", "isbn"]
-        language: system
-        files: ^(bib/library\.bib|data/identifier_collection\.json)$
-        pass_filenames: false
-
-      - id: validate-citekey-consistency
-        name: Validate citekey consistency and labels
-        entry: uv
-        args: ["run", "blx", "validate"]
-        language: system
-        files: ^(bib/library\.bib|data/add_order\.json|data/identifier_collection\.json)$
-        pass_filenames: false
-
-      # Direct biber validation of .bib file integrity
-      - id: biber-validate-bib
-        name: Validate library.bib with biber --tool
-        entry: biber
-        args: ["--tool", "--validate-datamodel", "--output-directory", "bib/generated", "bib/library.bib"]
-        language: system
-        files: ^bib/library\.bib$
-        pass_filenames: false
 
       # Post-commit cleanup of staging backups
       - id: cleanup-staging-backups

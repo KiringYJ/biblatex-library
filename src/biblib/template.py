@@ -7,7 +7,7 @@ from pathlib import Path
 import bibtexparser
 from bibtexparser.model import Entry
 
-from .config import WorkspaceConfig
+from .config import BlxConfig
 from .exceptions import FileOperationError, InvalidDataError
 from .types import IdentifierData
 
@@ -164,17 +164,16 @@ def generate_identifier_template(bib_file: Path) -> dict[str, IdentifierData]:
         raise InvalidDataError(f"Failed to parse {bib_file}: {e}") from e
 
 
-def generate_staging_templates(workspace: Path, overwrite: bool = False) -> tuple[int, list[str]]:
+def generate_staging_templates(config: BlxConfig, overwrite: bool = False) -> tuple[int, list[str]]:
     """Generate identifier templates for all .bib files in staging without .json companions.
 
     Args:
-        workspace: Path to workspace root
+        config: Resolved workspace configuration
         overwrite: Whether to overwrite existing .json files
 
     Returns:
         Tuple of (files_processed, list_of_generated_files)
     """
-    config = WorkspaceConfig.from_workspace(workspace)
 
     if not config.staging_dir.exists():
         logger.warning(f"Staging directory does not exist: {config.staging_dir}")

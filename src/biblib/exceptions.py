@@ -23,3 +23,7 @@ class ProcessingError(BiblibError):
 
 class BackupError(BiblibError):
     """Raised when backup operations fail."""
+
+
+class ConfigError(BiblibError):
+    """Raised when blx configuration is invalid."""

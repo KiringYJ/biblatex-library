@@ -7,7 +7,9 @@ import sys
 from pathlib import Path
 
 from .add_entries import add_entries_from_staging
+from .config import BlxConfig
 from .generate import generate_labels
+from .init import init_workspace
 from .normalize.accents import normalize_latex_accents
 from .normalize.dates import rename_year_to_date_fields
 from .normalize.eprint import normalize_eprint_fields
@@ -32,38 +34,68 @@ def setup_logging(verbosity: int = 0) -> None:
     )
 
 
+def resolve_config(args: argparse.Namespace) -> BlxConfig:
+    """Build resolved config from CLI args, toml discovery, and defaults."""
+    config_file: str | None = args.config
+    if config_file:
+        config = BlxConfig.from_toml(Path(config_file))
+    else:
+        config = BlxConfig.discover()
+
+    # Apply per-path CLI overrides
+    bib: str | None = args.bib
+    identifiers: str | None = args.identifiers
+    add_order: str | None = args.add_order
+
+    if bib or identifiers or add_order:
+        config = config.with_overrides(
+            bib_path=Path(bib) if bib else None,
+            identifier_path=Path(identifiers) if identifiers else None,
+            add_order_path=Path(add_order) if add_order else None,
+        )
+
+    return config
+
+
+def cmd_init(args: argparse.Namespace) -> None:
+    """Initialize a new blx workspace."""
+    target = Path(args.dir) if args.dir else Path.cwd()
+    logger = logging.getLogger(__name__)
+
+    try:
+        created = init_workspace(target, force=args.force)
+        for path in created:
+            logger.info("Created %s", path)
+        print(f"Initialized blx workspace in {target.resolve()}")
+    except FileExistsError as e:
+        logger.error(str(e))
+        sys.exit(1)
+
+
 def cmd_generate_labels(args: argparse.Namespace) -> None:
     """Generate labels for biblatex entries."""
-    workspace = Path(args.workspace)
-
-    # Default paths based on standard repository layout
-    bib_path = workspace / "bib" / "library.bib"
-    identifier_path = workspace / "data" / "identifier_collection.json"
-    default_output = workspace / "bib" / "generated" / "labels.json"
+    config = resolve_config(args)
+    default_output = config.root / "bib" / "generated" / "labels.json"
     output_path = Path(args.output) if args.output else default_output
 
     logger = logging.getLogger(__name__)
     logger.info("Generating labels for biblatex entries")
 
     try:
-        # Generate labels
-        labels = generate_labels(bib_path=bib_path, identifier_path=identifier_path)
+        labels = generate_labels(bib_path=config.bib_path, identifier_path=config.identifier_path)
 
-        # Ensure output directory exists
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Save labels to JSON file
         with open(output_path, "w", encoding="utf-8") as f:
             json.dump(labels, f, indent=2, ensure_ascii=False)
 
         logger.info(f"✓ Generated {len(labels)} labels")
         logger.info(f"✓ Saved to: {output_path}")
 
-        # Optionally show first few labels for verification
         if args.verbose and labels:
             logger.info("Sample labels:")
             for i, (old_key, new_label) in enumerate(labels.items()):
-                if i >= 5:  # Show first 5 as examples
+                if i >= 5:
                     break
                 logger.info(f"  {old_key} -> {new_label}")
 
@@ -76,31 +108,27 @@ def cmd_generate_labels(args: argparse.Namespace) -> None:
 
 def cmd_validate(args: argparse.Namespace) -> None:
     """Run validation checks on the biblatex library."""
-    workspace = Path(args.workspace)
-
-    # Default paths based on standard repository layout
-    bib_path = workspace / "bib" / "library.bib"
-    add_order_path = workspace / "data" / "add_order.json"
-    identifier_path = workspace / "data" / "identifier_collection.json"
-
+    config = resolve_config(args)
     logger = logging.getLogger(__name__)
 
     if args.fix:
         logger.info("Starting validation and fixing citekeys")
 
         try:
-            # Run citekey consistency validation first
             is_consistent = validate_citekey_consistency(
-                bib_path=bib_path, add_order_path=add_order_path, identifier_path=identifier_path
+                bib_path=config.bib_path,
+                add_order_path=config.add_order_path,
+                identifier_path=config.identifier_path,
             )
 
             if not is_consistent:
                 logger.error("✗ Cannot fix citekeys: consistency issues must be resolved first")
                 sys.exit(1)
 
-            # Fix citekey labels
             fix_successful = fix_citekey_labels(
-                bib_path=bib_path, add_order_path=add_order_path, identifier_path=identifier_path
+                bib_path=config.bib_path,
+                add_order_path=config.add_order_path,
+                identifier_path=config.identifier_path,
             )
 
             if fix_successful:
@@ -117,17 +145,16 @@ def cmd_validate(args: argparse.Namespace) -> None:
         logger.info("Starting validation checks")
 
         try:
-            # Run citekey consistency validation
             is_consistent = validate_citekey_consistency(
-                bib_path=bib_path, add_order_path=add_order_path, identifier_path=identifier_path
+                bib_path=config.bib_path,
+                add_order_path=config.add_order_path,
+                identifier_path=config.identifier_path,
             )
 
-            # Run citekey label validation (check if existing keys match generated labels)
             labels_valid = validate_citekey_labels(
-                bib_path=bib_path, identifier_path=identifier_path
+                bib_path=config.bib_path, identifier_path=config.identifier_path
             )
 
-            # Check if all validations passed
             all_valid = is_consistent and labels_valid
 
             if all_valid:
@@ -144,29 +171,23 @@ def cmd_validate(args: argparse.Namespace) -> None:
 
 def cmd_sort(args: argparse.Namespace) -> None:
     """Sort library files."""
-    workspace = Path(args.workspace)
-
-    # Default paths based on standard repository layout
-    bib_path = workspace / "bib" / "library.bib"
-    add_order_path = workspace / "data" / "add_order.json"
-    identifier_path = workspace / "data" / "identifier_collection.json"
-
+    config = resolve_config(args)
     logger = logging.getLogger(__name__)
 
     try:
         if args.mode == "alphabetical":
             logger.info("Sorting files alphabetically by citekey")
             sort_alphabetically(
-                library_path=bib_path,
-                identifier_path=identifier_path,
-                add_order_path=add_order_path,
+                library_path=config.bib_path,
+                identifier_path=config.identifier_path,
+                add_order_path=config.add_order_path,
             )
         elif args.mode == "add-order":
             logger.info("Sorting files to match add_order.json sequence")
             sort_by_add_order(
-                library_path=bib_path,
-                identifier_path=identifier_path,
-                add_order_path=add_order_path,
+                library_path=config.bib_path,
+                identifier_path=config.identifier_path,
+                add_order_path=config.add_order_path,
             )
         else:
             logger.error(f"Invalid sort mode: {args.mode}")
@@ -181,15 +202,9 @@ def cmd_sort(args: argparse.Namespace) -> None:
 
 def cmd_sync(args: argparse.Namespace) -> None:
     """Sync identifier fields from identifier collection to library.bib."""
-    workspace = Path(args.workspace)
-
-    # Default paths based on standard repository layout
-    bib_path = workspace / "bib" / "library.bib"
-    identifier_path = workspace / "data" / "identifier_collection.json"
-
+    config = resolve_config(args)
     logger = logging.getLogger(__name__)
 
-    # Parse fields to sync if provided
     fields_to_sync = None
     if args.fields:
         fields_to_sync = set(field.strip() for field in args.fields.split(","))
@@ -197,8 +212,8 @@ def cmd_sync(args: argparse.Namespace) -> None:
 
     try:
         success, changes = sync_identifiers_to_library(
-            bib_path=bib_path,
-            identifier_path=identifier_path,
+            bib_path=config.bib_path,
+            identifier_path=config.identifier_path,
             dry_run=args.dry_run,
             fields_to_sync=fields_to_sync,
         )
@@ -208,7 +223,7 @@ def cmd_sync(args: argparse.Namespace) -> None:
                 logger.info(f"✓ Dry run completed: {len(changes)} potential changes")
                 if changes:
                     logger.info("Changes that would be made:")
-                    for change in changes[:10]:  # Show first 10 changes
+                    for change in changes[:10]:
                         logger.info(f"  {change}")
                     if len(changes) > 10:
                         logger.info(f"  ... and {len(changes) - 10} more changes")
@@ -226,15 +241,14 @@ def cmd_sync(args: argparse.Namespace) -> None:
 
 def cmd_normalize(args: argparse.Namespace) -> None:
     """Apply normalization routines to the library."""
-    workspace = Path(args.workspace)
-
-    bib_path = workspace / "bib" / "library.bib"
-
+    config = resolve_config(args)
     logger = logging.getLogger(__name__)
 
     try:
         if args.action == "year-to-date":
-            updated_count, updated_keys = rename_year_to_date_fields(bib_path, dry_run=args.dry_run)
+            updated_count, updated_keys = rename_year_to_date_fields(
+                config.bib_path, dry_run=args.dry_run
+            )
 
             if args.dry_run:
                 logger.info(
@@ -255,7 +269,7 @@ def cmd_normalize(args: argparse.Namespace) -> None:
             sys.exit(0)
 
         if args.action == "publisher-location":
-            report = normalize_publisher_location(bib_path, dry_run=args.dry_run)
+            report = normalize_publisher_location(config.bib_path, dry_run=args.dry_run)
 
             if report.fixed:
                 message = (
@@ -283,7 +297,7 @@ def cmd_normalize(args: argparse.Namespace) -> None:
             sys.exit(0)
 
         if args.action == "eprint-fields":
-            report = normalize_eprint_fields(bib_path, dry_run=args.dry_run)
+            report = normalize_eprint_fields(config.bib_path, dry_run=args.dry_run)
 
             action_prefix = "Dry run complete" if args.dry_run else "✓ Applied"
             total_entries = len(
@@ -321,7 +335,7 @@ def cmd_normalize(args: argparse.Namespace) -> None:
             sys.exit(0)
 
         if args.action == "latex-accents":
-            report = normalize_latex_accents(bib_path, dry_run=args.dry_run)
+            report = normalize_latex_accents(config.bib_path, dry_run=args.dry_run)
 
             action_prefix = "Dry run complete" if args.dry_run else "✓ Applied"
             if report.total_fields:
@@ -345,8 +359,9 @@ def cmd_normalize(args: argparse.Namespace) -> None:
             sys.exit(0)
 
         if args.action == "isbn":
-            identifier_path = workspace / "data" / "identifier_collection.json"
-            report = normalize_isbn_fields(bib_path, identifier_path, dry_run=args.dry_run)
+            report = normalize_isbn_fields(
+                config.bib_path, config.identifier_path, dry_run=args.dry_run
+            )
 
             action_prefix = "Dry run complete" if args.dry_run else "✓ Applied"
             if report.total_converted:
@@ -407,11 +422,11 @@ def cmd_normalize(args: argparse.Namespace) -> None:
 
 def cmd_add(args: argparse.Namespace) -> None:
     """Add new entries from staging files to the main library."""
-    workspace = Path(args.workspace)
+    config = resolve_config(args)
     logger = logging.getLogger(__name__)
 
     try:
-        success, processed_slugs = add_entries_from_staging(workspace=workspace)
+        success, processed_slugs = add_entries_from_staging(config=config)
 
         if success:
             if processed_slugs:
@@ -431,12 +446,12 @@ def cmd_add(args: argparse.Namespace) -> None:
 
 def cmd_template(args: argparse.Namespace) -> None:
     """Generate identifier collection templates for staging .bib files."""
-    workspace = Path(args.workspace)
+    config = resolve_config(args)
     logger = logging.getLogger(__name__)
 
     try:
         files_processed, generated_files = generate_staging_templates(
-            workspace=workspace, overwrite=args.overwrite
+            config=config, overwrite=args.overwrite
         )
 
         if files_processed > 0:
@@ -468,13 +483,52 @@ def create_parser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
-        "--workspace",
+        "--config",
         type=str,
-        default=".",
-        help="Path to the workspace directory (default: current directory)",
+        default=None,
+        help="Path to blx.toml config file (default: auto-discover from CWD upward)",
+    )
+
+    parser.add_argument(
+        "--bib",
+        type=str,
+        default=None,
+        help="Override path to .bib file",
+    )
+
+    parser.add_argument(
+        "--identifiers",
+        type=str,
+        default=None,
+        help="Override path to identifier collection JSON file",
+    )
+
+    parser.add_argument(
+        "--add-order",
+        type=str,
+        default=None,
+        dest="add_order",
+        help="Override path to add_order JSON file",
     )
 
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
+
+    # init subcommand
+    init_parser = subparsers.add_parser(
+        "init", help="Initialize a new blx workspace with config and empty data files"
+    )
+    init_parser.add_argument(
+        "dir",
+        nargs="?",
+        default=None,
+        help="Directory to initialize (default: current directory)",
+    )
+    init_parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Overwrite existing blx.toml",
+    )
+    init_parser.set_defaults(func=cmd_init)
 
     # validate subcommand
     validate_parser = subparsers.add_parser(

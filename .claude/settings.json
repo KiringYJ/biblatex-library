@@ -13,10 +13,9 @@
     "workbench": {
       "source": {
         "source": "github",
-        "owner": "KiringYJ",
-        "repo": "claude-workbench",
-        "path": ""
-      }
+        "repo": "KiringYJ/claude-workbench"
+      },
+      "autoUpdate": true
     }
   }
 }

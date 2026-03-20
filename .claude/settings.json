@@ -1,18 +1,21 @@
 {
   "enabledPlugins": {
+    "core@workbench": true,
+    "python@workbench": true,
     "oh-my-claudecode@omc": true,
     "ralph-loop@claude-plugins-official": true,
     "hookify@claude-plugins-official": true,
     "claude-md-management@claude-plugins-official": true,
     "skill-creator@claude-plugins-official": true,
-    "ty-lsp@ty-marketplace": true,
     "claude-code-setup@claude-plugins-official": true
   },
   "extraKnownMarketplaces": {
-    "ty-marketplace": {
+    "workbench": {
       "source": {
-        "source": "directory",
-        "path": ".claude/plugins/ty-marketplace"
+        "source": "github",
+        "owner": "KiringYJ",
+        "repo": "claude-workbench",
+        "path": ""
       }
     }
   }

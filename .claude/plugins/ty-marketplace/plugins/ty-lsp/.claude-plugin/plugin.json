@@ -1,5 +1,0 @@
-{
-  "name": "ty-lsp",
-  "description": "Python type checking via ty language server",
-  "version": "1.0.0"
-}

@@ -1,35 +1,18 @@
 # CLAUDE.md — Project Operating Guide (biblatex-library)
 
-> Project-specific rules and context. General engineering rules live in `.claude/rules/`.
+> Project-specific rules and context. General engineering rules are provided by the `core` and `python` plugins from [claude-workbench](https://github.com/KiringYJ/claude-workbench).
 
 ---
 
-## 1) Philosophy & Pointers
+## 1) Project Plugins & Skills
 
-**Collaboration contract**
+This project uses centralized plugins from `claude-workbench`:
+- **`core`** — Engineering philosophy, review rules (Linus Mode), plan-first mandate, naming conventions, TDD workflow, safety hookify guards
+- **`python`** — ruff/ty/uv workflow, Python logging rules, ty LSP, `/commit` + `/optimize` + `/pre-push` skills
 
-1. We ship production-grade bibliography tooling; correctness > speed.
-2. Process for every change: **Research -> Plan -> Implement -> Validate**.
-3. All code must be: **explicit**, **small**, **reversible**, **test-anchored**.
-
-**Core behavioral rules**
-- Default stance: *skeptical until proven necessary.*
-- Simplicity beats flexibility. Remove special cases by fixing invariants.
-- Never break userspace (existing workflows, file formats, CLI flags).
-- Data safety is not optional — backups and isolation precede mutation.
-
-**Detailed rules** (read these files for full policies):
-- `.claude/rules/review.md` — Linus Mode review criteria, NACK triggers, accept criteria
-- `.claude/rules/workflow.md` — Test-first workflow, pre-commit checklist, quality gates
-- `.claude/rules/interaction.md` — Plan-first rule, bash usage, do/don't
-- `.claude/rules/output.md` — Logging policy (no `print` for diagnostics)
-- `.claude/rules/naming.md` — File & directory naming conventions
-
-**Skills** (invoke with `/skill-name`):
-- `/commit` — Pre-commit checks + conventional commit
-- `/review` — Linus Mode code review
-- `/pre-push` — Tests + validation before push
-- `/optimize` — Profiling workflow
+**Project-specific context** for those skills:
+- Validation gate: `uv run blx validate` (in addition to ruff/ty/pytest)
+- Commit scopes: `cli`, `convert`, `csl`, `style`, `tex`, `examples`, `data`, `ledger`, `ci`, `docs`
 
 ---
 
@@ -61,7 +44,7 @@ Copy-Item data/add_order.json $backup/
 **NEVER test or debug on production data.** Copy or sample — never operate in-place. Use fixtures or `tempfile.TemporaryDirectory()`.
 
 ### 2.4 Encoding Invariant
-All file I/O uses `encoding="utf-8"` with `ensure_ascii=False` for JSON. Failure to specify encoding = defect. See Section 8 for rationale.
+All file I/O uses `encoding="utf-8"` with `ensure_ascii=False` for JSON. Failure to specify encoding = defect. See Section 7 for rationale.
 
 ### 2.5 Mutation Preconditions
 - Tests green (new + existing)
@@ -128,10 +111,7 @@ biblatex-library/
 ├─ tests/                         # pytest + golden files
 ├─ scripts/                       # e.g., bibexport wrapper
 ├─ .claude/                       # Claude Code configuration
-│  ├─ rules/                      # engineering rules
-│  ├─ skills/                     # invocable skills
-│  ├─ scripts/                    # hooks scripts
-│  ├─ settings.json               # plugin config
+│  ├─ settings.json               # plugin config (workbench + marketplace plugins)
 │  └─ hooks.json                  # prompt/tool hooks
 ├─ .github/workflows/             # CI jobs
 │  ├─ ci.yml          # lint/tests/`blx validate`
@@ -195,23 +175,7 @@ Preferred recipe: `latexmk (XeLaTeX+biber)` for biblatex demos.
 
 ---
 
-## 7) The `blx` CLI
-
-```powershell
-uv run blx validate                # JSON Schema + biber --tool checks
-uv run blx add                     # process staging directory entries
-uv run blx template                # generate identifier JSON templates from staging .bib
-uv run blx sort alphabetical       # sort by citekey
-uv run blx sort add-order          # sort to match add_order.json sequence
-uv run blx generate-labels         # generate labels for biblatex entries
-uv run blx normalize latex-accents # normalize LaTeX accent commands
-uv run blx normalize year-to-date  # normalize year fields to date
-uv run blx normalize eprint-fields # normalize eprint fields
-```
-
----
-
-## 8) UTF-8 & Encoding Policy
+## 7) UTF-8 & Encoding Policy
 
 **The Problem**: On Chinese Windows, `bibtexparser.write_file()` uses system default CP950 encoding, which cannot represent characters like **学** (`\u5b66`). This caused `'cp950' codec can't encode character` errors.
 
@@ -229,7 +193,7 @@ with open(bib_path, "w", encoding="utf-8") as f:
 
 ---
 
-## 9) .bib Parsing & Writing Policy (bibtexparser v2)
+## 8) .bib Parsing & Writing Policy (bibtexparser v2)
 
 - **Never** hand-parse `.bib` (no regex/tokenizers). Use **bibtexparser v2** for all operations.
 - Check `lib.failed_blocks` and fail CI if non-empty.
@@ -251,7 +215,7 @@ Always verify external library operations succeed (check length/contents after m
 
 ---
 
-## 10) Add Order Ledger
+## 9) Add Order Ledger
 
 - Canonical order lives in `data/add_order.json` (**append-only**); top-level key `order` is an array of entry keys.
 - `blx order add KEY ...` — append to ledger
@@ -259,7 +223,7 @@ Always verify external library operations succeed (check length/contents after m
 
 ---
 
-## 11) Custom biblatex Style: `biblatex-yj`
+## 10) Custom biblatex Style: `biblatex-yj`
 
 - **Style id**: `yj` (and variants like `yj-trad-alpha`).
 - Load with `\usepackage[style=yj]{biblatex}` or `\usepackage{biblatex-yj}`.
@@ -267,14 +231,14 @@ Always verify external library operations succeed (check length/contents after m
 
 ---
 
-## 12) LaTeX Examples
+## 11) LaTeX Examples
 
 - `latex/examples/biblatex-spbasic/` — `style=biblatex-spbasic`
 - `latex/examples/alphabetic/` — `style=alphabetic`
 
 ---
 
-## 13) Type Safety Policy
+## 12) Type Safety Policy
 
 **Zero-tolerance**: `Any` and `type: ignore` are **BANNED**.
 
@@ -285,19 +249,16 @@ Always verify external library operations succeed (check length/contents after m
 
 ---
 
-## 14) Commit Messages (Conventional Commits 1.0.0)
+## 13) The `blx` CLI
 
-```
-<type>(<optional scope>)<optional !>: <subject>
-```
-
-**Types**: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`
-
-**Scopes**: `cli`, `convert`, `csl`, `style`, `tex`, `examples`, `data`, `ledger`, `ci`, `docs`
-
-**Examples**:
-```
-feat(cli): add `blx csl gen` to export CSL-JSON
-fix(style): correct `yj-standard.cbx` date formatting
-refactor(convert): unify biblatex->BibTeX mapping pipeline
+```powershell
+uv run blx validate                # JSON Schema + biber --tool checks
+uv run blx add                     # process staging directory entries
+uv run blx template                # generate identifier JSON templates from staging .bib
+uv run blx sort alphabetical       # sort by citekey
+uv run blx sort add-order          # sort to match add_order.json sequence
+uv run blx generate-labels         # generate labels for biblatex entries
+uv run blx normalize latex-accents # normalize LaTeX accent commands
+uv run blx normalize year-to-date  # normalize year fields to date
+uv run blx normalize eprint-fields # normalize eprint fields
 ```

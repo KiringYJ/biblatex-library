@@ -1,0 +1,3 @@
+[submodule "vendor/claude-workbench"]
+	path = vendor/claude-workbench
+	url = https://github.com/KiringYJ/claude-workbench.git

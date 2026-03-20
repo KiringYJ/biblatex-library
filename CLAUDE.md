@@ -1,14 +1,21 @@
 # CLAUDE.md — Project Operating Guide (biblatex-library)
 
-> Project-specific rules and context. General engineering rules are provided by the `core` and `python` plugins from [claude-workbench](https://github.com/KiringYJ/claude-workbench).
+> Project-specific rules and context. Shared rules are imported from [claude-workbench](https://github.com/KiringYJ/claude-workbench) via git submodule; plugins provide functional extensions (hooks, skills, MCP servers).
+
+@vendor/claude-workbench/rules/core.md
+@vendor/claude-workbench/rules/python.md
 
 ---
 
-## 1) Project Plugins & Skills
+## 1) Shared Rules & Plugins
 
-This project uses centralized plugins from `claude-workbench`:
-- **`core`** — Engineering philosophy, review rules (Linus Mode), plan-first mandate, naming conventions, TDD workflow, safety hookify guards
-- **`python`** — ruff/ty/uv workflow, Python logging rules, ty LSP, `/commit` + `/optimize` + `/pre-push` skills
+**Shared rules** (imported via `@import` from `vendor/claude-workbench/`):
+- **`core.md`** — Language-agnostic engineering rules, review philosophy, naming conventions
+- **`python.md`** — Python naming, uv/ruff/ty workflow, logging conventions
+
+**Plugins** (enabled via `.claude/settings.json`):
+- **`core@workbench`** — Safety guards (hookify), doc review hook, code review skill, MCP servers
+- **`python@workbench`** — Pre-commit guard (ruff/ty), optimize skill, ty LSP server
 
 **Project-specific context** for those skills:
 - Validation gate: `uv run biblio validate` (in addition to ruff/ty/pytest)

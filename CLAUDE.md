@@ -1,15 +1,15 @@
 # CLAUDE.md — Project Operating Guide (biblatex-library)
 
-> Project-specific rules and context. Shared rules are imported from [claude-workbench](https://github.com/KiringYJ/claude-workbench) via git submodule; plugins provide functional extensions (hooks, skills, MCP servers).
+> Project-specific rules and context. Shared rules are synced from [claude-workbench](https://github.com/KiringYJ/claude-workbench) via `/sync-workbench`; plugins provide functional extensions (hooks, skills, MCP servers).
 
-@vendor/claude-workbench/rules/core.md
-@vendor/claude-workbench/rules/python.md
+@.claude/rules/core.md
+@.claude/rules/python.md
 
 ---
 
 ## 1) Shared Rules & Plugins
 
-**Shared rules** (imported via `@import` from `vendor/claude-workbench/`):
+**Shared rules** (synced via `/sync-workbench python` into `.claude/rules/`):
 - **`core.md`** — Language-agnostic engineering rules, review philosophy, naming conventions
 - **`python.md`** — Python naming, uv/ruff/ty workflow, logging conventions
 
@@ -121,6 +121,9 @@ biblatex-library/
 ├─ tests/                          # pytest suite
 ├─ typings/                        # type stubs (bibtexparser)
 ├─ .claude/                        # Claude Code configuration
+│  ├─ rules/                       # shared rules (synced via /sync-workbench)
+│  │  ├─ core.md
+│  │  └─ python.md
 │  ├─ settings.json                # plugin config
 │  └─ hooks.json                   # prompt/tool hooks
 ├─ .github/workflows/

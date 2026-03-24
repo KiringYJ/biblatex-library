@@ -137,6 +137,7 @@ bib/library.bib
 data/identifier_collection.json
 data/add_order.json
 blx.toml
+biblio.toml
 
 # Generated BibTeX/exports
 bib/generated/

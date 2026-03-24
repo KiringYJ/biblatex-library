@@ -9,12 +9,29 @@ from bibtexparser.model import Entry
 
 from .config import BiblioConfig
 from .exceptions import FileOperationError, InvalidDataError
+from .normalize.isbn import (
+    calculate_isbn13_check_digit,
+    extract_isbn_digits,
+    is_valid_isbn10,
+    is_valid_isbn13,
+)
 from .types import IdentifierData
 
 logger = logging.getLogger(__name__)
 
 # Priority order for main identifier selection
-MAIN_IDENTIFIER_PRIORITY = ["doi", "isbn", "mrnumber", "url"]
+MAIN_IDENTIFIER_PRIORITY = [
+    "doi",
+    "isbn13",
+    "mrnumber",
+    "arxiv",
+    "zbmath",
+    "zbl",
+    "jfm",
+    "oclc",
+    "eprint",
+    "url",
+]
 
 
 def _extract_identifiers_from_entry(entry: Entry) -> dict[str, str]:
@@ -49,6 +66,9 @@ def _extract_identifiers_from_entry(entry: Entry) -> dict[str, str]:
         "mrnumber": "mrnumber",
         "eprint": "arxiv" if is_arxiv else "eprint",  # Map eprint to arxiv if it's an arXiv entry
         "zbl": "zbl",
+        "zbmath": "zbmath",
+        "jfm": "jfm",  # Jahrbuch für die Fortschritte der Mathematik
+        "oclc": "oclc",
         "mathscinet": "mrnumber",  # Alternative field name
         "arxiv": "arxiv",  # Explicit arxiv field maps to arxiv
     }
@@ -68,10 +88,29 @@ def _extract_identifiers_from_entry(entry: Entry) -> dict[str, str]:
                 elif identifier_key == "arxiv" and identifier_value.startswith("arXiv:"):
                     identifier_value = identifier_value.replace("arXiv:", "")
                 elif identifier_key == "isbn13":
-                    # Remove all hyphens from ISBN
-                    identifier_value = identifier_value.replace("-", "")
+                    digits = extract_isbn_digits(identifier_value)
+                    if len(digits) == 13 and is_valid_isbn13(digits):
+                        identifier_value = digits
+                    elif len(digits) == 10 and is_valid_isbn10(digits):
+                        isbn13_base = "978" + digits[:9]
+                        check_digit = calculate_isbn13_check_digit(isbn13_base)
+                        identifier_value = isbn13_base + check_digit
+                    else:
+                        identifier_value = identifier_value.replace("-", "")
 
                 identifiers[identifier_key] = identifier_value
+
+    # Exclude trivial URL that is just doi.org/<doi>
+    if "doi" in identifiers and "url" in identifiers:
+        doi_value = identifiers["doi"]
+        url_value = identifiers["url"]
+        if url_value in (
+            f"https://doi.org/{doi_value}",
+            f"http://doi.org/{doi_value}",
+            f"https://dx.doi.org/{doi_value}",
+            f"http://dx.doi.org/{doi_value}",
+        ):
+            del identifiers["url"]
 
     return identifiers
 
@@ -88,10 +127,6 @@ def _select_main_identifier(identifiers: dict[str, str]) -> str | None:
     for priority_field in MAIN_IDENTIFIER_PRIORITY:
         if priority_field in identifiers:
             return priority_field
-
-    # Fallback to first available identifier field name
-    if identifiers:
-        return next(iter(identifiers.keys()))
 
     return None
 

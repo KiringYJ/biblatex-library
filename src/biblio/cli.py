@@ -15,6 +15,7 @@ from .normalize.dates import rename_year_to_date_fields
 from .normalize.eprint import normalize_eprint_fields
 from .normalize.isbn import normalize_isbn_fields
 from .normalize.publisher import normalize_publisher_location
+from .normalize.url import normalize_trivial_urls
 from .sort import sort_alphabetically, sort_by_add_order
 from .sync import sync_identifiers_to_library
 from .template import generate_staging_templates
@@ -239,181 +240,212 @@ def cmd_sync(args: argparse.Namespace) -> None:
         sys.exit(1)
 
 
+def _normalize_year_to_date(config: BiblioConfig, *, dry_run: bool, verbose: bool) -> None:
+    logger = logging.getLogger(__name__)
+    updated_count, updated_keys = rename_year_to_date_fields(config.bib_path, dry_run=dry_run)
+
+    if dry_run:
+        logger.info(
+            "Dry run complete: %d entries would be converted from year to date",
+            updated_count,
+        )
+    else:
+        logger.info("✓ Converted %d entries from year to date fields", updated_count)
+
+    if verbose and updated_keys:
+        preview = ", ".join(updated_keys[:10])
+        suffix = "..." if len(updated_keys) > 10 else ""
+        logger.info("Affected entries: %s%s", preview, suffix)
+
+
+def _normalize_publisher_location(config: BiblioConfig, *, dry_run: bool, verbose: bool) -> None:
+    logger = logging.getLogger(__name__)
+    report = normalize_publisher_location(config.bib_path, dry_run=dry_run)
+
+    if report.fixed:
+        message = (
+            "Dry run complete: %d entries would have publisher/location split"
+            if dry_run
+            else "✓ Split publisher/location for %d entries"
+        )
+        logger.info(message, len(report.fixed))
+        if verbose:
+            preview = ", ".join(report.fixed[:10])
+            suffix = "..." if len(report.fixed) > 10 else ""
+            logger.info("Split entries: %s%s", preview, suffix)
+
+    fixed_set = set(report.fixed)
+    remaining = [key for key in report.flagged if key not in fixed_set]
+    if remaining:
+        preview = ", ".join(remaining[:10])
+        suffix = "..." if len(remaining) > 10 else ""
+        logger.warning("Entries with publisher but unresolved location: %s%s", preview, suffix)
+    elif not report.fixed:
+        logger.info("No publisher/location issues found")
+
+
+def _normalize_eprint_fields(config: BiblioConfig, *, dry_run: bool, verbose: bool) -> None:
+    logger = logging.getLogger(__name__)
+    report = normalize_eprint_fields(config.bib_path, dry_run=dry_run)
+
+    action_prefix = "Dry run complete" if dry_run else "✓ Applied"
+    total_entries = len(
+        set(report.renamed_type)
+        | set(report.renamed_class)
+        | set(report.normalized_type)
+        | set(report.changed_entry_type)
+    )
+
+    if total_entries:
+        logger.info(
+            "%s: eprint field normalization touched %d entries",
+            action_prefix,
+            total_entries,
+        )
+    else:
+        logger.info("%s: no eprint field changes required", action_prefix)
+
+    details = [
+        ("Renamed archiveprefix→eprinttype", report.renamed_type),
+        ("Renamed primaryclass→eprintclass", report.renamed_class),
+        ("Lowercased eprinttype", report.normalized_type),
+        ("Changed entry type misc→online", report.changed_entry_type),
+    ]
+
+    for label, keys in details:
+        if not keys:
+            continue
+        logger.info("%s for %d entries", label, len(keys))
+        if verbose:
+            preview = ", ".join(keys[:10])
+            suffix = "..." if len(keys) > 10 else ""
+            logger.info("  %s%s", preview, suffix)
+
+
+def _normalize_latex_accents(config: BiblioConfig, *, dry_run: bool, verbose: bool) -> None:
+    logger = logging.getLogger(__name__)
+    report = normalize_latex_accents(config.bib_path, dry_run=dry_run)
+
+    action_prefix = "Dry run complete" if dry_run else "✓ Applied"
+    if report.total_fields:
+        logger.info(
+            "%s: converted LaTeX accents in %d fields across %d entries",
+            action_prefix,
+            report.total_fields,
+            len(report.converted),
+        )
+    else:
+        logger.info("%s: no LaTeX accent changes required", action_prefix)
+
+    if verbose and report.total_fields:
+        preview_items = list(report.converted.items())[:5]
+        for key, fields in preview_items:
+            logger.info("%s: %s", key, ", ".join(fields))
+        remaining = len(report.converted) - len(preview_items)
+        if remaining > 0:
+            logger.info("... and %d more entries", remaining)
+
+
+def _normalize_isbn(config: BiblioConfig, *, dry_run: bool, verbose: bool) -> None:
+    logger = logging.getLogger(__name__)
+    report = normalize_isbn_fields(config.bib_path, config.identifier_path, dry_run=dry_run)
+
+    action_prefix = "Dry run complete" if dry_run else "✓ Applied"
+    if report.total_converted:
+        logger.info(
+            "%s: converted %d ISBN-10 values to ISBN-13 across %d entries",
+            action_prefix,
+            report.total_converted,
+            len(report.converted),
+        )
+    else:
+        logger.info("%s: no ISBN conversions required", action_prefix)
+
+    if report.already_isbn13:
+        logger.info(
+            "%d entries already have valid ISBN-13 values",
+            len(report.already_isbn13),
+        )
+
+    if report.invalid:
+        logger.warning(
+            "%d entries have invalid ISBN values that couldn't be converted",
+            len(report.invalid),
+        )
+        if verbose:
+            for key, value in list(report.invalid.items())[:5]:
+                logger.warning("  %s: %s", key, value)
+
+    if report.identifier_converted:
+        logger.info(
+            "%s: converted %d isbn13 values in identifier_collection.json",
+            action_prefix,
+            len(report.identifier_converted),
+        )
+        if verbose:
+            for key, change in list(report.identifier_converted.items())[:5]:
+                logger.info("  %s: %s", key, change)
+            remaining = len(report.identifier_converted) - 5
+            if remaining > 0:
+                logger.info("  ... and %d more entries", remaining)
+
+    if verbose and report.converted:
+        preview_items = list(report.converted.items())[:5]
+        for key, conversions in preview_items:
+            logger.info("%s: %s", key, "; ".join(conversions))
+        remaining = len(report.converted) - len(preview_items)
+        if remaining > 0:
+            logger.info("... and %d more entries", remaining)
+
+
+def _normalize_trivial_url(config: BiblioConfig, *, dry_run: bool, verbose: bool) -> None:
+    logger = logging.getLogger(__name__)
+    report = normalize_trivial_urls(config.bib_path, dry_run=dry_run)
+
+    action_prefix = "Dry run complete" if dry_run else "✓ Applied"
+    if report.removed:
+        logger.info(
+            "%s: removed %d trivial DOI-derived URL fields",
+            action_prefix,
+            len(report.removed),
+        )
+    else:
+        logger.info("%s: no trivial URL fields found", action_prefix)
+
+    if verbose and report.removed:
+        preview = ", ".join(report.removed[:10])
+        suffix = "..." if len(report.removed) > 10 else ""
+        logger.info("Removed URL from: %s%s", preview, suffix)
+
+
+_NORMALIZE_ACTIONS = {
+    "year-to-date": _normalize_year_to_date,
+    "publisher-location": _normalize_publisher_location,
+    "eprint-fields": _normalize_eprint_fields,
+    "latex-accents": _normalize_latex_accents,
+    "isbn": _normalize_isbn,
+    "trivial-url": _normalize_trivial_url,
+}
+
+
 def cmd_normalize(args: argparse.Namespace) -> None:
     """Apply normalization routines to the library."""
     config = resolve_config(args)
     logger = logging.getLogger(__name__)
 
+    actions = [args.action] if args.action else list(_NORMALIZE_ACTIONS)
+    run_all = args.action is None
+
     try:
-        if args.action == "year-to-date":
-            updated_count, updated_keys = rename_year_to_date_fields(
-                config.bib_path, dry_run=args.dry_run
-            )
+        for action in actions:
+            if run_all:
+                logger.info("Running normalization: %s", action)
+            handler = _NORMALIZE_ACTIONS[action]
+            handler(config, dry_run=args.dry_run, verbose=bool(args.verbose))
 
-            if args.dry_run:
-                logger.info(
-                    "Dry run complete: %d entries would be converted from year to date",
-                    updated_count,
-                )
-            else:
-                logger.info(
-                    "✓ Converted %d entries from year to date fields",
-                    updated_count,
-                )
-
-            if args.verbose and updated_keys:
-                preview = ", ".join(updated_keys[:10])
-                suffix = "..." if len(updated_keys) > 10 else ""
-                logger.info("Affected entries: %s%s", preview, suffix)
-
-            sys.exit(0)
-
-        if args.action == "publisher-location":
-            report = normalize_publisher_location(config.bib_path, dry_run=args.dry_run)
-
-            if report.fixed:
-                message = (
-                    "Dry run complete: %d entries would have publisher/location split"
-                    if args.dry_run
-                    else "✓ Split publisher/location for %d entries"
-                )
-                logger.info(message, len(report.fixed))
-                if args.verbose:
-                    preview = ", ".join(report.fixed[:10])
-                    suffix = "..." if len(report.fixed) > 10 else ""
-                    logger.info("Split entries: %s%s", preview, suffix)
-
-            fixed_set = set(report.fixed)
-            remaining = [key for key in report.flagged if key not in fixed_set]
-            if remaining:
-                preview = ", ".join(remaining[:10])
-                suffix = "..." if len(remaining) > 10 else ""
-                logger.warning(
-                    "Entries with publisher but unresolved location: %s%s", preview, suffix
-                )
-            elif not report.fixed:
-                logger.info("No publisher/location issues found")
-
-            sys.exit(0)
-
-        if args.action == "eprint-fields":
-            report = normalize_eprint_fields(config.bib_path, dry_run=args.dry_run)
-
-            action_prefix = "Dry run complete" if args.dry_run else "✓ Applied"
-            total_entries = len(
-                set(report.renamed_type)
-                | set(report.renamed_class)
-                | set(report.normalized_type)
-                | set(report.changed_entry_type)
-            )
-
-            if total_entries:
-                logger.info(
-                    "%s: eprint field normalization touched %d entries",
-                    action_prefix,
-                    total_entries,
-                )
-            else:
-                logger.info("%s: no eprint field changes required", action_prefix)
-
-            details = [
-                ("Renamed archiveprefix→eprinttype", report.renamed_type),
-                ("Renamed primaryclass→eprintclass", report.renamed_class),
-                ("Lowercased eprinttype", report.normalized_type),
-                ("Changed entry type misc→online", report.changed_entry_type),
-            ]
-
-            for label, keys in details:
-                if not keys:
-                    continue
-                logger.info("%s for %d entries", label, len(keys))
-                if args.verbose:
-                    preview = ", ".join(keys[:10])
-                    suffix = "..." if len(keys) > 10 else ""
-                    logger.info("  %s%s", preview, suffix)
-
-            sys.exit(0)
-
-        if args.action == "latex-accents":
-            report = normalize_latex_accents(config.bib_path, dry_run=args.dry_run)
-
-            action_prefix = "Dry run complete" if args.dry_run else "✓ Applied"
-            if report.total_fields:
-                logger.info(
-                    "%s: converted LaTeX accents in %d fields across %d entries",
-                    action_prefix,
-                    report.total_fields,
-                    len(report.converted),
-                )
-            else:
-                logger.info("%s: no LaTeX accent changes required", action_prefix)
-
-            if args.verbose and report.total_fields:
-                preview_items = list(report.converted.items())[:5]
-                for key, fields in preview_items:
-                    logger.info("%s: %s", key, ", ".join(fields))
-                remaining = len(report.converted) - len(preview_items)
-                if remaining > 0:
-                    logger.info("... and %d more entries", remaining)
-
-            sys.exit(0)
-
-        if args.action == "isbn":
-            report = normalize_isbn_fields(
-                config.bib_path, config.identifier_path, dry_run=args.dry_run
-            )
-
-            action_prefix = "Dry run complete" if args.dry_run else "✓ Applied"
-            if report.total_converted:
-                logger.info(
-                    "%s: converted %d ISBN-10 values to ISBN-13 across %d entries",
-                    action_prefix,
-                    report.total_converted,
-                    len(report.converted),
-                )
-            else:
-                logger.info("%s: no ISBN conversions required", action_prefix)
-
-            if report.already_isbn13:
-                logger.info(
-                    "%d entries already have valid ISBN-13 values",
-                    len(report.already_isbn13),
-                )
-
-            if report.invalid:
-                logger.warning(
-                    "%d entries have invalid ISBN values that couldn't be converted",
-                    len(report.invalid),
-                )
-                if args.verbose:
-                    for key, value in list(report.invalid.items())[:5]:
-                        logger.warning("  %s: %s", key, value)
-
-            if report.identifier_converted:
-                logger.info(
-                    "%s: converted %d isbn13 values in identifier_collection.json",
-                    action_prefix,
-                    len(report.identifier_converted),
-                )
-                if args.verbose:
-                    for key, change in list(report.identifier_converted.items())[:5]:
-                        logger.info("  %s: %s", key, change)
-                    remaining = len(report.identifier_converted) - 5
-                    if remaining > 0:
-                        logger.info("  ... and %d more entries", remaining)
-
-            if args.verbose and report.converted:
-                preview_items = list(report.converted.items())[:5]
-                for key, conversions in preview_items:
-                    logger.info("%s: %s", key, "; ".join(conversions))
-                remaining = len(report.converted) - len(preview_items)
-                if remaining > 0:
-                    logger.info("... and %d more entries", remaining)
-
-            sys.exit(0)
-
-        logger.error(f"Unknown normalization action: {args.action}")
-        sys.exit(1)
+        if run_all:
+            logger.info("✓ All normalizations completed")
+        sys.exit(0)
 
     except (FileNotFoundError, ValueError) as exc:
         logger.error(f"Normalize error: {exc}")
@@ -584,14 +616,24 @@ def create_parser() -> argparse.ArgumentParser:
     )
     normalize_parser.add_argument(
         "action",
-        choices=["year-to-date", "publisher-location", "eprint-fields", "latex-accents", "isbn"],
+        nargs="?",
+        default=None,
+        choices=[
+            "year-to-date",
+            "publisher-location",
+            "eprint-fields",
+            "latex-accents",
+            "isbn",
+            "trivial-url",
+        ],
         help=(
-            "Choose normalization action. 'year-to-date' renames entries with year but no date "
+            "Choose normalization action (omit to run all). "
+            "'year-to-date' renames entries with year but no date "
             "to use the date field. 'publisher-location' splits combined publisher/location "
             "values and flags missing locations. 'eprint-fields' migrates legacy arXiv fields "
             "and normalizes the eprinttype value. 'latex-accents' converts LaTeX accent "
             "commands into their Unicode equivalents. 'isbn' converts ISBN-10 values to "
-            "ISBN-13 format."
+            "ISBN-13 format. 'trivial-url' removes URL fields that are just doi.org/{doi}."
         ),
     )
     normalize_parser.add_argument(

@@ -168,6 +168,10 @@ tex/biblatex-yj/build/
 # .idea/
 
 # -----------------------------
-# Claude Code (local-only settings)
+# Agent runtime state (local-only)
 # -----------------------------
 .omc/
+.omx/
+.codex/sessions/
+.codex/tmp/
+.codex/logs/

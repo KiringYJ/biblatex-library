@@ -12,6 +12,32 @@ from bibtexparser.model import Entry, Field
 
 logger = logging.getLogger(__name__)
 
+_PUBLISHER_LEGAL_SUFFIXES = frozenset(
+    {
+        "ag",
+        "bv",
+        "co",
+        "company",
+        "corp",
+        "corporation",
+        "gmbh",
+        "inc",
+        "incorporated",
+        "llc",
+        "llp",
+        "ltd",
+        "limited",
+        "plc",
+        "pte ltd",
+        "pty ltd",
+        "sa",
+        "sarl",
+        "sas",
+        "sl",
+        "spa",
+    }
+)
+
 
 @dataclass(slots=True)
 class PublisherLocationReport:
@@ -27,7 +53,9 @@ def normalize_publisher_location(
     """Ensure entries have a location when a publisher is present.
 
     Any entry with ``publisher`` but no ``location`` is flagged. If the publisher
-    field contains exactly one comma, split it into publisher/location values.
+    field contains exactly one comma, split it into publisher/location values
+    unless the trailing value looks like a publisher legal suffix such as
+    ``Inc.`` or ``Ltd.``.
 
     Args:
         library_path: Path to the ``library.bib`` file to update.
@@ -104,6 +132,14 @@ def _split_publisher(entry: Entry, *, dry_run: bool) -> bool:
         )
         return False
 
+    if _looks_like_publisher_legal_suffix(parts[1]):
+        logger.info(
+            "Publisher suffix is not a location (manual review needed): %s -> %s",
+            entry.key,
+            publisher_value,
+        )
+        return False
+
     logger.info(
         "Splitting publisher/location for %s: '%s' -> publisher='%s', location='%s'",
         entry.key,
@@ -117,3 +153,8 @@ def _split_publisher(entry: Entry, *, dry_run: bool) -> bool:
         entry.fields.append(Field("location", parts[1]))
 
     return True
+
+
+def _looks_like_publisher_legal_suffix(value: str) -> bool:
+    normalized = " ".join(value.replace(".", "").casefold().split())
+    return normalized in _PUBLISHER_LEGAL_SUFFIXES

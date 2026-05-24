@@ -75,6 +75,23 @@ def test_normalize_publisher_location_flags_multicomma(tmp_path: Path) -> None:
     assert after == before
 
 
+def test_normalize_publisher_location_keeps_legal_suffix(tmp_path: Path) -> None:
+    bib_content = """@book{entry-one,
+  title = {Self Published},
+  publisher = {Lulu Press, Inc.}
+}
+"""
+    bib_path = _write_bib(tmp_path, bib_content)
+    before = bib_path.read_text(encoding="utf-8")
+
+    report = normalize_publisher_location(bib_path)
+
+    assert report.flagged == ["entry-one"]
+    assert report.fixed == []
+    after = bib_path.read_text(encoding="utf-8")
+    assert after == before
+
+
 def test_normalize_publisher_location_skips_articles(tmp_path: Path) -> None:
     bib_content = """@article{entry-article,
   title = {Journal Piece},

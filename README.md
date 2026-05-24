@@ -379,7 +379,8 @@ uv run biblio normalize latex-accents
 
 **Available actions:**
 - `year-to-date` – renames `year` to `date` when entries lack a BibLaTeX `date` field
-- `publisher-location` – flags entries missing `location` and splits `Publisher, City` pairs automatically
+- `publisher-location` – flags entries missing `location`, splits `Publisher, City` pairs automatically,
+  and leaves publisher legal suffixes such as `Inc.` for manual review
 - `eprint-fields` – renames `archiveprefix`/`primaryclass` to `eprinttype`/`eprintclass` and lowercases `arXiv` values
 - `latex-accents` – converts LaTeX accent commands (e.g. `Jos\'e`, `Fran{\c{c}}ois`) into normalized Unicode text
 - `isbn` – converts ISBN-10 values to ISBN-13 format in both `library.bib` and `identifier_collection.json`

@@ -1,4 +1,4 @@
-"""Normalization helpers for LaTeX accent sequences."""
+"""Normalization helpers for LaTeX text sequences."""
 
 from __future__ import annotations
 
@@ -75,7 +75,7 @@ _SINGLE_CHAR_NONASCII_BRACES = re.compile(r"\{([^{}])\}")
 
 @dataclass(slots=True)
 class AccentNormalizationReport:
-    """Summary of LaTeX accent normalization."""
+    """Summary of LaTeX text normalization."""
 
     converted: dict[str, list[str]]
 
@@ -87,7 +87,7 @@ class AccentNormalizationReport:
 def normalize_latex_accents(
     library_path: Path, *, dry_run: bool = False
 ) -> AccentNormalizationReport:
-    """Convert LaTeX accent commands within field values to Unicode.
+    """Normalize LaTeX accents and ``mrreviewer`` control spaces.
 
     Args:
         library_path: Path to ``library.bib``
@@ -131,12 +131,15 @@ def _normalize_entry(entry: Entry, *, dry_run: bool) -> list[str]:
 
     for field in entry.fields:
         value = str(field.value)
-        normalized = _convert_value(value)
+        normalized = value
+        if field.key == "mrreviewer":
+            normalized = normalized.replace("\\ ", " ")
+        normalized = _convert_value(normalized)
         if normalized == value:
             continue
 
         logger.info(
-            "Converted LaTeX accents for %s.%s: '%s' -> '%s'",
+            "Normalized LaTeX text for %s.%s: '%s' -> '%s'",
             entry.key,
             field.key,
             value,

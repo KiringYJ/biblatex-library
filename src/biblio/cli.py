@@ -329,13 +329,13 @@ def _normalize_latex_accents(config: BiblioConfig, *, dry_run: bool, verbose: bo
     action_prefix = "Dry run complete" if dry_run else "✓ Applied"
     if report.total_fields:
         logger.info(
-            "%s: converted LaTeX accents in %d fields across %d entries",
+            "%s: normalized LaTeX text in %d fields across %d entries",
             action_prefix,
             report.total_fields,
             len(report.converted),
         )
     else:
-        logger.info("%s: no LaTeX accent changes required", action_prefix)
+        logger.info("%s: no LaTeX text changes required", action_prefix)
 
     if verbose and report.total_fields:
         preview_items = list(report.converted.items())[:5]
@@ -632,8 +632,9 @@ def create_parser() -> argparse.ArgumentParser:
             "to use the date field. 'publisher-location' splits combined publisher/location "
             "values and flags missing locations. 'eprint-fields' migrates legacy arXiv fields "
             "and normalizes the eprinttype value. 'latex-accents' converts LaTeX accent "
-            "commands into their Unicode equivalents. 'isbn' converts ISBN-10 values to "
-            "ISBN-13 format. 'trivial-url' removes URL fields that are just doi.org/{doi}."
+            "commands into Unicode and normalizes mrreviewer control spaces. 'isbn' converts "
+            "ISBN-10 values to ISBN-13 format. 'trivial-url' removes URL fields that are just "
+            "doi.org/{doi}."
         ),
     )
     normalize_parser.add_argument(

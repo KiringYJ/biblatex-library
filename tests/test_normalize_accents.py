@@ -80,6 +80,25 @@ def test_normalize_latex_accents_preserves_font_commands(tmp_path: Path) -> None
     assert "r\u030ale" not in fields["keywords"].value  # \r{o} -> ů, not \role
 
 
+def test_normalize_latex_accents_replaces_mrreviewer_control_spaces(tmp_path: Path) -> None:
+    bib_content = r"""@article{reviewed,
+  title = {Keep math spacing $x\ y$},
+  mrreviewer = {Victor\ Mikhailovich\ Adukov}
+}
+"""
+    bib_path = _write_bib(tmp_path, bib_content)
+
+    report = normalize_latex_accents(bib_path)
+
+    assert report.converted == {"reviewed": ["mrreviewer"]}
+
+    library = bibtexparser.parse_file(str(bib_path))
+    entry = next(e for e in library.entries if e.key == "reviewed")
+    fields = entry.fields_dict
+    assert fields["mrreviewer"].value == "Victor Mikhailovich Adukov"
+    assert fields["title"].value == r"Keep math spacing $x\ y$"
+
+
 def test_normalize_latex_accents_dry_run(tmp_path: Path) -> None:
     bib_content = r"""@book{accented,
   author = {Jos\'e},

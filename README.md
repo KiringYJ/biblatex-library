@@ -76,7 +76,7 @@ uv run biblio normalize publisher-location
 uv run biblio normalize eprint-fields --dry-run
 uv run biblio normalize eprint-fields
 
-# Convert LaTeX accent macros
+# Normalize LaTeX accents and MR reviewer spacing
 uv run biblio normalize latex-accents --dry-run
 uv run biblio normalize latex-accents
 
@@ -372,7 +372,7 @@ uv run biblio normalize publisher-location
 uv run biblio normalize eprint-fields --dry-run
 uv run biblio normalize eprint-fields
 
-# Convert LaTeX accent macros into Unicode
+# Normalize LaTeX accents and MR reviewer spacing
 uv run biblio normalize latex-accents --dry-run
 uv run biblio normalize latex-accents
 ```
@@ -382,7 +382,8 @@ uv run biblio normalize latex-accents
 - `publisher-location` – flags entries missing `location`, splits `Publisher, City` pairs automatically,
   and leaves publisher legal suffixes such as `Inc.` for manual review
 - `eprint-fields` – renames `archiveprefix`/`primaryclass` to `eprinttype`/`eprintclass` and lowercases `arXiv` values
-- `latex-accents` – converts LaTeX accent commands (e.g. `Jos\'e`, `Fran{\c{c}}ois`) into normalized Unicode text
+- `latex-accents` – converts LaTeX accent commands (e.g. `Jos\'e`, `Fran{\c{c}}ois`) into
+  normalized Unicode text and replaces LaTeX control spaces (`\ `) in `mrreviewer` names
 - `isbn` – converts ISBN-10 values to ISBN-13 format in both `library.bib` and `identifier_collection.json`
 
 **Shared features:**
@@ -411,7 +412,7 @@ INFO biblio.cli:304 – Renamed archiveprefix→eprinttype for 5 entries
 INFO biblio.cli:304 – Lowercased eprinttype for 4 entries
 
 $ uv run biblio normalize latex-accents --dry-run -v
-INFO biblio.cli:324 – Dry run complete: converted LaTeX accents in 8 fields across 4 entries
+INFO biblio.cli:324 – Dry run complete: normalized LaTeX text in 8 fields across 4 entries
 INFO biblio.cli:335 – example-1984: author, title, note
 INFO biblio.cli:335 – sample-1991: title
 INFO biblio.cli:338 – ... and 2 more entries

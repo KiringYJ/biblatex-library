@@ -153,19 +153,23 @@ uv run biblio template [--overwrite]
 **Process Flow:**
 1. 🔍 **Scans** `staging/` directory for `.bib` files
 2. 📖 **Parses** bibliographic entries to extract identifiers
-3. 🏷️ **Determines** main identifier using priority order: `doi` > `isbn` > `mrnumber` > `url`
+3. 🏷️ **Determines** the main identifier using the documented priority order
 4. 📝 **Generates** corresponding `.json` template files
 5. ⚡ **Skips** existing `.json` files (unless `--overwrite` is used)
 
-**Identifier Priority:**
+**Identifier Priority (after semantic deduplication):**
 - **DOI** (highest priority) - Digital Object Identifier
-- **ISBN** - International Standard Book Number
+- **ISBN-13** - International Standard Book Number
 - **MR Number** - Mathematical Reviews number
+- **arXiv** - arXiv eprint identifier
+- **zbMATH**, **ZBL**, **JFM**, and **OCLC** - Catalog identifiers
+- **Eprint** - Non-arXiv eprint identifier
 - **URL** (lowest priority) - Web address
 
 **Features:**
 - 🎯 **Automated workflow** - No manual JSON creation needed
 - 🔄 **Safe defaults** - Skips existing files to prevent overwrites
+- 🧹 **Semantic deduplication** - Keeps the arXiv eprint and removes its matching arXiv-issued DOI and arXiv URL forms
 - 📋 **Template structure** - Generates proper `identifier_collection.json` format
 - 🌍 **Unicode support** - Handles international bibliography entries
 
@@ -430,8 +434,9 @@ biblio template [options]
 
 **What it generates:**
 - **JSON templates** - Creates `.json` files for corresponding `.bib` files in staging directory
-- **Identifier extraction** - Automatically extracts DOIs, ISBNs, MR numbers, URLs from bibliography entries
-- **Main identifier selection** - Uses priority-based selection (doi > isbn > mrnumber > url)
+- **Identifier extraction** - Automatically extracts DOI, ISBN-13, review, catalog, eprint, and URL identifiers from bibliography entries
+- **Main identifier selection** - Uses priority-based selection (`doi` > `isbn13` > `mrnumber` > `arxiv` > `zbmath` > `zbl` > `jfm` > `oclc` > `eprint` > `url`)
+- **Semantic deduplication** - Keeps the arXiv eprint when `10.48550/arXiv.<id>` and an arXiv URL are derived from it; distinct publisher DOI and arXiv identifiers remain separate
 
 **Options:**
 - `--overwrite` - Overwrite existing .json files (default: skip existing files)
@@ -481,7 +486,7 @@ Generated: `staging/2024-01-15-paper.json`
 ```json
 {
   "tempkey": {
-    "main_identifier": "10.1234/example.2024",
+    "main_identifier": "doi",
     "identifiers": {
       "doi": "10.1234/example.2024",
       "url": "https://example.com/paper"

@@ -405,7 +405,7 @@ def _normalize_trivial_url(config: BiblioConfig, *, dry_run: bool, verbose: bool
     action_prefix = "Dry run complete" if dry_run else "✓ Applied"
     if report.removed:
         logger.info(
-            "%s: removed %d trivial DOI-derived URL fields",
+            "%s: removed %d redundant DOI/arXiv URL fields",
             action_prefix,
             len(report.removed),
         )
@@ -633,8 +633,8 @@ def create_parser() -> argparse.ArgumentParser:
             "values and flags missing locations. 'eprint-fields' migrates legacy arXiv fields "
             "and normalizes the eprinttype value. 'latex-accents' converts LaTeX accent "
             "commands into Unicode and normalizes mrreviewer control spaces. 'isbn' converts "
-            "ISBN-10 values to ISBN-13 format. 'trivial-url' removes URL fields that are just "
-            "doi.org/{doi}."
+            "ISBN-10 values to ISBN-13 format. 'trivial-url' removes URL fields duplicated by "
+            "an explicit DOI or arXiv eprint."
         ),
     )
     normalize_parser.add_argument(

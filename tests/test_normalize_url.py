@@ -131,6 +131,68 @@ def test_removes_trailing_slash_url(tmp_path: Path) -> None:
     assert report.removed == ["slash2021"]
 
 
+def test_removes_arxiv_url_matching_explicit_eprint(tmp_path: Path) -> None:
+    bib_path = _write_bib(
+        tmp_path,
+        """@online{ma-2026-6993df98,
+  title = {The average order of a connected vertex set in {$K_m \\times P_n$}},
+  author = {Ma, Mingyuan and Ren, Han},
+  date = {2026},
+  eprint = {2602.21791},
+  url = {https://arxiv.org/abs/2602.21791},
+  eprinttype = {arxiv},
+  eprintclass = {math.CO}
+}
+""",
+    )
+
+    report = normalize_trivial_urls(bib_path)
+
+    assert report.removed == ["ma-2026-6993df98"]
+    library = bibtexparser.parse_file(str(bib_path))
+    fields = library.entries[0].fields_dict
+    assert "url" not in fields
+    assert fields["eprint"].value == "2602.21791"
+    assert fields["eprinttype"].value == "arxiv"
+
+
+def test_keeps_arxiv_url_when_eprint_differs(tmp_path: Path) -> None:
+    bib_path = _write_bib(
+        tmp_path,
+        """@online{different-preprint,
+  title = {A Preprint},
+  eprint = {2602.21792},
+  eprinttype = {arxiv},
+  url = {https://arxiv.org/abs/2602.21791}
+}
+""",
+    )
+
+    report = normalize_trivial_urls(bib_path)
+
+    assert report.removed == []
+    library = bibtexparser.parse_file(str(bib_path))
+    assert "url" in library.entries[0].fields_dict
+
+
+def test_keeps_arxiv_url_without_arxiv_eprinttype(tmp_path: Path) -> None:
+    bib_path = _write_bib(
+        tmp_path,
+        """@online{untyped-preprint,
+  title = {A Preprint},
+  eprint = {2602.21791},
+  url = {https://arxiv.org/abs/2602.21791}
+}
+""",
+    )
+
+    report = normalize_trivial_urls(bib_path)
+
+    assert report.removed == []
+    library = bibtexparser.parse_file(str(bib_path))
+    assert "url" in library.entries[0].fields_dict
+
+
 def test_dry_run_does_not_modify(tmp_path: Path) -> None:
     content = """@article{dry2020,
   title = {Dry Run},

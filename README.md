@@ -84,6 +84,10 @@ uv run biblio normalize latex-accents
 uv run biblio normalize isbn --dry-run
 uv run biblio normalize isbn
 
+# Remove URLs duplicated by DOI or arXiv eprint fields
+uv run biblio normalize trivial-url --dry-run
+uv run biblio normalize trivial-url
+
 # Initialize a new biblio workspace
 uv run biblio init
 
@@ -379,6 +383,10 @@ uv run biblio normalize eprint-fields
 # Normalize LaTeX accents and MR reviewer spacing
 uv run biblio normalize latex-accents --dry-run
 uv run biblio normalize latex-accents
+
+# Remove URLs duplicated by DOI or arXiv eprint fields
+uv run biblio normalize trivial-url --dry-run
+uv run biblio normalize trivial-url
 ```
 
 **Available actions:**
@@ -389,6 +397,8 @@ uv run biblio normalize latex-accents
 - `latex-accents` – converts LaTeX accent commands (e.g. `Jos\'e`, `Fran{\c{c}}ois`) into
   normalized Unicode text and replaces LaTeX control spaces (`\ `) in `mrreviewer` names
 - `isbn` – converts ISBN-10 values to ISBN-13 format in both `library.bib` and `identifier_collection.json`
+- `trivial-url` – removes DOI resolver URLs and canonical arXiv abstract/PDF URLs when the
+  same identifier is already present in `doi` or an arXiv `eprint`
 
 **Shared features:**
 - 🛡️ **Safe previews** – `--dry-run` reports affected citekeys without touching files

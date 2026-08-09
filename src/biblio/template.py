@@ -3,7 +3,6 @@
 import json
 import logging
 from pathlib import Path
-from urllib.parse import urlsplit
 
 import bibtexparser
 from bibtexparser.model import Entry
@@ -16,6 +15,7 @@ from .normalize.isbn import (
     is_valid_isbn10,
     is_valid_isbn13,
 )
+from .normalize.url import arxiv_identifiers_match, extract_arxiv_identifier_from_url
 from .types import IdentifierData
 
 logger = logging.getLogger(__name__)
@@ -35,7 +35,6 @@ MAIN_IDENTIFIER_PRIORITY = [
 ]
 
 _ARXIV_DOI_PREFIX = "10.48550/arxiv."
-_ARXIV_URL_HOSTS = {"arxiv.org", "www.arxiv.org"}
 
 
 def _extract_arxiv_identifier_from_doi(doi: str) -> str | None:
@@ -48,49 +47,18 @@ def _extract_arxiv_identifier_from_doi(doi: str) -> str | None:
     return identifier or None
 
 
-def _extract_arxiv_identifier_from_url(url: str) -> str | None:
-    """Return the arXiv ID encoded by a canonical abstract or PDF URL."""
-    try:
-        parsed_url = urlsplit(url.strip())
-        hostname = parsed_url.hostname
-    except ValueError:
-        return None
-
-    if (
-        parsed_url.scheme.casefold() not in {"http", "https"}
-        or hostname is None
-        or hostname.casefold() not in _ARXIV_URL_HOSTS
-    ):
-        return None
-
-    route, separator, identifier = parsed_url.path.lstrip("/").partition("/")
-    if not separator or route.casefold() not in {"abs", "pdf"}:
-        return None
-
-    identifier = identifier.rstrip("/")
-    if route.casefold() == "pdf" and identifier.casefold().endswith(".pdf"):
-        identifier = identifier[:-4]
-
-    return identifier or None
-
-
-def _identifiers_match(first: str | None, second: str | None) -> bool:
-    """Return whether two non-empty identifiers match case-insensitively."""
-    return first is not None and second is not None and first.casefold() == second.casefold()
-
-
 def _remove_redundant_arxiv_identifiers(identifiers: dict[str, str]) -> None:
     """Keep an arXiv eprint instead of its derived DOI and URL forms."""
     arxiv_identifier = identifiers.get("arxiv")
     doi_arxiv_identifier = _extract_arxiv_identifier_from_doi(identifiers.get("doi", ""))
-    url_arxiv_identifier = _extract_arxiv_identifier_from_url(identifiers.get("url", ""))
+    url_arxiv_identifier = extract_arxiv_identifier_from_url(identifiers.get("url", ""))
 
-    if _identifiers_match(url_arxiv_identifier, arxiv_identifier) or _identifiers_match(
+    if arxiv_identifiers_match(url_arxiv_identifier, arxiv_identifier) or arxiv_identifiers_match(
         url_arxiv_identifier, doi_arxiv_identifier
     ):
         identifiers.pop("url", None)
 
-    if _identifiers_match(arxiv_identifier, doi_arxiv_identifier):
+    if arxiv_identifiers_match(arxiv_identifier, doi_arxiv_identifier):
         identifiers.pop("doi", None)
 
 

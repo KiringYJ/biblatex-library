@@ -1,112 +1,38 @@
-"""Tests for publisher/location normalization."""
-
-from __future__ import annotations
-
-from pathlib import Path
+"""Tests for pure publisher/location normalization."""
 
 import bibtexparser
 
+from biblio.bibliography import Bibliography, IdentityIndex
 from biblio.normalize.publisher import normalize_publisher_location
 
 
-def _write_bib(tmp_path: Path, content: str) -> Path:
-    bib_path = tmp_path / "library.bib"
-    bib_path.write_text(content, encoding="utf-8")
-    return bib_path
+def _bibliography(source: str) -> Bibliography:
+    library = bibtexparser.parse_string(source)
+    return Bibliography(library.blocks, IdentityIndex(library.entries))
 
 
-def test_normalize_publisher_location_updates_fields(tmp_path: Path) -> None:
-    bib_content = """@book{entry-one,
-  title = {First Book},
-  publisher = {Springer, Berlin}
-}
+def test_splits_unambiguous_publisher_location() -> None:
+    bibliography = _bibliography("@book{one, publisher={Springer, Berlin}}\n")
 
-@book{entry-two,
-  title = {Second Book},
-  publisher = {Existing Publisher},
-  location = {Existing Location}
-}
-"""
-    bib_path = _write_bib(tmp_path, bib_content)
+    report = normalize_publisher_location(bibliography)
 
-    report = normalize_publisher_location(bib_path)
-
-    assert report.flagged == ["entry-one"]
-    assert report.fixed == ["entry-one"]
-
-    library = bibtexparser.parse_file(str(bib_path))
-    entry_one = next(entry for entry in library.entries if entry.key == "entry-one")
-
-    assert entry_one.fields_dict["publisher"].value == "Springer"
-    assert entry_one.fields_dict["location"].value == "Berlin"
+    assert report.flagged == ("one",)
+    assert report.fixed == ("one",)
+    assert report.changes.changed
+    assert bibliography.resolve("one").fields_dict["publisher"].value == "Springer"
+    assert bibliography.resolve("one").fields_dict["location"].value == "Berlin"
 
 
-def test_normalize_publisher_location_dry_run(tmp_path: Path) -> None:
-    bib_content = """@book{entry-one,
-  title = {Dry Run},
-  publisher = {Springer, Berlin}
-}
-"""
-    bib_path = _write_bib(tmp_path, bib_content)
-    before = bib_path.read_text(encoding="utf-8")
+def test_flags_ambiguous_values_but_does_not_change_them() -> None:
+    bibliography = _bibliography(
+        "@book{multi, publisher={Press, City, Country}}\n"
+        "@book{suffix, publisher={Press, Inc.}}\n"
+        "@article{article, publisher={Press, City}}\n"
+    )
 
-    report = normalize_publisher_location(bib_path, dry_run=True)
+    report = normalize_publisher_location(bibliography)
 
-    assert report.flagged == ["entry-one"]
-    assert report.fixed == ["entry-one"]
-    after = bib_path.read_text(encoding="utf-8")
-    assert after == before
-
-
-def test_normalize_publisher_location_flags_multicomma(tmp_path: Path) -> None:
-    bib_content = """@book{entry-one,
-  title = {Manual Review},
-  publisher = {Springer, Berlin, Germany}
-}
-"""
-    bib_path = _write_bib(tmp_path, bib_content)
-    before = bib_path.read_text(encoding="utf-8")
-
-    report = normalize_publisher_location(bib_path)
-
-    assert report.flagged == ["entry-one"]
-    assert report.fixed == []
-    after = bib_path.read_text(encoding="utf-8")
-    assert after == before
-
-
-def test_normalize_publisher_location_keeps_legal_suffix(tmp_path: Path) -> None:
-    bib_content = """@book{entry-one,
-  title = {Self Published},
-  publisher = {Lulu Press, Inc.}
-}
-"""
-    bib_path = _write_bib(tmp_path, bib_content)
-    before = bib_path.read_text(encoding="utf-8")
-
-    report = normalize_publisher_location(bib_path)
-
-    assert report.flagged == ["entry-one"]
-    assert report.fixed == []
-    after = bib_path.read_text(encoding="utf-8")
-    assert after == before
-
-
-def test_normalize_publisher_location_skips_articles(tmp_path: Path) -> None:
-    bib_content = """@article{entry-article,
-  title = {Journal Piece},
-  publisher = {Journal Press, New York}
-}
-"""
-    bib_path = _write_bib(tmp_path, bib_content)
-
-    report = normalize_publisher_location(bib_path)
-
-    assert report.flagged == []
-    assert report.fixed == []
-
-    library = bibtexparser.parse_file(str(bib_path))
-    entry_article = next(entry for entry in library.entries if entry.key == "entry-article")
-
-    assert "location" not in entry_article.fields_dict
-    assert entry_article.fields_dict["publisher"].value == "Journal Press, New York"
+    assert report.flagged == ("multi", "suffix")
+    assert report.fixed == ()
+    assert report.changes.changed is False
+    assert bibliography.resolve("suffix").fields_dict["publisher"].value == "Press, Inc."

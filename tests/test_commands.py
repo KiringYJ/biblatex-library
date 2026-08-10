@@ -1,0 +1,864 @@
+"""Integration tests for coordinated workspace application services."""
+
+import ast
+import hashlib
+import os
+from dataclasses import replace
+from pathlib import Path
+
+import bibtexparser
+import pytest
+
+from biblio import commands
+from biblio.add_entries import prepare_entries, prepare_staged_sources, select_main_identifier
+from biblio.identifier_collection import (
+    IdentifierRecord,
+    identifiers_from_entry,
+    parse_add_order,
+    parse_identifier_collection,
+    serialize_add_order,
+    serialize_identifier_collection,
+)
+from biblio.results import CommitOutcome
+from biblio.storage import (
+    BibliographyCodec,
+    WorkspacePaths,
+    WorkspaceRecoveryResult,
+    read_workspace_snapshot,
+)
+
+
+def _workspace(tmp_path: Path, source: str = "") -> WorkspacePaths:
+    bibliography = tmp_path / "library.bib"
+    identifiers = tmp_path / "identifier_collection.json"
+    add_order = tmp_path / "add_order.json"
+    bibliography.write_text(source, encoding="utf-8")
+    parsed = BibliographyCodec.parse_bytes(bibliography.read_bytes())
+    records: dict[str, IdentifierRecord] = {}
+    order: list[str] = []
+    for entry in parsed:
+        inventory = identifiers_from_entry(entry)
+        main, _value = select_main_identifier(inventory)
+        records[entry.key] = IdentifierRecord(main, inventory)
+        order.append(entry.key)
+    identifiers.write_bytes(serialize_identifier_collection(records))
+    add_order.write_bytes(serialize_add_order(order))
+    return WorkspacePaths(bibliography, identifiers, add_order)
+
+
+def _key(stem: str, identifier: str) -> str:
+    return f"{stem}-{hashlib.sha256(identifier.encode()).hexdigest()[:8]}"
+
+
+def _staged(path: Path, *, doi: str = "10.1000/work", extra: str = "") -> None:
+    path.write_text(
+        f"@article{{x,author={{Doe, Jane}},date={{2024}},title={{Work}},doi={{{doi}}}{extra}}}\n",
+        encoding="utf-8",
+    )
+
+
+def _pending_receipt(
+    paths: WorkspacePaths,
+    staged: Path,
+    *,
+    original: commands.WorkspaceDigestVector | None = None,
+    candidate: commands.WorkspaceDigestVector | None = None,
+) -> commands._CleanupReceipt:
+    current = commands._snapshot_vector(read_workspace_snapshot(paths))
+    prepared = prepare_staged_sources(((staged, staged.read_bytes()),))
+    entries = tuple(commands._added_entry_manifest(entry) for entry in prepared.entries)
+    added_keys = prepared.files[0].keys
+    return commands._CleanupReceipt(
+        "0" * 32,
+        added_keys,
+        original or current,
+        candidate or commands.WorkspaceDigestVector("f" * 64, "f" * 64, "f" * 64),
+        (
+            commands._ReceiptItem(
+                staged.name,
+                hashlib.sha256(staged.read_bytes()).hexdigest(),
+                added_keys,
+                entries,
+            ),
+        ),
+        (staged.name,),
+    )
+
+
+def _workspace_bytes(paths: WorkspacePaths) -> tuple[bytes, bytes, bytes]:
+    return (
+        paths.bibliography.read_bytes(),
+        paths.identifiers.read_bytes(),
+        paths.add_order.read_bytes(),
+    )
+
+
+def _idle_transaction_id(paths: WorkspacePaths) -> str:
+    status = commands.inspect_workspace_recovery(paths)
+    assert status.coordinator is not None
+    transaction_id = status.coordinator.get("txid")
+    assert isinstance(transaction_id, str)
+    return transaction_id
+
+
+def test_validate_reads_all_three_without_creating_sidecars(tmp_path: Path) -> None:
+    paths = _workspace(tmp_path)
+    before = set(tmp_path.iterdir())
+
+    result = commands.validate(paths)
+
+    assert result.valid
+    assert set(tmp_path.iterdir()) == before
+
+
+def test_validate_reports_cross_artifact_mismatch(tmp_path: Path) -> None:
+    paths = _workspace(tmp_path)
+    paths.add_order.write_text('["missing"]\n', encoding="utf-8")
+
+    result = commands.validate(paths)
+
+    assert not result.valid
+    assert any("canonical keysets differ" in issue for issue in result.issues)
+
+
+def test_add_directory_orders_weird_names_and_consumes_only_bib_files(tmp_path: Path) -> None:
+    paths = _workspace(tmp_path)
+    staging = tmp_path / "staging"
+    staging.mkdir()
+    (staging / "nested").mkdir()
+    _staged(staging / "z strange [2].bib", doi="10.1000/z")
+    _staged(staging / "! first.BIB", doi="10.1000/a")
+    (staging / "ignore.txt").write_text("no", encoding="utf-8")
+    _staged(staging / "nested" / "ignored.bib", doi="10.1000/nested")
+
+    result = commands.add(paths, staging)
+
+    expected = prepare_entries(
+        (
+            bibtexparser.parse_string(
+                "@article{a,author={Doe, Jane},date={2024},title={Work},doi={10.1000/a}}"
+            ).entries[0],
+            bibtexparser.parse_string(
+                "@article{z,author={Doe, Jane},date={2024},title={Work},doi={10.1000/z}}"
+            ).entries[0],
+        )
+    )
+    assert result.added_keys == tuple(entry.key for entry in expected)
+    assert result.commit is not None
+    assert result.commit.outcome is CommitOutcome.COMMITTED_VERIFIED
+    assert not (staging / "! first.BIB").exists()
+    assert not (staging / "z strange [2].bib").exists()
+    assert (staging / "ignore.txt").exists()
+    assert (staging / "nested" / "ignored.bib").exists()
+    assert parse_add_order(paths.add_order.read_bytes()) == result.added_keys
+
+
+def test_add_stores_full_inventory_and_uses_arxiv_for_derived_doi(tmp_path: Path) -> None:
+    paths = _workspace(tmp_path)
+    staged = tmp_path / "opaque.bib"
+    staged.write_text(
+        "@online{x,author={Doe, Jane},date={2020},title={X},"
+        "doi={https://doi.org/10.48550/arXiv.2101.00001},"
+        "eprint={2101.00001},eprinttype={arxiv},isbn={978-1-4028-9462-6},"
+        "url={https://example.test},mrnumber={MR1},zbl={Z},zbmath={B},jfm={J},"
+        "oclc={O},hdl={H},acmdl_doi={10.1145/A}}",
+        encoding="utf-8",
+    )
+
+    result = commands.add(paths, staged, dry_run=True)
+
+    expected_suffix = hashlib.sha256(b"2101.00001").hexdigest()[:8]
+    assert result.added_keys == (f"doe-2020-{expected_suffix}",)
+    assert staged.exists()
+
+    committed = commands.add(paths, staged)
+    record = parse_identifier_collection(paths.identifiers.read_bytes())[committed.added_keys[0]]
+    assert record.main_identifier == "arxiv"
+    assert set(record.identifiers) == {
+        "doi",
+        "isbn13",
+        "arxiv",
+        "url",
+        "mrnumber",
+        "zbl",
+        "zbmath",
+        "jfm",
+        "oclc",
+        "hdl",
+        "acmdl_doi",
+    }
+    assert record.identifiers["doi"] == "10.48550/arxiv.2101.00001"
+
+
+def test_add_spaced_arxiv_marker_uses_eprint_and_validate_rejects_wrong_json_main(
+    tmp_path: Path,
+) -> None:
+    paths = _workspace(tmp_path)
+    staged = tmp_path / "opaque.bib"
+    staged.write_text(
+        "@online{x,author={Doe, Jane},date={2020},title={X},"
+        "doi={10.48550/arXiv.2101.00001},eprint={2101.00001},"
+        "eprinttype={ arXiv }}",
+        encoding="utf-8",
+    )
+
+    added = commands.add(paths, staged, dry_run=True)
+
+    arxiv_key = _key("doe-2020", "2101.00001")
+    assert added.added_keys == (arxiv_key,)
+
+    committed = commands.add(paths, staged)
+    records = parse_identifier_collection(paths.identifiers.read_bytes())
+    record = records[committed.added_keys[0]]
+    record.main_identifier = "doi"
+    paths.identifiers.write_bytes(serialize_identifier_collection(records))
+
+    validation = commands.validate(paths)
+    assert not validation.valid
+    assert any("does not match exact identifier hash" in issue for issue in validation.issues)
+
+
+def test_add_rejects_explicit_non_bib_and_preserves_dry_run(tmp_path: Path) -> None:
+    paths = _workspace(tmp_path)
+    wrong = tmp_path / "input.txt"
+    wrong.write_text("x", encoding="utf-8")
+    staged = tmp_path / "opaque.bib"
+    _staged(staged)
+
+    with pytest.raises(ValueError, match="must have a .bib suffix"):
+        commands.add(paths, wrong)
+    result = commands.add(paths, staged, dry_run=True)
+
+    assert result.commit is None
+    assert result.retained_paths == (staged.resolve(),)
+    assert staged.exists()
+
+
+def test_add_changed_file_after_commit_is_retained_as_conflict(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    paths = _workspace(tmp_path)
+    staged = tmp_path / "opaque.bib"
+    _staged(staged)
+    original_write = commands._write_receipt
+
+    def write_then_change(directory: Path, receipt: commands._CleanupReceipt) -> None:
+        original_write(directory, receipt)
+        staged.write_text("changed", encoding="utf-8")
+
+    monkeypatch.setattr(commands, "_write_receipt", write_then_change)
+
+    result = commands.add(paths, staged)
+
+    assert result.commit is not None
+    assert result.commit.outcome is CommitOutcome.COMMITTED_VERIFIED
+    assert result.conflicted_paths == (staged.resolve(),)
+    assert staged.exists()
+    assert (tmp_path / commands._RECEIPT_NAME).exists()
+
+
+def test_add_storage_failure_preserves_staging_input(tmp_path: Path) -> None:
+    paths = _workspace(tmp_path)
+    staged = tmp_path / "opaque.bib"
+    _staged(staged)
+
+    def fail(phase: str) -> None:
+        if phase == "workspace:before_replace:bibliography:candidate":
+            raise OSError("injected")
+
+    result = commands.add(paths, staged, fault_hook=fail)
+
+    assert result.commit is not None
+    assert result.commit.outcome is not CommitOutcome.COMMITTED_VERIFIED
+    assert result.retained_paths == (staged.resolve(),)
+    assert staged.exists()
+
+
+def test_add_receipt_write_failure_prevents_workspace_commit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    paths = _workspace(tmp_path)
+    staged = tmp_path / "opaque.bib"
+    _staged(staged)
+
+    before = _workspace_bytes(paths)
+
+    def fail_receipt(_directory: Path, _receipt: commands._CleanupReceipt) -> None:
+        raise OSError("receipt unavailable")
+
+    monkeypatch.setattr(commands, "_write_receipt", fail_receipt)
+
+    result = commands.add(paths, staged)
+
+    assert result.commit is None
+    assert result.retained_paths == (staged.resolve(),)
+    assert result.consumed_paths == ()
+    assert result.cleanup_diagnostics == ("could not record pending cleanup: receipt unavailable",)
+    assert _workspace_bytes(paths) == before
+    assert staged.exists()
+
+
+def test_add_resumes_cleanup_receipt_before_new_intake(tmp_path: Path) -> None:
+    paths = _workspace(tmp_path)
+    staged = tmp_path / "opaque.bib"
+    _staged(staged)
+    commands._write_receipt(tmp_path, _pending_receipt(paths, staged))
+
+    result = commands.add(paths, staged)
+
+    assert result.commit is not None
+    assert result.commit.outcome is CommitOutcome.COMMITTED_VERIFIED
+    assert not staged.exists()
+    assert not (tmp_path / commands._RECEIPT_NAME).exists()
+
+
+def test_add_dry_run_preserves_pending_cleanup_receipt(tmp_path: Path) -> None:
+    paths = _workspace(tmp_path)
+    staged = tmp_path / "opaque.bib"
+    _staged(staged)
+    commands._write_receipt(tmp_path, _pending_receipt(paths, staged))
+
+    result = commands.add(paths, staged, dry_run=True)
+
+    assert result.added_keys == _pending_receipt(paths, staged).added_keys
+    assert result.retained_paths == (staged.resolve(),)
+    assert staged.exists()
+    assert (tmp_path / commands._RECEIPT_NAME).exists()
+
+
+def test_fabricated_candidate_receipt_cannot_delete_uncommitted_source(tmp_path: Path) -> None:
+    paths = _workspace(tmp_path)
+    staged = tmp_path / "opaque.bib"
+    _staged(staged)
+    prepared = prepare_staged_sources(((staged, staged.read_bytes()),))
+    current = commands._snapshot_vector(read_workspace_snapshot(paths))
+    impossible_original = commands.WorkspaceDigestVector("0" * 64, "0" * 64, "0" * 64)
+    receipt = commands._CleanupReceipt(
+        "0" * 32,
+        prepared.files[0].keys,
+        impossible_original,
+        current,
+        (
+            commands._ReceiptItem(
+                staged.name,
+                prepared.files[0].sha256,
+                prepared.files[0].keys,
+                tuple(commands._added_entry_manifest(entry) for entry in prepared.entries),
+            ),
+        ),
+        (staged.name,),
+    )
+    commands._write_receipt(tmp_path, receipt)
+
+    result = commands.add(paths, staged)
+
+    assert result.commit is None
+    assert staged.exists()
+    assert result.conflicted_paths == (tmp_path / commands._RECEIPT_NAME,)
+    assert "resolution proof failed" in result.cleanup_diagnostics[0]
+
+
+def test_fabricated_receipt_cannot_delete_identical_existing_source(tmp_path: Path) -> None:
+    paths = _workspace(tmp_path)
+    original_vector = commands._snapshot_vector(read_workspace_snapshot(paths))
+    staged = tmp_path / "opaque.bib"
+    _staged(staged)
+    source = staged.read_bytes()
+    committed = commands.add(paths, staged)
+    staged.write_bytes(source)
+    prepared = prepare_staged_sources(((staged, source),))
+    current = commands._snapshot_vector(read_workspace_snapshot(paths))
+    commands._write_receipt(
+        tmp_path,
+        commands._CleanupReceipt(
+            "0" * 32,
+            committed.added_keys,
+            original_vector,
+            current,
+            (
+                commands._ReceiptItem(
+                    staged.name,
+                    hashlib.sha256(source).hexdigest(),
+                    committed.added_keys,
+                    tuple(commands._added_entry_manifest(entry) for entry in prepared.entries),
+                ),
+            ),
+            (staged.name,),
+        ),
+    )
+
+    result = commands.add(paths, staged)
+
+    assert result.commit is None
+    assert result.conflicted_paths == (tmp_path / commands._RECEIPT_NAME,)
+    assert "resolution proof failed" in result.cleanup_diagnostics[0]
+    assert staged.exists()
+
+
+def test_receipt_cannot_substitute_other_entry_under_legitimate_add_proof(
+    tmp_path: Path,
+) -> None:
+    paths = _workspace(tmp_path)
+    source_b = tmp_path / "b.bib"
+    _staged(source_b, doi="10.1000/b")
+    bytes_b = source_b.read_bytes()
+    added_b = commands.add(paths, source_b)
+
+    original_a = commands._snapshot_vector(read_workspace_snapshot(paths))
+    source_a = tmp_path / "a.bib"
+    _staged(source_a, doi="10.1000/a")
+    commands.add(paths, source_a)
+    candidate_a = commands._snapshot_vector(read_workspace_snapshot(paths))
+    transaction_a = _idle_transaction_id(paths)
+
+    source_b.write_bytes(bytes_b)
+    prepared_b = prepare_staged_sources(((source_b, bytes_b),))
+    forged = commands._CleanupReceipt(
+        transaction_a,
+        added_b.added_keys,
+        original_a,
+        candidate_a,
+        (
+            commands._ReceiptItem(
+                source_b.name,
+                hashlib.sha256(bytes_b).hexdigest(),
+                added_b.added_keys,
+                tuple(commands._added_entry_manifest(entry) for entry in prepared_b.entries),
+            ),
+        ),
+        (source_b.name,),
+    )
+    commands._write_receipt(tmp_path, forged)
+
+    result = commands.add(paths, source_b)
+
+    assert result.commit is None
+    assert result.conflicted_paths == (tmp_path / commands._RECEIPT_NAME,)
+    assert "resolution proof failed" in result.cleanup_diagnostics[0]
+    assert source_b.exists()
+
+
+def test_candidate_receipt_source_key_mismatch_is_never_deleted(tmp_path: Path) -> None:
+    paths = _workspace(tmp_path)
+    original_vector = commands._snapshot_vector(read_workspace_snapshot(paths))
+    first = tmp_path / "first.bib"
+    _staged(first, doi="10.1000/first")
+    committed = commands.add(paths, first)
+    existing_key = committed.added_keys[0]
+    staged = tmp_path / "opaque.bib"
+    _staged(staged, doi="10.1000/different")
+    current = commands._snapshot_vector(read_workspace_snapshot(paths))
+    prepared = prepare_staged_sources(((staged, staged.read_bytes()),))
+    source_manifest = commands._added_entry_manifest(prepared.entries[0])
+    fabricated_manifest = replace(source_manifest, key=existing_key)
+    commands._write_receipt(
+        tmp_path,
+        commands._CleanupReceipt(
+            _idle_transaction_id(paths),
+            (existing_key,),
+            original_vector,
+            current,
+            (
+                commands._ReceiptItem(
+                    staged.name,
+                    hashlib.sha256(staged.read_bytes()).hexdigest(),
+                    (existing_key,),
+                    (fabricated_manifest,),
+                ),
+            ),
+            (staged.name,),
+        ),
+    )
+
+    result = commands.add(paths, staged)
+
+    assert result.commit is None
+    assert result.conflicted_paths == (tmp_path / commands._RECEIPT_NAME,)
+    assert staged.exists()
+    assert "resolution proof failed" in result.cleanup_diagnostics[0]
+
+
+def test_candidate_receipt_same_key_changed_title_is_never_deleted(tmp_path: Path) -> None:
+    paths = _workspace(tmp_path)
+    original_vector = commands._snapshot_vector(read_workspace_snapshot(paths))
+    original = tmp_path / "original.bib"
+    _staged(original)
+    committed = commands.add(paths, original)
+    staged = tmp_path / "altered.bib"
+    staged.write_text(
+        "@article{x,author={Doe, Jane},date={2024},title={Altered},doi={10.1000/work}}\n",
+        encoding="utf-8",
+    )
+    prepared = prepare_staged_sources(((staged, staged.read_bytes()),))
+    assert prepared.files[0].keys == committed.added_keys
+    current = commands._snapshot_vector(read_workspace_snapshot(paths))
+    commands._write_receipt(
+        tmp_path,
+        commands._CleanupReceipt(
+            _idle_transaction_id(paths),
+            committed.added_keys,
+            original_vector,
+            current,
+            (
+                commands._ReceiptItem(
+                    staged.name,
+                    hashlib.sha256(staged.read_bytes()).hexdigest(),
+                    committed.added_keys,
+                    tuple(commands._added_entry_manifest(entry) for entry in prepared.entries),
+                ),
+            ),
+            (staged.name,),
+        ),
+    )
+
+    result = commands.add(paths, staged)
+
+    assert result.commit is None
+    assert result.conflicted_paths == (tmp_path / commands._RECEIPT_NAME,)
+    assert "resolution proof failed" in result.cleanup_diagnostics[0]
+    assert staged.exists()
+
+    aggregate = commands._aggregate(read_workspace_snapshot(paths))
+    receipt = commands._parse_receipt(tmp_path)
+    assert receipt is not None
+    issue = commands._prove_receipt_item(staged, receipt.files[0], aggregate)
+    assert issue is not None
+    assert "committed entry content differs" in issue
+
+
+def test_candidate_receipt_resumes_after_cleanup_interruption(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    paths = _workspace(tmp_path)
+    staged = tmp_path / "opaque.bib"
+    _staged(staged)
+    original_clear = commands._clear_receipt
+
+    def interrupt_clear(_directory: Path) -> None:
+        raise OSError("interrupted")
+
+    monkeypatch.setattr(commands, "_clear_receipt", interrupt_clear)
+    first = commands.add(paths, staged)
+
+    assert first.commit is not None
+    assert first.commit.outcome is CommitOutcome.COMMITTED_VERIFIED
+    assert not staged.exists()
+    assert (tmp_path / commands._RECEIPT_NAME).exists()
+
+    monkeypatch.setattr(commands, "_clear_receipt", original_clear)
+    resumed = commands.add(paths, staged)
+
+    assert resumed.added_keys == first.added_keys
+    assert resumed.consumed_paths == (staged,)
+    assert not (tmp_path / commands._RECEIPT_NAME).exists()
+
+
+def test_source_is_reproved_immediately_before_unlink(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    paths = _workspace(tmp_path)
+    staged = tmp_path / "opaque.bib"
+    _staged(staged)
+    original_prove = commands._prove_receipt_item
+    mutated = False
+
+    def prove_then_mutate(
+        path: Path,
+        item: commands._ReceiptItem,
+        aggregate: commands.WorkspaceAggregate,
+    ) -> str | None:
+        nonlocal mutated
+        issue = original_prove(path, item, aggregate)
+        if path == staged and issue is None and not mutated:
+            mutated = True
+            staged.write_text(
+                "@article{x,author={Doe, Jane},date={2024},title={Changed},doi={10.1000/work}}\n",
+                encoding="utf-8",
+            )
+        return issue
+
+    monkeypatch.setattr(commands, "_prove_receipt_item", prove_then_mutate)
+
+    result = commands.add(paths, staged)
+
+    assert result.commit is not None
+    assert result.commit.outcome is CommitOutcome.COMMITTED_VERIFIED
+    assert result.conflicted_paths == (staged.resolve(),)
+    assert "drifted before unlink" in result.cleanup_diagnostics[0]
+    assert staged.exists()
+    assert (tmp_path / commands._RECEIPT_NAME).exists()
+
+
+def test_partial_cleanup_rewrites_receipt_for_only_remaining_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    paths = _workspace(tmp_path)
+    staging = tmp_path / "staging"
+    staging.mkdir()
+    first = staging / "a.bib"
+    second = staging / "b.bib"
+    _staged(first, doi="10.1000/first")
+    _staged(second, doi="10.1000/second")
+    original_unlink = Path.unlink
+
+    def fail_second(path: Path, missing_ok: bool = False) -> None:
+        if path == second:
+            raise OSError("injected second-file cleanup failure")
+        original_unlink(path, missing_ok=missing_ok)
+
+    monkeypatch.setattr(Path, "unlink", fail_second)
+    result = commands.add(paths, staging)
+
+    assert result.commit is not None
+    assert result.commit.outcome is CommitOutcome.COMMITTED_VERIFIED
+    assert not first.exists()
+    assert second.exists()
+    receipt = commands._parse_receipt(staging)
+    assert receipt is not None
+    assert tuple(item.name for item in receipt.files) == (first.name, second.name)
+    assert receipt.pending_files == (second.name,)
+
+    monkeypatch.setattr(Path, "unlink", original_unlink)
+    resumed = commands.add(paths, staging)
+
+    assert resumed.consumed_paths == (second,)
+    assert not second.exists()
+    assert not (staging / commands._RECEIPT_NAME).exists()
+
+
+def test_add_never_consumes_workspace_artifact_as_staging(tmp_path: Path) -> None:
+    paths = _workspace(tmp_path)
+    before = paths.bibliography.read_bytes()
+
+    with pytest.raises(ValueError, match="protected workspace artifact"):
+        commands.add(paths, paths.bibliography)
+    with pytest.raises(ValueError, match="protected workspace artifact"):
+        commands.add(paths, tmp_path)
+
+    assert paths.bibliography.read_bytes() == before
+
+
+def test_add_rejects_hardlink_alias_of_workspace_artifact(tmp_path: Path) -> None:
+    paths = _workspace(tmp_path)
+    alias = tmp_path / "alias.bib"
+    try:
+        os.link(paths.bibliography, alias)
+    except OSError:
+        pytest.skip("hard links are unavailable")
+
+    with pytest.raises(ValueError, match="protected workspace artifact"):
+        commands.add(paths, alias)
+
+    assert paths.bibliography.exists()
+
+
+def test_add_refuses_receipt_targeting_workspace_artifact(tmp_path: Path) -> None:
+    paths = _workspace(tmp_path)
+    before = paths.bibliography.read_bytes()
+    current = commands._snapshot_vector(read_workspace_snapshot(paths))
+    other = commands.WorkspaceDigestVector("f" * 64, "f" * 64, "f" * 64)
+    commands._write_receipt(
+        tmp_path,
+        commands._CleanupReceipt(
+            "0" * 32,
+            ("doe-2020-deadbeef",),
+            current,
+            other,
+            (
+                commands._ReceiptItem(
+                    paths.bibliography.name,
+                    hashlib.sha256(paths.bibliography.read_bytes()).hexdigest(),
+                    ("doe-2020-deadbeef",),
+                    (
+                        commands._EntryManifest(
+                            "doe-2020-deadbeef",
+                            "article",
+                            (),
+                            "doi",
+                            (("doi", "10.1000/fake"),),
+                        ),
+                    ),
+                ),
+            ),
+            (paths.bibliography.name,),
+        ),
+    )
+
+    result = commands.add(paths, tmp_path)
+
+    assert paths.bibliography.read_bytes() == before
+    assert (tmp_path / commands._RECEIPT_NAME).exists()
+    assert result.conflicted_paths == (tmp_path / commands._RECEIPT_NAME,)
+    assert "protected workspace artifact" in result.cleanup_diagnostics[0]
+
+
+def test_normalize_preserves_identifier_and_order_bytes(tmp_path: Path) -> None:
+    arxiv = "2101.00001"
+    key = _key("doe-2020", arxiv)
+    paths = _workspace(
+        tmp_path,
+        f"@online{{{key},title={{Work}},author={{Doe, Jane}},date={{2020}},"
+        f"eprint={{{arxiv}}},eprinttype={{arxiv}},"
+        f"url={{https://arxiv.org/abs/{arxiv}}}}}\n",
+    )
+    identifiers_before = paths.identifiers.read_bytes()
+    order_before = paths.add_order.read_bytes()
+
+    result = commands.normalize(paths, "trivial-url")
+
+    assert result.commit is not None
+    assert paths.identifiers.read_bytes() == identifiers_before
+    assert paths.add_order.read_bytes() == order_before
+
+
+def test_reconcile_dry_run_apply_and_noop_preserve_other_artifact_bytes(tmp_path: Path) -> None:
+    doi = "10.1000/work"
+    url = "https://example.test/work"
+    key = _key("doe-2024", doi)
+    paths = _workspace(
+        tmp_path,
+        f"@article{{{key},author={{Doe, Jane}},date={{2024}},title={{Work}},"
+        f"doi={{{doi}}},url={{{url}}}}}\n",
+    )
+    records = parse_identifier_collection(paths.identifiers.read_bytes())
+    del records[key].identifiers["url"]
+    paths.identifiers.write_bytes(serialize_identifier_collection(records))
+    bibliography_before = paths.bibliography.read_bytes()
+    order_before = paths.add_order.read_bytes()
+    identifiers_before = paths.identifiers.read_bytes()
+
+    preview = commands.reconcile(paths, dry_run=True)
+
+    assert preview.commit is None
+    assert [(item.kind, item.exact_value) for item in preview.additions] == [("url", url)]
+    assert paths.identifiers.read_bytes() == identifiers_before
+
+    applied = commands.reconcile(paths)
+
+    assert applied.commit is not None
+    assert applied.commit.outcome is CommitOutcome.COMMITTED_VERIFIED
+    assert paths.bibliography.read_bytes() == bibliography_before
+    assert paths.add_order.read_bytes() == order_before
+    assert (
+        parse_identifier_collection(paths.identifiers.read_bytes())[key].identifiers["url"] == url
+    )
+
+    noop = commands.reconcile(paths)
+    assert noop.commit is None
+    assert noop.additions == ()
+
+
+def test_reconcile_collision_fails_closed_without_writing(tmp_path: Path) -> None:
+    first_doi = "10.1000/first"
+    second_doi = "10.1000/second"
+    shared_url = "https://example.test/shared"
+    first_key = _key("first-2024", first_doi)
+    second_key = _key("second-2024", second_doi)
+    paths = _workspace(
+        tmp_path,
+        f"@article{{{first_key},title={{First}},doi={{{first_doi}}},url={{{shared_url}}}}}\n"
+        f"@article{{{second_key},title={{Second}},doi={{{second_doi}}}}}\n",
+    )
+    records = parse_identifier_collection(paths.identifiers.read_bytes())
+    del records[first_key].identifiers["url"]
+    records[second_key].identifiers["url"] = shared_url
+    paths.identifiers.write_bytes(serialize_identifier_collection(records))
+    before = _workspace_bytes(paths)
+
+    with pytest.raises(ValueError, match="collides with record"):
+        commands.reconcile(paths)
+
+    assert _workspace_bytes(paths) == before
+
+
+def test_reconcile_storage_failure_preserves_workspace_vector(tmp_path: Path) -> None:
+    doi = "10.1000/work"
+    key = _key("doe-2024", doi)
+    paths = _workspace(
+        tmp_path,
+        f"@article{{{key},title={{Work}},doi={{{doi}}},url={{https://example.test}}}}\n",
+    )
+    records = parse_identifier_collection(paths.identifiers.read_bytes())
+    del records[key].identifiers["url"]
+    paths.identifiers.write_bytes(serialize_identifier_collection(records))
+    before = _workspace_bytes(paths)
+
+    def fail(phase: str) -> None:
+        if phase == "workspace:before_replace:identifiers:candidate":
+            raise OSError("injected")
+
+    result = commands.reconcile(paths, fault_hook=fail)
+
+    assert result.commit is not None
+    assert result.commit.outcome is CommitOutcome.NOT_COMMITTED
+    assert _workspace_bytes(paths) == before
+
+
+def test_remove_and_promote_commit_all_three_artifacts(tmp_path: Path) -> None:
+    arxiv = "2101.00001"
+    old_key = _key("doe-2020", arxiv)
+    paths = _workspace(
+        tmp_path,
+        f"@online{{{old_key},author={{Doe, Jane}},date={{2020}},title={{Preprint}},"
+        f"eprint={{{arxiv}}},eprinttype={{arxiv}}}}\n",
+    )
+    payload = tmp_path / "published.bib"
+    _staged(payload, doi="https://doi.org/10.1000/PAPER?x=1#top")
+
+    promoted = commands.promote(paths, old_key, payload)
+
+    assert promoted.commit is not None
+    assert promoted.old_key == old_key
+    assert promoted.canonical_doi == "10.1000/paper"
+    assert old_key in promoted.aliases
+    assert promoted.new_key in parse_identifier_collection(paths.identifiers.read_bytes())
+    assert parse_add_order(paths.add_order.read_bytes()) == (promoted.new_key,)
+
+    removed = commands.remove(paths, old_key)
+    assert removed.commit is not None
+    assert (
+        BibliographyCodec.parse_bytes(paths.bibliography.read_bytes()).identity_index.canonical_keys
+        == ()
+    )
+    assert parse_identifier_collection(paths.identifiers.read_bytes()) == {}
+    assert parse_add_order(paths.add_order.read_bytes()) == ()
+
+
+def test_recover_routes_to_workspace_service(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    paths = _workspace(tmp_path)
+    observed = {"bibliography": "a", "identifiers": "b", "add_order": "c"}
+    monkeypatch.setattr(
+        commands,
+        "recover_workspace",
+        lambda *_args, **_kwargs: WorkspaceRecoveryResult("already_clean", observed),
+    )
+
+    result = commands.recover(paths)
+
+    assert result.resolution == "already_clean"
+    assert result.observed == observed
+
+
+def test_only_add_and_promote_call_new_doi_canonicalizer() -> None:
+    source_root = Path(commands.__file__).parent
+    callers: set[tuple[str, str]] = set()
+    for path in source_root.rglob("*.py"):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for function in (
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
+        ):
+            if any(
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Name)
+                and node.func.id == "canonicalize_new_doi"
+                for node in ast.walk(function)
+            ):
+                callers.add((path.name, function.name))
+    assert callers == {
+        ("add_entries.py", "prepare_staged_sources"),
+        ("commands.py", "promote"),
+    }

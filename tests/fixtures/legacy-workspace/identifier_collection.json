@@ -1,0 +1,73 @@
+{
+  "publisher-2024-052397b0": {
+    "main_identifier": "doi",
+    "identifiers": {
+      "doi": "10.5555/publisher.1",
+      "arxiv": "2401.01234v2",
+      "url": "https://publisher.example.test/article/1"
+    }
+  },
+  "isbn-2020-b4e25867": {
+    "main_identifier": "isbn13",
+    "identifiers": {
+      "isbn13": "9780306406157"
+    }
+  },
+  "preprint-2024-42407503": {
+    "main_identifier": "arxiv",
+    "identifiers": {
+      "arxiv": "2401.01234v2",
+      "doi": "10.48550/arXiv.2401.01234"
+    }
+  },
+  "website-2023-82a77c54": {
+    "main_identifier": "url",
+    "identifiers": {
+      "url": "https://example.test/catalogue/item"
+    }
+  },
+  "mathreviews-2019-d26d5260": {
+    "main_identifier": "mrnumber",
+    "identifiers": {
+      "mrnumber": "0001234"
+    }
+  },
+  "zentralblatt-2018-d754a81d": {
+    "main_identifier": "zbl",
+    "identifiers": {
+      "zbl": "1234.56789"
+    }
+  },
+  "zbmath-2017-7ee32527": {
+    "main_identifier": "zbmath",
+    "identifiers": {
+      "zbmath": "00001234"
+    }
+  },
+  "jahrbuch-1910-1547c87d": {
+    "main_identifier": "jfm",
+    "identifiers": {
+      "jfm": "JFM 42.0123.01"
+    }
+  },
+  "worldcat-2016-47f09306": {
+    "main_identifier": "oclc",
+    "identifiers": {
+      "oclc": "ocn123456789"
+    }
+  },
+  "repository-2022-8c60c41b": {
+    "main_identifier": "hdl",
+    "identifiers": {
+      "hdl": "20.500.12345/CaseSensitive"
+    }
+  },
+  "acm-1994-47a86cde": {
+    "main_identifier": "acmdl_doi",
+    "identifiers": {
+      "acmdl_doi": "10.1145/1234567.1234568",
+      "doi": "10.5555/distinct.publisher",
+      "url": "https://dl.acm.org/doi/10.1145/7654321.7654322"
+    }
+  }
+}

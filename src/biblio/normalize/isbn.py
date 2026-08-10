@@ -5,110 +5,50 @@ Converts ISBN-10 values to ISBN-13 format for consistency.
 
 from __future__ import annotations
 
-import json
-import logging
 import re
 from dataclasses import dataclass, field
-from pathlib import Path
 
-import bibtexparser
-from bibtexparser.library import Library
+from biblio.bibliography import Bibliography
+from biblio.identifiers import (
+    calculate_isbn13_check_digit,
+    extract_isbn_digits,
+    is_valid_isbn10,
+    is_valid_isbn13,
+    isbn13_digits_from_isbn10,
+)
+from biblio.results import ChangeSet, FieldDelta
 
-logger = logging.getLogger(__name__)
+__all__ = [
+    "IsbnNormalizationReport",
+    "calculate_isbn13_check_digit",
+    "convert_isbn10_to_isbn13",
+    "extract_isbn_digits",
+    "is_valid_isbn10",
+    "is_valid_isbn13",
+    "normalize_isbn_field",
+    "normalize_isbn_fields",
+]
 
-# Pattern to extract digits/X from ISBN strings
-ISBN_DIGIT_PATTERN = re.compile(r"[\dXx]")
 
-
-@dataclass(slots=True)
+@dataclass(frozen=True, slots=True)
 class IsbnNormalizationReport:
     """Summary of ISBN field normalization."""
 
-    converted: dict[str, list[str]] = field(default_factory=lambda: {})
+    converted: dict[str, tuple[str, ...]] = field(default_factory=dict)
     """Maps entry keys to list of converted ISBNs (old -> new)."""
 
-    already_isbn13: list[str] = field(default_factory=lambda: [])
+    already_isbn13: tuple[str, ...] = ()
     """Entry keys that already had valid ISBN-13 values."""
 
-    invalid: dict[str, str] = field(default_factory=lambda: {})
+    invalid: dict[str, str] = field(default_factory=dict)
     """Maps entry keys to invalid ISBN values that couldn't be converted."""
 
-    identifier_converted: dict[str, str] = field(default_factory=lambda: {})
-    """Maps entry keys to converted isbn13 values in identifier_collection."""
+    changes: ChangeSet = field(default_factory=ChangeSet)
 
     @property
     def total_converted(self) -> int:
         """Total number of ISBNs converted."""
         return sum(len(v) for v in self.converted.values())
-
-
-def extract_isbn_digits(isbn_str: str) -> str:
-    """Extract only digits and X from an ISBN string.
-
-    Args:
-        isbn_str: Raw ISBN string (may contain hyphens, spaces, etc.)
-
-    Returns:
-        String containing only digits and X characters
-    """
-    return "".join(ISBN_DIGIT_PATTERN.findall(isbn_str)).upper()
-
-
-def is_valid_isbn10(digits: str) -> bool:
-    """Check if a 10-digit string is a valid ISBN-10.
-
-    Args:
-        digits: 10 character string of digits (last may be X)
-
-    Returns:
-        True if valid ISBN-10
-    """
-    if len(digits) != 10:
-        return False
-
-    total = 0
-    for i, char in enumerate(digits):
-        if char == "X":
-            if i != 9:  # X only allowed as check digit
-                return False
-            value = 10
-        elif char.isdigit():
-            value = int(char)
-        else:
-            return False
-        total += value * (10 - i)
-
-    return total % 11 == 0
-
-
-def is_valid_isbn13(digits: str) -> bool:
-    """Check if a 13-digit string is a valid ISBN-13.
-
-    Args:
-        digits: 13 character string of digits
-
-    Returns:
-        True if valid ISBN-13
-    """
-    if len(digits) != 13 or not digits.isdigit():
-        return False
-
-    total = sum(int(d) * (1 if i % 2 == 0 else 3) for i, d in enumerate(digits))
-    return total % 10 == 0
-
-
-def calculate_isbn13_check_digit(first_12: str) -> str:
-    """Calculate the check digit for ISBN-13.
-
-    Args:
-        first_12: First 12 digits of the ISBN-13
-
-    Returns:
-        Single digit character (0-9)
-    """
-    total = sum(int(d) * (1 if i % 2 == 0 else 3) for i, d in enumerate(first_12))
-    check = (10 - (total % 10)) % 10
-    return str(check)
 
 
 def convert_isbn10_to_isbn13(isbn10: str) -> str | None:
@@ -120,15 +60,10 @@ def convert_isbn10_to_isbn13(isbn10: str) -> str | None:
     Returns:
         ISBN-13 string with hyphens, or None if invalid
     """
-    digits = extract_isbn_digits(isbn10)
-
-    if not is_valid_isbn10(digits):
+    isbn13_digits = isbn13_digits_from_isbn10(isbn10)
+    if isbn13_digits is None:
         return None
-
-    # Take first 9 digits, prepend 978
-    isbn13_base = "978" + digits[:9]
-    check_digit = calculate_isbn13_check_digit(isbn13_base)
-    isbn13_digits = isbn13_base + check_digit
+    check_digit = isbn13_digits[-1]
 
     # Format with hyphens: 978-X-XXXX-XXXX-X
     # Standard format: 978-[registration group]-[registrant]-[publication]-[check]
@@ -199,42 +134,15 @@ def normalize_isbn_field(isbn_value: str) -> tuple[str, list[str]]:
 
 
 def normalize_isbn_fields(
-    library_path: Path,
-    identifier_path: Path | None = None,
-    *,
-    dry_run: bool = False,
+    bibliography: Bibliography,
 ) -> IsbnNormalizationReport:
-    """Normalize ISBN fields in a bib file, converting ISBN-10 to ISBN-13.
+    """Normalize in-memory ISBN fields, converting ISBN-10 to ISBN-13."""
+    converted: dict[str, tuple[str, ...]] = {}
+    already_isbn13: list[str] = []
+    invalid: dict[str, str] = {}
+    deltas: list[FieldDelta] = []
 
-    Also normalizes ``isbn13`` values in *identifier_collection.json* when
-    *identifier_path* is provided.
-
-    Args:
-        library_path: Path to ``library.bib``
-        identifier_path: Optional path to ``identifier_collection.json``
-        dry_run: When ``True``, report changes without writing to disk
-
-    Returns:
-        :class:`IsbnNormalizationReport` describing applied changes
-
-    Raises:
-        FileNotFoundError: If ``library_path`` does not exist
-        ValueError: If the bib file cannot be parsed
-    """
-    if not library_path.exists():
-        raise FileNotFoundError(f"Bibliography file not found: {library_path}")
-
-    logger.debug("Loading library for ISBN normalization: %s", library_path)
-
-    try:
-        library: Library = bibtexparser.parse_file(str(library_path))
-    except Exception as exc:  # pragma: no cover - parser raises custom errors
-        raise ValueError(f"Failed to parse {library_path}: {exc}") from exc
-
-    report = IsbnNormalizationReport()
-    modified = False
-
-    for entry in library.entries:
+    for entry in bibliography:
         fields = entry.fields_dict
         isbn_field = fields.get("isbn")
 
@@ -249,101 +157,19 @@ def normalize_isbn_fields(
         normalized_value, conversions = normalize_isbn_field(isbn_value)
 
         if conversions:
-            report.converted[entry.key] = conversions
-            if not dry_run:
-                isbn_field.value = normalized_value
-                modified = True
-            logger.debug(
-                "Entry %s: converted %d ISBN(s): %s",
-                entry.key,
-                len(conversions),
-                "; ".join(conversions),
-            )
+            converted[entry.key] = tuple(conversions)
+            isbn_field.value = normalized_value
+            deltas.append(FieldDelta(entry.key, "isbn", isbn_value, normalized_value))
         elif normalized_value != isbn_value:
-            # Deduplication occurred without ISBN-10 conversion
-            report.converted[entry.key] = [f"deduplicated: {isbn_value} → {normalized_value}"]
-            if not dry_run:
-                isbn_field.value = normalized_value
-                modified = True
-            logger.debug(
-                "Entry %s: deduplicated ISBN field: %s → %s",
-                entry.key,
-                isbn_value,
-                normalized_value,
-            )
+            converted[entry.key] = (f"deduplicated: {isbn_value} → {normalized_value}",)
+            isbn_field.value = normalized_value
+            deltas.append(FieldDelta(entry.key, "isbn", isbn_value, normalized_value))
         else:
-            report.already_isbn13.append(entry.key)
+            digits = extract_isbn_digits(isbn_value)
+            if len(digits) == 13 and is_valid_isbn13(digits):
+                already_isbn13.append(entry.key)
+            else:
+                invalid[entry.key] = isbn_value
 
-    if not dry_run and modified:
-        logger.debug("Writing ISBN normalization changes back to disk: %s", library_path)
-        bibtex_string = bibtexparser.write_string(library)
-        with open(library_path, "w", encoding="utf-8") as bib_file:
-            bib_file.write(str(bibtex_string))
-
-    # Normalize isbn13 values in identifier_collection.json
-    if identifier_path is not None:
-        _normalize_identifier_collection_isbns(identifier_path, report, dry_run=dry_run)
-
-    return report
-
-
-def _normalize_identifier_collection_isbns(
-    identifier_path: Path,
-    report: IsbnNormalizationReport,
-    *,
-    dry_run: bool = False,
-) -> None:
-    """Normalize isbn13 values in identifier_collection.json.
-
-    Converts any ISBN-10 stored in the ``isbn13`` field to a proper
-    de-hyphenated ISBN-13 value.
-
-    Args:
-        identifier_path: Path to ``identifier_collection.json``
-        report: Report object to update with changes
-        dry_run: When ``True``, report changes without writing to disk
-    """
-    if not identifier_path.exists():
-        logger.warning("Identifier collection not found: %s", identifier_path)
-        return
-
-    with open(identifier_path, encoding="utf-8") as f:
-        data: dict[str, object] = json.load(f)
-
-    modified = False
-
-    for key, entry_data in data.items():
-        if not isinstance(entry_data, dict):
-            continue
-        identifiers = entry_data.get("identifiers")
-        if not isinstance(identifiers, dict):
-            continue
-
-        isbn_value = identifiers.get("isbn13")
-        if isbn_value is None or not isinstance(isbn_value, str):
-            continue
-
-        digits = extract_isbn_digits(isbn_value)
-
-        # Already a valid ISBN-13
-        if len(digits) == 13 and is_valid_isbn13(digits):
-            continue
-
-        # Attempt ISBN-10 → ISBN-13 conversion
-        if len(digits) == 10 and is_valid_isbn10(digits):
-            isbn13_base = "978" + digits[:9]
-            check_digit = calculate_isbn13_check_digit(isbn13_base)
-            new_value = isbn13_base + check_digit
-
-            report.identifier_converted[key] = f"{isbn_value} → {new_value}"
-            logger.debug("identifier_collection %s: isbn13 %s → %s", key, isbn_value, new_value)
-            if not dry_run:
-                identifiers["isbn13"] = new_value
-                modified = True
-        else:
-            logger.warning("identifier_collection %s: invalid isbn13 value: %s", key, isbn_value)
-
-    if not dry_run and modified:
-        logger.debug("Writing isbn13 normalization changes to: %s", identifier_path)
-        with open(identifier_path, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
+    changes = ChangeSet(tuple(converted), tuple(deltas))
+    return IsbnNormalizationReport(converted, tuple(already_isbn13), invalid, changes)

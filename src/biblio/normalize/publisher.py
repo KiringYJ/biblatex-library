@@ -1,16 +1,11 @@
-"""Normalization helpers for publisher/location fields."""
+"""Pure normalization helpers for publisher/location fields."""
 
-from __future__ import annotations
+from dataclasses import dataclass, field
 
-import logging
-from dataclasses import dataclass
-from pathlib import Path
-
-import bibtexparser
-from bibtexparser.library import Library
 from bibtexparser.model import Entry, Field
 
-logger = logging.getLogger(__name__)
+from biblio.bibliography import Bibliography
+from biblio.results import ChangeSet, FieldDelta
 
 _PUBLISHER_LEGAL_SUFFIXES = frozenset(
     {
@@ -39,71 +34,39 @@ _PUBLISHER_LEGAL_SUFFIXES = frozenset(
 )
 
 
-@dataclass(slots=True)
+@dataclass(frozen=True, slots=True)
 class PublisherLocationReport:
-    """Summary of publisher/location normalization."""
+    """Publisher/location changes plus entries needing manual review."""
 
-    flagged: list[str]
-    fixed: list[str]
+    flagged: tuple[str, ...] = ()
+    fixed: tuple[str, ...] = ()
+    changes: ChangeSet = field(default_factory=ChangeSet)
 
 
-def normalize_publisher_location(
-    library_path: Path, *, dry_run: bool = False
-) -> PublisherLocationReport:
-    """Ensure entries have a location when a publisher is present.
-
-    Any entry with ``publisher`` but no ``location`` is flagged. If the publisher
-    field contains exactly one comma, split it into publisher/location values
-    unless the trailing value looks like a publisher legal suffix such as
-    ``Inc.`` or ``Ltd.``.
-
-    Args:
-        library_path: Path to the ``library.bib`` file to update.
-        dry_run: If ``True`` report planned changes without modifying files.
-
-    Returns:
-        A :class:`PublisherLocationReport` detailing flagged and fixed citekeys.
-
-    Raises:
-        FileNotFoundError: If ``library_path`` does not exist.
-        ValueError: If the bib file cannot be parsed.
-    """
-    if not library_path.exists():
-        raise FileNotFoundError(f"Bibliography file not found: {library_path}")
-
-    logger.debug("Loading library for publisher/location normalization: %s", library_path)
-
-    try:
-        library: Library = bibtexparser.parse_file(str(library_path))
-    except Exception as exc:  # pragma: no cover - parser raises custom errors
-        raise ValueError(f"Failed to parse {library_path}: {exc}") from exc
-
+def normalize_publisher_location(bibliography: Bibliography) -> PublisherLocationReport:
+    """Split an unambiguous ``publisher, location`` value in memory."""
     flagged: list[str] = []
     fixed: list[str] = []
+    deltas: list[FieldDelta] = []
 
-    for entry in library.entries:
-        if entry.entry_type.lower() == "article":
-            logger.debug(
-                "Skipping publisher/location normalization for article entry: %s",
-                entry.key,
-            )
+    for entry in bibliography:
+        if entry.entry_type.casefold() == "article" or not _needs_location(entry):
             continue
-
-        if not _needs_location(entry):
-            continue
-
         flagged.append(entry.key)
+        split = _split_publisher(entry)
+        if split is None:
+            continue
+        before, publisher, location = split
+        fixed.append(entry.key)
+        deltas.extend(
+            (
+                FieldDelta(entry.key, "publisher", before, publisher),
+                FieldDelta(entry.key, "location", None, location),
+            )
+        )
 
-        if _split_publisher(entry, dry_run=dry_run):
-            fixed.append(entry.key)
-
-    if fixed and not dry_run:
-        logger.debug("Writing publisher/location updates back to disk: %s", library_path)
-        bibtex_string = bibtexparser.write_string(library)
-        with open(library_path, "w", encoding="utf-8") as bib_file:
-            bib_file.write(str(bibtex_string))
-
-    return PublisherLocationReport(flagged=flagged, fixed=fixed)
+    changes = ChangeSet(tuple(fixed), tuple(deltas))
+    return PublisherLocationReport(tuple(flagged), tuple(fixed), changes)
 
 
 def _needs_location(entry: Entry) -> bool:
@@ -111,48 +74,17 @@ def _needs_location(entry: Entry) -> bool:
     return "publisher" in fields and "location" not in fields
 
 
-def _split_publisher(entry: Entry, *, dry_run: bool) -> bool:
-    fields = entry.fields_dict
-    publisher_field = fields["publisher"]
-    publisher_value = str(publisher_field.value)
-    if publisher_value.count(",") != 1:
-        logger.info(
-            "Publisher without clear location (manual review needed): %s -> %s",
-            entry.key,
-            publisher_value,
-        )
-        return False
-    parts = [part.strip() for part in publisher_value.split(",", 1)]
-
-    if len(parts) != 2 or not all(parts):
-        logger.info(
-            "Publisher without location (manual review needed): %s -> %s",
-            entry.key,
-            publisher_value,
-        )
-        return False
-
-    if _looks_like_publisher_legal_suffix(parts[1]):
-        logger.info(
-            "Publisher suffix is not a location (manual review needed): %s -> %s",
-            entry.key,
-            publisher_value,
-        )
-        return False
-
-    logger.info(
-        "Splitting publisher/location for %s: '%s' -> publisher='%s', location='%s'",
-        entry.key,
-        publisher_value,
-        parts[0],
-        parts[1],
-    )
-
-    if not dry_run:
-        publisher_field.value = parts[0]
-        entry.fields.append(Field("location", parts[1]))
-
-    return True
+def _split_publisher(entry: Entry) -> tuple[str, str, str] | None:
+    publisher_field = entry.fields_dict["publisher"]
+    before = str(publisher_field.value)
+    if before.count(",") != 1:
+        return None
+    publisher, location = (part.strip() for part in before.split(",", 1))
+    if not publisher or not location or _looks_like_publisher_legal_suffix(location):
+        return None
+    publisher_field.value = publisher
+    entry.fields.append(Field("location", location))
+    return before, publisher, location
 
 
 def _looks_like_publisher_legal_suffix(value: str) -> bool:

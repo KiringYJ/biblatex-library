@@ -1,384 +1,151 @@
-"""Tests for adding new entries from staging files."""
+"""Tests for `.bib`-only staging preparation and pure append."""
 
-import json
-import tempfile
+import hashlib
 from pathlib import Path
-from unittest.mock import patch
+
+import bibtexparser
+import pytest
 
 from biblio.add_entries import (
-    add_entries_from_staging,
-    find_staging_pairs,
-    process_staging_entry,
+    discover_staged_bib_files,
+    parse_staged_entries,
+    prepare_entries,
 )
-from biblio.config import BiblioConfig
-
-
-def test_find_staging_pairs():
-    """Test finding matching .bib/.json file pairs in staging."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        staging = Path(tmpdir)
-
-        # Create test files
-        (staging / "2025-01-15-test1.bib").touch()
-        (staging / "2025-01-15-test1.json").touch()
-        (staging / "2025-01-15-test2.bib").touch()
-        (staging / "2025-01-15-test2.json").touch()  # Add missing .json file
-        (staging / "2025-01-15-orphan.bib").touch()  # No matching .json
-        (staging / "2025-01-15-orphan2.json").touch()  # No matching .bib
-        (staging / "invalid-name.bib").touch()  # Wrong pattern
-
-        pairs = find_staging_pairs(staging)
-
-        assert len(pairs) == 2
-        assert (
-            "2025-01-15-test1",
-            staging / "2025-01-15-test1.bib",
-            staging / "2025-01-15-test1.json",
-        ) in pairs
-        assert (
-            "2025-01-15-test2",
-            staging / "2025-01-15-test2.bib",
-            staging / "2025-01-15-test2.json",
-        ) in pairs
-
-
-def test_process_staging_entry_success():
-    """Test successful processing of a staging entry."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        workspace = Path(tmpdir)
-
-        # Create test staging files
-        bib_content = """@article{temp-key,
-    title = {Test Article},
-    author = {Smith, John},
-    year = {2025}
-}"""
-        json_content = {
-            "temp-key": {"main_identifier": "doi", "identifiers": {"doi": "10.1000/test"}}
-        }
-
-        bib_file = workspace / "test.bib"
-        json_file = workspace / "test.json"
-
-        bib_file.write_text(bib_content, encoding="utf-8")
-        json_file.write_text(json.dumps(json_content, indent=2), encoding="utf-8")
-
-        # Mock existing data files (empty)
-        existing_keys: set[str] = set()
-
-        with patch("biblio.add_entries.generate_labels") as mock_gen:
-            mock_gen.return_value = {"temp-key": "smith-2025-abc123"}
-
-            result = process_staging_entry(
-                slug="test", bib_path=bib_file, json_path=json_file, existing_keys=existing_keys
-            )
-
-            assert result is not None
-            key_mapping, entry_data, identifier_data = result
-
-            # Should have one entry mapped
-            assert len(key_mapping) == 1
-            assert "temp-key" in key_mapping
-            new_key = key_mapping["temp-key"]
-            assert new_key == "smith-2025-abc123"
-            assert "smith-2025-abc123" in entry_data
-            assert "smith-2025-abc123" in identifier_data
-
-
-def test_process_staging_entry_duplicate_key():
-    """Test handling of duplicate keys."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        workspace = Path(tmpdir)
-
-        bib_content = """@article{temp-key,
-    title = {Test Article},
-    author = {Smith, John},
-    year = {2025}
-}"""
-        json_content = {
-            "temp-key": {"main_identifier": "doi", "identifiers": {"doi": "10.1000/test"}}
-        }
-
-        bib_file = workspace / "test.bib"
-        json_file = workspace / "test.json"
-
-        bib_file.write_text(bib_content, encoding="utf-8")
-        json_file.write_text(json.dumps(json_content, indent=2), encoding="utf-8")
-
-        # Mock existing data with duplicate key
-        existing_keys = {"smith-2025-abc123"}
-
-        with patch("biblio.add_entries.generate_labels") as mock_gen:
-            mock_gen.return_value = {"temp-key": "smith-2025-abc123"}
-
-            result = process_staging_entry(
-                slug="test", bib_path=bib_file, json_path=json_file, existing_keys=existing_keys
-            )
-
-            assert result is None  # Should skip duplicate
-
-
-def test_add_entries_from_staging_integration():
-    """Test full integration workflow."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        workspace = Path(tmpdir)
-        staging = workspace / "staging"
-        staging.mkdir()
-
-        # Create data directories
-        (workspace / "bib").mkdir()
-        (workspace / "data").mkdir()
-
-        # Create test staging files
-        bib_content = """@article{temp-key,
-    title = {Test Article},
-    author = {Smith, John},
-    year = {2025}
-}"""
-        json_content = {
-            "temp-key": {"main_identifier": "doi", "identifiers": {"doi": "10.1000/test"}}
-        }
-
-        (staging / "2025-01-15-test.bib").write_text(bib_content, encoding="utf-8")
-        (staging / "2025-01-15-test.json").write_text(
-            json.dumps(json_content, indent=2), encoding="utf-8"
-        )
-
-        # Create minimal existing data files
-        (workspace / "bib" / "library.bib").write_text("", encoding="utf-8")
-        (workspace / "data" / "add_order.json").write_text("[]", encoding="utf-8")
-        (workspace / "data" / "identifier_collection.json").write_text("{}", encoding="utf-8")
-
-        with (
-            patch("biblio.add_entries.generate_labels") as mock_gen,
-            patch("biblio.add_entries.load_existing_keys") as mock_load,
-        ):
-            mock_gen.return_value = {"temp-key": "smith-2025-abc123"}
-            mock_load.return_value = set()
-
-            # Mock the file operations since we're testing logic, not I/O
-            with patch("biblio.add_entries.append_to_files") as mock_append:
-                mock_append.return_value = True
-
-                config = BiblioConfig.defaults(workspace)
-                success, processed = add_entries_from_staging(config)
-
-                assert success is True
-                assert len(processed) == 1
-                assert processed[0] == "2025-01-15-test"
-
-
-def test_invalid_staging_files():
-    """Test handling of invalid staging files."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        workspace = Path(tmpdir)
-        staging = workspace / "staging"
-        staging.mkdir()
-
-        # Create invalid bib file
-        (staging / "2025-01-15-invalid.bib").write_text("invalid bib content", encoding="utf-8")
-        (staging / "2025-01-15-invalid.json").write_text("{}", encoding="utf-8")
-
-        pairs = find_staging_pairs(staging)
-        assert len(pairs) == 1  # Should find the pair
-
-        # Processing should handle the invalid content gracefully
-        with patch("biblio.add_entries.generate_labels") as mock_gen:
-            mock_gen.side_effect = ValueError("Invalid bib format")
-
-            result = process_staging_entry(
-                slug="invalid",
-                bib_path=staging / "2025-01-15-invalid.bib",
-                json_path=staging / "2025-01-15-invalid.json",
-                existing_keys=set(),
-            )
-
-            assert result is None  # Should return None on error
-
-
-def test_real_label_generation_integration():
-    """Test actual label generation without mocking - would catch JSON nesting bugs."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        workspace = Path(tmpdir)
-
-        # Create test staging files with real structure
-        bib_content = """@article{MR123456,
-    title = {Test Article for Integration},
-    author = {Smith, John},
-    year = {2025},
-    doi = {10.1000/integration.test}
-}"""
-        # Realistic staging JSON structure (not nested)
-        json_content = {
-            "MR123456": {
-                "main_identifier": "doi",
-                "identifiers": {"doi": "10.1000/integration.test"},
-            }
-        }
-
-        bib_file = workspace / "test.bib"
-        json_file = workspace / "test.json"
-
-        bib_file.write_text(bib_content, encoding="utf-8")
-        json_file.write_text(json.dumps(json_content, indent=2), encoding="utf-8")
-
-        # Call process_staging_entry WITHOUT mocking generate_labels
-        # This would have failed with the nested JSON bug
-        result = process_staging_entry(
-            slug="test", bib_path=bib_file, json_path=json_file, existing_keys=set()
-        )
-
-        assert result is not None
-        key_mapping, entry_data, identifier_data = result
-
-        # Should have one entry mapped
-        assert len(key_mapping) == 1
-        assert "MR123456" in key_mapping
-        new_key = key_mapping["MR123456"]
-
-        # Verify the key uses DOI hash, not entry key hash
-        assert new_key.startswith("smith-2025-")
-        assert len(new_key.split("-")) == 3  # lastname-year-hash format
-
-        # The hash should be from DOI, not from "MR123456"
-        # If nested JSON bug existed, it would use MR123456 hash instead
-        doi_hash = new_key.split("-")[2]
-        assert doi_hash != "867430bf"  # This would be MR123456 hash (example)
-
-        assert "smith-2025-" in new_key
-        assert new_key in entry_data
-        assert new_key in identifier_data
-
-
-def test_doi_hash_vs_entry_key_hash():
-    """Test that label generation uses DOI hash, not entry key hash - catches nested JSON bug."""
-    import hashlib
-
-    with tempfile.TemporaryDirectory() as tmpdir:
-        workspace = Path(tmpdir)
-
-        # Use the exact case from the bug report
-        bib_content = """@article{MR4177284,
-    author = {Abramovich, Dan and Chen, Qile and Gross, Mark and Siebert, Bernd},
-    title = {Decomposition of degenerate {Gromov}--{Witten} invariants},
-    journal = {Compos. Math.},
-    date = {2020},
-    doi = {10.1112/s0010437x20007393}
-}"""
-        json_content = {
-            "MR4177284": {
-                "main_identifier": "doi",
-                "identifiers": {"doi": "10.1112/s0010437x20007393"},
-            }
-        }
-
-        bib_file = workspace / "test.bib"
-        json_file = workspace / "test.json"
-
-        bib_file.write_text(bib_content, encoding="utf-8")
-        json_file.write_text(json.dumps(json_content, indent=2), encoding="utf-8")
-
-        result = process_staging_entry(
-            slug="test", bib_path=bib_file, json_path=json_file, existing_keys=set()
-        )
-
-        assert result is not None
-        key_mapping, _, _ = result
-
-        # Should have one entry mapped
-        assert len(key_mapping) == 1
-        assert "MR4177284" in key_mapping
-        new_key = key_mapping["MR4177284"]
-
-        # Calculate expected hashes
-        doi_hash = hashlib.sha256(b"10.1112/s0010437x20007393").hexdigest()[:8]
-        entry_key_hash = hashlib.sha256(b"MR4177284").hexdigest()[:8]
-
-        assert doi_hash == "d6c646d7"  # Expected correct hash
-        assert entry_key_hash == "867430bf"  # Wrong hash from buggy code
-
-        # The generated key should use DOI hash, not entry key hash
-        assert new_key == f"abramovich-2020-{doi_hash}"
-        # This would fail with nested JSON bug:
-        assert new_key != f"abramovich-2020-{entry_key_hash}"
-
-
-def test_process_staging_entry_multiple_entries():
-    """Test that process_staging_entry can handle multiple entries in one file."""
-    import hashlib
-
-    with tempfile.TemporaryDirectory() as tmpdir:
-        workspace = Path(tmpdir)
-
-        # Create a staging file with multiple entries (like the tropical example)
-        bib_content = """@article{MR3377065,
-    author = {Abramovich, Dan and Caporaso, Lucia and Payne, Sam},
-    title = {The tropicalization of the moduli space of curves},
-    journal = {Ann. Sci. Éc. Norm. Supér. (4)},
-    volume = {48},
-    year = {2015},
-    doi = {10.24033/asens.2258}
-}
-
-@article{MR4797751,
-    author = {Kennedy-Hunt, Patrick and Shafi, Qaasim and Kumaran, Ajith Urundolil},
-    title = {Tropical refined curve counting with descendants},
-    journal = {Comm. Math. Phys.},
-    volume = {405},
-    year = {2024},
-    doi = {10.1007/s00220-024-05114-3}
-}"""
-
-        json_content = {
-            "MR3377065": {"main_identifier": "doi", "identifiers": {"doi": "10.24033/asens.2258"}},
-            "MR4797751": {
-                "main_identifier": "doi",
-                "identifiers": {"doi": "10.1007/s00220-024-05114-3"},
-            },
-        }
-
-        bib_file = workspace / "test.bib"
-        json_file = workspace / "test.json"
-
-        bib_file.write_text(bib_content, encoding="utf-8")
-        json_file.write_text(json.dumps(json_content, indent=2), encoding="utf-8")
-
-        result = process_staging_entry(
-            slug="test-multiple", bib_path=bib_file, json_path=json_file, existing_keys=set()
-        )
-
-        assert result is not None
-        key_mapping, entry_data, identifier_data = result
-
-        # Should have processed both entries
-        assert len(key_mapping) == 2
-        assert len(entry_data) == 2
-        assert len(identifier_data) == 2
-
-        # Check the original keys are mapped
-        assert "MR3377065" in key_mapping
-        assert "MR4797751" in key_mapping
-
-        # Check the new keys follow the expected pattern
-        new_key_1 = key_mapping["MR3377065"]
-        new_key_2 = key_mapping["MR4797751"]
-
-        # Calculate expected hashes
-        doi1_hash = hashlib.sha256(b"10.24033/asens.2258").hexdigest()[:8]
-        doi2_hash = hashlib.sha256(b"10.1007/s00220-024-05114-3").hexdigest()[:8]
-
-        # Check the generated keys use correct format
-        assert new_key_1 == f"abramovich-2015-{doi1_hash}"
-        assert new_key_2 == f"kennedyhunt-2024-{doi2_hash}"  # Note: hyphens removed from name
-
-        # Check that entry data and identifier data have the new keys
-        assert new_key_1 in entry_data
-        assert new_key_2 in entry_data
-        assert new_key_1 in identifier_data
-        assert new_key_2 in identifier_data
-
-        # Verify the data integrity
-        assert identifier_data[new_key_1]["main_identifier"] == "doi"
-        assert identifier_data[new_key_1]["identifiers"]["doi"] == "10.24033/asens.2258"
-        assert identifier_data[new_key_2]["main_identifier"] == "doi"
-        assert identifier_data[new_key_2]["identifiers"]["doi"] == "10.1007/s00220-024-05114-3"
+from biblio.bibliography import Bibliography, IdentityIndex
+from biblio.lifecycle import add
+
+
+def _bibliography(source: str) -> Bibliography:
+    library = bibtexparser.parse_string(source)
+    assert not library.failed_blocks
+    return Bibliography(library.blocks, IdentityIndex(library.entries))
+
+
+def test_discovery_accepts_only_bib_and_sorts_by_filename(tmp_path: Path) -> None:
+    (tmp_path / "b.bib").write_text("@book{x,title={X}}", encoding="utf-8")
+    (tmp_path / "a.BIB").write_text("@book{x,title={X}}", encoding="utf-8")
+    (tmp_path / "a.json").write_text("{}", encoding="utf-8")
+
+    assert [path.name for path in discover_staged_bib_files(tmp_path)] == ["a.BIB", "b.bib"]
+
+
+def test_parse_and_prepare_preserve_file_and_physical_entry_order(tmp_path: Path) -> None:
+    first = tmp_path / "a.bib"
+    second = tmp_path / "b.bib"
+    first.write_text(
+        "@book{one,author={Alpha, A},date={2020},title={One},isbn={123}}\n"
+        "@book{two,author={Beta, B},date={2021},title={Two},url={https://two}}\n",
+        encoding="utf-8",
+    )
+    second.write_text(
+        "@article{three,author={Gamma, G},date={2022},title={Three},doi={10.1/three}}\n",
+        encoding="utf-8",
+    )
+
+    prepared = prepare_entries(parse_staged_entries((first, second)))
+
+    assert [entry.key.split("-", 1)[0] for entry in prepared] == ["alpha", "beta", "gamma"]
+    assert prepared[0].key.endswith(hashlib.sha256(b"123").hexdigest()[:8])
+    assert prepared[2].key.endswith(hashlib.sha256(b"10.1/three").hexdigest()[:8])
+
+
+def test_prepare_uses_arxiv_eprint_as_exact_identifier() -> None:
+    entries = bibtexparser.parse_string(
+        "@online{x,author={Doe, Jane},date={2020},title={X},"
+        "eprint={2101.00001v2},eprinttype={arxiv}}"
+    ).entries
+
+    prepared = prepare_entries(entries)
+
+    expected = hashlib.sha256(b"2101.00001v2").hexdigest()[:8]
+    assert prepared[0].key == f"doe-2020-{expected}"
+
+
+def test_prepare_preserves_shorthand_and_editor_fallback_semantics() -> None:
+    entries = bibtexparser.parse_string(
+        "@book{one,shorthand={ÉGA IV},editor={Ignored, Editor},year={1964},isbn={123}}"
+        "@book{two,editor={Editor, Erin},sortname={Sorting Name},date={2021-05},url={u}}"
+    ).entries
+
+    prepared = prepare_entries(entries)
+
+    assert prepared[0].key.startswith("egaiv-1964-")
+    assert prepared[1].key.startswith("editor-2021-")
+
+
+def test_matching_derived_arxiv_doi_hashes_eprint_not_doi() -> None:
+    entry = bibtexparser.parse_string(
+        "@online{x,author={Doe, Jane},date={2020},eprint={2101.00001},"
+        "eprinttype={arxiv},doi={10.48550/arXiv.2101.00001}}"
+    ).entries[0]
+
+    prepared = prepare_entries((entry,))
+
+    expected = hashlib.sha256(b"2101.00001").hexdigest()[:8]
+    assert prepared[0].key == f"doe-2020-{expected}"
+    assert prepared[0].fields_dict["doi"].value == "10.48550/arXiv.2101.00001"
+
+
+def test_spaced_arxiv_marker_still_selects_eprint_for_derived_doi() -> None:
+    entry = bibtexparser.parse_string(
+        "@online{x,author={Doe, Jane},date={2020},eprint={2101.00001},"
+        "eprinttype={ arXiv },doi={10.48550/arXiv.2101.00001}}"
+    ).entries[0]
+
+    prepared = prepare_entries((entry,))
+
+    expected = hashlib.sha256(b"2101.00001").hexdigest()[:8]
+    assert prepared[0].key == f"doe-2020-{expected}"
+
+
+def test_distinct_publisher_doi_remains_primary_for_arxiv_entry() -> None:
+    entry = bibtexparser.parse_string(
+        "@online{x,author={Doe, Jane},date={2020},eprint={2101.00001},"
+        "eprinttype={arxiv},doi={10.1000/published}}"
+    ).entries[0]
+
+    prepared = prepare_entries((entry,))
+
+    expected = hashlib.sha256(b"10.1000/published").hexdigest()[:8]
+    assert prepared[0].key == f"doe-2020-{expected}"
+
+
+@pytest.mark.parametrize("field", ["hdl", "acmdl_doi"])
+def test_extended_primary_identifiers_have_stable_fallback_priority(field: str) -> None:
+    value = f"value/{field}"
+    entry = bibtexparser.parse_string(
+        f"@online{{x,author={{Doe, Jane}},date={{2020}},{field}={{{value}}},url={{fallback}}}}"
+    ).entries[0]
+
+    prepared = prepare_entries((entry,))
+
+    expected = hashlib.sha256(value.encode()).hexdigest()[:8]
+    assert prepared[0].key == f"doe-2020-{expected}"
+
+
+def test_lifecycle_add_appends_without_reordering_existing_blocks() -> None:
+    bibliography = _bibliography("@book{old-2020-00000000,title={Old}}\n@comment{tail}\n")
+    comment = bibliography.blocks[1]
+    new_entry = _bibliography("@book{new-2021-11111111,title={New}}\n").resolve("new-2021-11111111")
+
+    result = add(bibliography, (new_entry,))
+
+    assert result.added_keys == ("new-2021-11111111",)
+    assert bibliography.blocks[1] is comment
+    assert [entry.key for entry in bibliography] == [
+        "old-2020-00000000",
+        "new-2021-11111111",
+    ]
+
+
+def test_lifecycle_add_preflights_complete_namespace_before_mutating() -> None:
+    bibliography = _bibliography("@book{old-2020-00000000,title={Old}}\n")
+    colliding = _bibliography("@book{old-2020-00000000,title={Collision}}\n").resolve(
+        "old-2020-00000000"
+    )
+    unique = _bibliography("@book{new-2021-11111111,title={New}}\n").resolve("new-2021-11111111")
+
+    with pytest.raises(ValueError, match="duplicate canonical key"):
+        add(bibliography, (unique, colliding))
+
+    assert [entry.key for entry in bibliography] == ["old-2020-00000000"]

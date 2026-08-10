@@ -1,116 +1,98 @@
-"""Tests for LaTeX accent normalization."""
-
-from __future__ import annotations
-
-from pathlib import Path
+"""Tests for pure LaTeX text normalization."""
 
 import bibtexparser
 
+from biblio.bibliography import Bibliography, IdentityIndex
 from biblio.normalize.accents import normalize_latex_accents
 
 
-def _write_bib(tmp_path: Path, content: str) -> Path:
-    bib_path = tmp_path / "library.bib"
-    bib_path.write_text(content, encoding="utf-8")
-    return bib_path
+def _bibliography(source: str) -> Bibliography:
+    library = bibtexparser.parse_string(source)
+    return Bibliography(library.blocks, IdentityIndex(library.entries))
 
 
-def test_normalize_latex_accents_updates_fields(tmp_path: Path) -> None:
-    bib_content = r"""@book{accented,
+def test_normalizes_accents_special_macros_and_reviewer_spaces() -> None:
+    bibliography = _bibliography(
+        r"""@book{accented,
   author = {Jos\'e Mart{\'i}},
   title = {Fran{\c{c}}ois and G\"odel},
-  note = {Br\"{\i}gge and Moli\`ere},
-  publisher = {G\ae{}teborg Press}
-}
-
-@misc{special,
-  title = {D{\"{\i}}r{\'e}},
-  keywords = {Kr\'en and Moli\`ere},
-  note = {Keep braces {L} around ascii}
+  publisher = {G\ae{}teborg Press},
+  mrreviewer = {Victor\ Mikhailovich}
 }
 """
-    bib_path = _write_bib(tmp_path, bib_content)
+    )
 
-    report = normalize_latex_accents(bib_path)
+    report = normalize_latex_accents(bibliography)
 
-    assert report.converted == {
-        "accented": ["author", "title", "note", "publisher"],
-        "special": ["title", "keywords"],
-    }
-    assert report.total_fields == 6
-
-    library = bibtexparser.parse_file(str(bib_path))
-    accented = next(entry for entry in library.entries if entry.key == "accented")
-    special = next(entry for entry in library.entries if entry.key == "special")
-
-    accented_fields = accented.fields_dict
-    assert accented_fields["author"].value == "José Martí"
-    assert accented_fields["title"].value == "François and Gödel"
-    assert accented_fields["note"].value == "Brïgge and Molière"
-    assert accented_fields["publisher"].value == "Gæteborg Press"
-
-    special_fields = special.fields_dict
-    assert special_fields["title"].value == "Dïré"
-    assert special_fields["keywords"].value == "Krén and Molière"
-    assert special_fields["note"].value == "Keep braces {L} around ascii"
+    assert report.converted == {"accented": ("author", "title", "publisher", "mrreviewer")}
+    fields = bibliography.resolve("accented").fields_dict
+    assert fields["author"].value == "José Martí"
+    assert fields["title"].value == "François and Gödel"
+    assert fields["publisher"].value == "Gæteborg Press"
+    assert fields["mrreviewer"].value == "Victor Mikhailovich"
 
 
-def test_normalize_latex_accents_preserves_font_commands(tmp_path: Path) -> None:
-    """Regression: \\rm, \\bf etc. are font commands, not accents."""
-    bib_content = r"""@incollection{font-cmds,
-  title = {Pentagon relation for {$\scr M_{0,5}^{\rm cyc}$}},
-  note = {Use {\bf bold} and {\it italic} here},
-  keywords = {The \r{o}le of accents}
+def test_preserves_font_commands_math_spacing_and_identity_aliases() -> None:
+    bibliography = _bibliography(
+        r"""@incollection{font,
+  ids = {Ret\'ired},
+  title = {Pentagon {$\scr M^{\rm cyc}$}},
+  note = {Keep $x\ y$ and {\bf bold}},
+  keywords = {The \r{o}le}
 }
 """
-    bib_path = _write_bib(tmp_path, bib_content)
+    )
 
-    report = normalize_latex_accents(bib_path)
+    report = normalize_latex_accents(bibliography)
 
-    # Only the braced \r{o} should be converted, not \rm, \bf, \it
-    assert report.converted == {"font-cmds": ["keywords"]}
-
-    library = bibtexparser.parse_file(str(bib_path))
-    entry = next(e for e in library.entries if e.key == "font-cmds")
-    fields = entry.fields_dict
+    assert report.converted == {"font": ("keywords",)}
+    fields = bibliography.resolve("font").fields_dict
+    assert fields["ids"].value == r"Ret\'ired"
     assert r"\rm cyc" in fields["title"].value
-    assert r"\bf bold" in fields["note"].value
-    assert r"\it italic" in fields["note"].value
-    assert "o\u030a" not in fields["title"].value  # no ring accent on title
-    assert "r\u030ale" not in fields["keywords"].value  # \r{o} -> ů, not \role
+    assert r"$x\ y$" in fields["note"].value
+    bibliography.validate()
 
 
-def test_normalize_latex_accents_replaces_mrreviewer_control_spaces(tmp_path: Path) -> None:
-    bib_content = r"""@article{reviewed,
-  title = {Keep math spacing $x\ y$},
-  mrreviewer = {Victor\ Mikhailovich\ Adukov}
-}
-"""
-    bib_path = _write_bib(tmp_path, bib_content)
+def test_preserves_every_identifier_and_identifier_metadata_field_exactly() -> None:
+    protected = {
+        "doi": r"10.1000/Jos\'e",
+        "isbn": r"978-Jos\'e",
+        "isbn13": r"978-Jos\'e",
+        "eprint": r"Jos\'e.12345",
+        "url": r"https://example.test/Jos\'e",
+        "mrnumber": r"MR-Jos\'e",
+        "zbl": r"ZBL-Jos\'e",
+        "zbmath": r"ZBMATH-Jos\'e",
+        "jfm": r"JFM-Jos\'e",
+        "oclc": r"OCLC-Jos\'e",
+        "hdl": r"HDL/Jos\'e",
+        "acmdl_doi": r"10.1145/Jos\'e",
+        "ids": r"Ret\'ired",
+        "eprinttype": r"arX\'iv",
+        "archiveprefix": r"arX\'iv",
+        "eprintclass": r"math.Jos\'e",
+        "primaryclass": r"math.Jos\'e",
+    }
+    rendered_fields = ",\n".join(f"  {name} = {{{value}}}" for name, value in protected.items())
+    bibliography = _bibliography(
+        f"@online{{opaque,\n{rendered_fields},\n"
+        r"  title = {Jos\'e},"
+        "\n"
+        r"  mrreviewer = {Victor\ Mikhailovich}"
+        "\n}\n"
+    )
 
-    report = normalize_latex_accents(bib_path)
+    report = normalize_latex_accents(bibliography)
 
-    assert report.converted == {"reviewed": ["mrreviewer"]}
+    assert report.converted == {"opaque": ("title", "mrreviewer")}
+    fields = bibliography.resolve("opaque").fields_dict
+    assert {name: str(fields[name].value) for name in protected} == protected
+    assert fields["title"].value == "José"
+    assert fields["mrreviewer"].value == "Victor Mikhailovich"
+    bibliography.validate()
 
-    library = bibtexparser.parse_file(str(bib_path))
-    entry = next(e for e in library.entries if e.key == "reviewed")
-    fields = entry.fields_dict
-    assert fields["mrreviewer"].value == "Victor Mikhailovich Adukov"
-    assert fields["title"].value == r"Keep math spacing $x\ y$"
 
+def test_accent_normalization_reports_noop() -> None:
+    bibliography = _bibliography("@book{plain, title={Plain}}\n")
 
-def test_normalize_latex_accents_dry_run(tmp_path: Path) -> None:
-    bib_content = r"""@book{accented,
-  author = {Jos\'e},
-  title = {Fran{\c{c}}ois}
-}
-"""
-    bib_path = _write_bib(tmp_path, bib_content)
-    before = bib_path.read_text(encoding="utf-8")
-
-    report = normalize_latex_accents(bib_path, dry_run=True)
-
-    assert report.converted == {"accented": ["author", "title"]}
-    assert report.total_fields == 2
-    after = bib_path.read_text(encoding="utf-8")
-    assert after == before
+    assert normalize_latex_accents(bibliography).changes.changed is False

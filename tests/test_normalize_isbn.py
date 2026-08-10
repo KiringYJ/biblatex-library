@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import bibtexparser
 
+from biblio.bibliography import Bibliography, IdentityIndex
 from biblio.normalize.isbn import (
     calculate_isbn13_check_digit,
     convert_isbn10_to_isbn13,
@@ -17,10 +16,9 @@ from biblio.normalize.isbn import (
 )
 
 
-def _write_bib(tmp_path: Path, content: str) -> Path:
-    bib_path = tmp_path / "library.bib"
-    bib_path.write_text(content, encoding="utf-8")
-    return bib_path
+def _bibliography(source: str) -> Bibliography:
+    library = bibtexparser.parse_string(source)
+    return Bibliography(library.blocks, IdentityIndex(library.entries))
 
 
 class TestExtractIsbnDigits:
@@ -150,188 +148,28 @@ class TestNormalizeIsbnField:
 
 
 class TestNormalizeIsbnFields:
-    """Tests for normalize_isbn_fields function."""
+    """Tests for the pure aggregate transformation."""
 
-    def test_converts_isbn10_to_isbn13(self, tmp_path: Path) -> None:
-        bib_content = """@book{test-entry,
-  title = {Test Book},
-  isbn = {0-387-97926-3}
-}
-"""
-        bib_path = _write_bib(tmp_path, bib_content)
+    def test_converts_deduplicates_and_classifies_values(self) -> None:
+        bibliography = _bibliography(
+            "@book{converted, isbn={0-387-97926-3}}\n"
+            "@book{existing, isbn={978-0-8218-5193-7}}\n"
+            "@book{invalid, isbn={not-an-isbn}}\n"
+            "@article{missing, title={No ISBN}}\n"
+        )
 
-        report = normalize_isbn_fields(bib_path)
-
-        assert "test-entry" in report.converted
-        assert report.total_converted == 1
-
-        # Verify the file was updated
-        library = bibtexparser.parse_file(str(bib_path))
-        entry = library.entries[0]
-        isbn_value = str(entry.fields_dict["isbn"].value)
-        assert "978-" in isbn_value
-
-    def test_preserves_isbn13(self, tmp_path: Path) -> None:
-        bib_content = """@book{test-entry,
-  title = {Test Book},
-  isbn = {978-0-8218-5193-7}
-}
-"""
-        bib_path = _write_bib(tmp_path, bib_content)
-
-        report = normalize_isbn_fields(bib_path)
-
-        assert "test-entry" in report.already_isbn13
-        assert report.total_converted == 0
-
-    def test_dry_run_does_not_modify_file(self, tmp_path: Path) -> None:
-        bib_content = """@book{test-entry,
-  title = {Test Book},
-  isbn = {0-387-97926-3}
-}
-"""
-        bib_path = _write_bib(tmp_path, bib_content)
-        original_content = bib_path.read_text()
-
-        report = normalize_isbn_fields(bib_path, dry_run=True)
+        report = normalize_isbn_fields(bibliography)
 
         assert report.total_converted == 1
-        assert bib_path.read_text() == original_content
+        assert tuple(report.converted) == ("converted",)
+        assert report.already_isbn13 == ("existing",)
+        assert report.invalid == {"invalid": "not-an-isbn"}
+        assert "978-" in str(bibliography.resolve("converted").fields_dict["isbn"].value)
+        assert report.changes.changed_keys == ("converted",)
 
-    def test_multiple_entries(self, tmp_path: Path) -> None:
-        bib_content = """@book{entry-one,
-  title = {Book One},
-  isbn = {0-387-97926-3}
-}
+    def test_reports_noop_for_canonical_values(self) -> None:
+        bibliography = _bibliography("@book{existing, isbn={978-0-8218-5193-7}}\n")
 
-@book{entry-two,
-  title = {Book Two},
-  isbn = {978-0-8218-5193-7}
-}
+        report = normalize_isbn_fields(bibliography)
 
-@book{entry-three,
-  title = {Book Three},
-  isbn = {0-387-96162-3}
-}
-"""
-        bib_path = _write_bib(tmp_path, bib_content)
-
-        report = normalize_isbn_fields(bib_path)
-
-        assert len(report.converted) == 2
-        assert "entry-one" in report.converted
-        assert "entry-three" in report.converted
-        assert "entry-two" in report.already_isbn13
-
-    def test_entry_without_isbn(self, tmp_path: Path) -> None:
-        bib_content = """@article{test-entry,
-  title = {Test Article},
-  journal = {Test Journal}
-}
-"""
-        bib_path = _write_bib(tmp_path, bib_content)
-
-        report = normalize_isbn_fields(bib_path)
-
-        assert report.total_converted == 0
-        assert len(report.already_isbn13) == 0
-
-    def test_file_not_found(self, tmp_path: Path) -> None:
-        import pytest
-
-        nonexistent = tmp_path / "nonexistent.bib"
-
-        with pytest.raises(FileNotFoundError):
-            normalize_isbn_fields(nonexistent)
-
-
-class TestNormalizeIdentifierCollectionIsbns:
-    """Tests for ISBN normalization in identifier_collection.json."""
-
-    def _write_identifier(self, tmp_path: Path, data: dict[str, object]) -> Path:
-        path = tmp_path / "identifier_collection.json"
-        import json
-
-        path.write_text(json.dumps(data, indent=2), encoding="utf-8")
-        return path
-
-    def test_converts_isbn10_in_identifier_collection(self, tmp_path: Path) -> None:
-        import json
-
-        bib_content = """@book{test-entry,
-  title = {Test Book},
-  isbn = {9780821851937}
-}
-"""
-        bib_path = _write_bib(tmp_path, bib_content)
-        identifier_data = {
-            "test-entry": {
-                "main_identifier": "isbn13",
-                "identifiers": {"isbn13": "9810202334"},
-            }
-        }
-        id_path = self._write_identifier(tmp_path, identifier_data)
-
-        report = normalize_isbn_fields(bib_path, id_path)
-
-        assert "test-entry" in report.identifier_converted
-
-        # Verify the file was updated
-        with open(id_path, encoding="utf-8") as f:
-            updated = json.load(f)
-        new_isbn = updated["test-entry"]["identifiers"]["isbn13"]
-        assert len(new_isbn) == 13
-        assert new_isbn.isdigit()
-
-    def test_preserves_valid_isbn13_in_identifier_collection(self, tmp_path: Path) -> None:
-        bib_content = """@book{test-entry,
-  title = {Test Book},
-  isbn = {9780821851937}
-}
-"""
-        bib_path = _write_bib(tmp_path, bib_content)
-        identifier_data = {
-            "test-entry": {
-                "main_identifier": "isbn13",
-                "identifiers": {"isbn13": "9780821851937"},
-            }
-        }
-        id_path = self._write_identifier(tmp_path, identifier_data)
-
-        report = normalize_isbn_fields(bib_path, id_path)
-
-        assert len(report.identifier_converted) == 0
-
-    def test_dry_run_does_not_modify_identifier_collection(self, tmp_path: Path) -> None:
-        bib_content = """@book{test-entry,
-  title = {Test Book},
-  isbn = {9780821851937}
-}
-"""
-        bib_path = _write_bib(tmp_path, bib_content)
-        identifier_data = {
-            "test-entry": {
-                "main_identifier": "isbn13",
-                "identifiers": {"isbn13": "9810202334"},
-            }
-        }
-        id_path = self._write_identifier(tmp_path, identifier_data)
-        original = id_path.read_text(encoding="utf-8")
-
-        report = normalize_isbn_fields(bib_path, id_path, dry_run=True)
-
-        assert "test-entry" in report.identifier_converted
-        assert id_path.read_text(encoding="utf-8") == original
-
-    def test_no_identifier_path(self, tmp_path: Path) -> None:
-        """When identifier_path is None, only bib file is processed."""
-        bib_content = """@book{test-entry,
-  title = {Test Book},
-  isbn = {9780821851937}
-}
-"""
-        bib_path = _write_bib(tmp_path, bib_content)
-
-        report = normalize_isbn_fields(bib_path, None)
-
-        assert len(report.identifier_converted) == 0
+        assert report.changes.changed is False

@@ -1,80 +1,38 @@
-"""Tests for eprint field normalization."""
-
-from __future__ import annotations
-
-from pathlib import Path
+"""Tests for pure eprint normalization."""
 
 import bibtexparser
 
+from biblio.bibliography import Bibliography, IdentityIndex
 from biblio.normalize.eprint import normalize_eprint_fields
 
 
-def _write_bib(tmp_path: Path, content: str) -> Path:
-    bib_path = tmp_path / "library.bib"
-    bib_path.write_text(content, encoding="utf-8")
-    return bib_path
+def _bibliography(source: str) -> Bibliography:
+    library = bibtexparser.parse_string(source)
+    return Bibliography(library.blocks, IdentityIndex(library.entries))
 
 
-def test_normalize_eprint_fields_updates_entries(tmp_path: Path) -> None:
-    bib_content = """@misc{entry-one,
-  title = {ArXiv Entry},
-  archiveprefix = {arXiv},
-  primaryclass = {cs.LO}
-}
+def test_normalizes_legacy_arxiv_fields_and_entry_type() -> None:
+    bibliography = _bibliography(
+        "@misc{one, archiveprefix={arXiv}, primaryclass={cs.LO}}\n"
+        "@misc{two, archiveprefix={HAL}, primaryclass={math.GM}, eprinttype={HAL}}\n"
+    )
 
-@misc{entry-two,
-  title = {HAL Entry},
-  archiveprefix = {HAL},
-  primaryclass = {math.GM},
-  eprinttype = {HAL}
-}
-"""
-    bib_path = _write_bib(tmp_path, bib_content)
+    report = normalize_eprint_fields(bibliography)
 
-    report = normalize_eprint_fields(bib_path)
-
-    assert report.renamed_type == ["entry-one", "entry-two"]
-    assert report.renamed_class == ["entry-one", "entry-two"]
-    assert report.normalized_type == ["entry-one"]
-
-    library = bibtexparser.parse_file(str(bib_path))
-    entry_one = next(entry for entry in library.entries if entry.key == "entry-one")
-    entry_two = next(entry for entry in library.entries if entry.key == "entry-two")
-
-    entry_one_fields = entry_one.fields_dict
-    assert "archiveprefix" not in entry_one_fields
-    assert "primaryclass" not in entry_one_fields
-    assert entry_one_fields["eprinttype"].value == "arxiv"
-    assert entry_one_fields["eprintclass"].value == "cs.LO"
-
-    entry_two_fields = entry_two.fields_dict
-    assert entry_two_fields["eprinttype"].value == "HAL"
-    assert entry_two_fields["eprintclass"].value == "math.GM"
-    assert "archiveprefix" not in entry_two_fields
-    assert "primaryclass" not in entry_two_fields
+    assert report.renamed_type == ("one", "two")
+    assert report.renamed_class == ("one", "two")
+    assert report.normalized_type == ("one",)
+    assert report.changed_entry_type == ("one",)
+    one = bibliography.resolve("one")
+    assert one.entry_type == "online"
+    assert one.fields_dict["eprinttype"].value == "arxiv"
+    assert one.fields_dict["eprintclass"].value == "cs.LO"
+    two = bibliography.resolve("two")
+    assert two.entry_type == "misc"
+    assert two.fields_dict["eprinttype"].value == "HAL"
 
 
-def test_normalize_eprint_fields_dry_run(tmp_path: Path) -> None:
-    bib_content = """@misc{entry-one,
-  title = {Dry Run},
-  archiveprefix = {arXiv},
-  primaryclass = {cs.LO}
-}
+def test_eprint_normalization_is_idempotent() -> None:
+    bibliography = _bibliography("@online{one, eprinttype={arxiv}, eprint={1234.5}}\n")
 
-@misc{entry-two,
-  title = {Dry Run Two},
-  archiveprefix = {HAL},
-  primaryclass = {math.GM}
-}
-"""
-    bib_path = _write_bib(tmp_path, bib_content)
-    before = bib_path.read_text(encoding="utf-8")
-
-    report = normalize_eprint_fields(bib_path, dry_run=True)
-
-    assert report.renamed_type == ["entry-one", "entry-two"]
-    assert report.renamed_class == ["entry-one", "entry-two"]
-    assert report.normalized_type == ["entry-one"]
-
-    after = bib_path.read_text(encoding="utf-8")
-    assert after == before
+    assert normalize_eprint_fields(bibliography).changes.changed is False

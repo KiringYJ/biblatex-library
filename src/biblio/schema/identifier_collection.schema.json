@@ -1,268 +1,79 @@
 {
-    "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "$id": "https://example.org/identifier_collection.schema.json",
-    "title": "Identifier Collection",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/identifier_collection.schema.json",
+  "title": "Biblio identifier collection",
+  "type": "object",
+  "additionalProperties": {
     "type": "object",
-    "description": "Maps entry keys (e.g., hatcher-2002-0b6a9847) to a chosen main_identifier and one or more identifiers.",
-    "patternProperties": {
-        "^[a-z0-9][a-z0-9-]*-[0-9a-f]{8}$": {
-            "$ref": "#/$defs/entry"
-        }
-    },
+    "required": ["main_identifier", "identifiers"],
     "additionalProperties": false,
-    "$defs": {
-        "entry": {
-            "type": "object",
-            "required": [
-                "main_identifier",
-                "identifiers"
-            ],
-            "additionalProperties": false,
-            "properties": {
-                "main_identifier": {
-                    "type": "string",
-                    "enum": [
-                        "doi",
-                        "isbn13",
-                        "arxiv",
-                        "url",
-                        "mrnumber",
-                        "zbl",
-                        "hdl",
-                        "acmdl_doi"
-                    ]
-                },
-                "identifiers": {
-                    "type": "object",
-                    "description": "One or more identifier properties. The property named by main_identifier is required.",
-                    "minProperties": 1,
-                    "additionalProperties": false,
-                    "properties": {
-                        "doi": {
-                            "$ref": "#/$defs/doi"
-                        },
-                        "acmdl_doi": {
-                            "$ref": "#/$defs/doi"
-                        },
-                        "isbn13": {
-                            "$ref": "#/$defs/isbn13"
-                        },
-                        "arxiv": {
-                            "$ref": "#/$defs/arxiv"
-                        },
-                        "url": {
-                            "$ref": "#/$defs/url"
-                        },
-                        "mrnumber": {
-                            "$ref": "#/$defs/mrnumber"
-                        },
-                        "zbl": {
-                            "type": "string",
-                            "pattern": "^[0-9]+\\.?[0-9]*\\.?[0-9]*$"
-                        },
-                        "hdl": {
-                            "$ref": "#/$defs/hdl"
-                        }
-                    }
-                }
-            },
-            "allOf": [
-                {
-                    "if": {
-                        "properties": {
-                            "main_identifier": {
-                                "const": "doi"
-                            }
-                        },
-                        "required": [
-                            "main_identifier"
-                        ]
-                    },
-                    "then": {
-                        "properties": {
-                            "identifiers": {
-                                "required": [
-                                    "doi"
-                                ]
-                            }
-                        }
-                    }
-                },
-                {
-                    "if": {
-                        "properties": {
-                            "main_identifier": {
-                                "const": "acmdl_doi"
-                            }
-                        },
-                        "required": [
-                            "main_identifier"
-                        ]
-                    },
-                    "then": {
-                        "properties": {
-                            "identifiers": {
-                                "required": [
-                                    "acmdl_doi"
-                                ]
-                            }
-                        }
-                    }
-                },
-                {
-                    "if": {
-                        "properties": {
-                            "main_identifier": {
-                                "const": "isbn13"
-                            }
-                        },
-                        "required": [
-                            "main_identifier"
-                        ]
-                    },
-                    "then": {
-                        "properties": {
-                            "identifiers": {
-                                "required": [
-                                    "isbn13"
-                                ]
-                            }
-                        }
-                    }
-                },
-                {
-                    "if": {
-                        "properties": {
-                            "main_identifier": {
-                                "const": "arxiv"
-                            }
-                        },
-                        "required": [
-                            "main_identifier"
-                        ]
-                    },
-                    "then": {
-                        "properties": {
-                            "identifiers": {
-                                "required": [
-                                    "arxiv"
-                                ]
-                            }
-                        }
-                    }
-                },
-                {
-                    "if": {
-                        "properties": {
-                            "main_identifier": {
-                                "const": "url"
-                            }
-                        },
-                        "required": [
-                            "main_identifier"
-                        ]
-                    },
-                    "then": {
-                        "properties": {
-                            "identifiers": {
-                                "required": [
-                                    "url"
-                                ]
-                            }
-                        }
-                    }
-                },
-                {
-                    "if": {
-                        "properties": {
-                            "main_identifier": {
-                                "const": "mrnumber"
-                            }
-                        },
-                        "required": [
-                            "main_identifier"
-                        ]
-                    },
-                    "then": {
-                        "properties": {
-                            "identifiers": {
-                                "required": [
-                                    "mrnumber"
-                                ]
-                            }
-                        }
-                    }
-                },
-                {
-                    "if": {
-                        "properties": {
-                            "main_identifier": {
-                                "const": "zbl"
-                            }
-                        },
-                        "required": [
-                            "main_identifier"
-                        ]
-                    },
-                    "then": {
-                        "properties": {
-                            "identifiers": {
-                                "required": [
-                                    "zbl"
-                                ]
-                            }
-                        }
-                    }
-                },
-                {
-                    "if": {
-                        "properties": {
-                            "main_identifier": {
-                                "const": "hdl"
-                            }
-                        },
-                        "required": [
-                            "main_identifier"
-                        ]
-                    },
-                    "then": {
-                        "properties": {
-                            "identifiers": {
-                                "required": [
-                                    "hdl"
-                                ]
-                            }
-                        }
-                    }
-                }
-            ]
+    "properties": {
+      "main_identifier": {
+        "type": "string",
+        "minLength": 1
+      },
+      "identifiers": {
+        "type": "object",
+        "properties": {
+          "doi": {"$ref": "#/$defs/identifierValue"},
+          "isbn13": {"$ref": "#/$defs/identifierValue"},
+          "arxiv": {"$ref": "#/$defs/identifierValue"},
+          "url": {"$ref": "#/$defs/identifierValue"},
+          "mrnumber": {"$ref": "#/$defs/identifierValue"},
+          "zbl": {"$ref": "#/$defs/identifierValue"},
+          "zbmath": {"$ref": "#/$defs/identifierValue"},
+          "jfm": {"$ref": "#/$defs/identifierValue"},
+          "oclc": {"$ref": "#/$defs/identifierValue"},
+          "hdl": {"$ref": "#/$defs/identifierValue"},
+          "acmdl_doi": {"$ref": "#/$defs/identifierValue"}
         },
-        "doi": {
-            "type": "string",
-            "description": "Raw DOI without resolver (e.g., 10.1000/xyz123).",
-            "pattern": "^10\\.[0-9]{4,9}/[-._;()/:A-Za-z0-9]+$"
+        "additionalProperties": {"$ref": "#/$defs/identifierValue"}
+      },
+      "identifier_alternates": {
+        "type": "object",
+        "properties": {
+          "doi": {"$ref": "#/$defs/alternateValues"},
+          "isbn13": {"$ref": "#/$defs/alternateValues"},
+          "arxiv": {"$ref": "#/$defs/alternateValues"},
+          "url": {"$ref": "#/$defs/alternateValues"},
+          "mrnumber": {"$ref": "#/$defs/alternateValues"},
+          "zbl": {"$ref": "#/$defs/alternateValues"},
+          "zbmath": {"$ref": "#/$defs/alternateValues"},
+          "jfm": {"$ref": "#/$defs/alternateValues"},
+          "oclc": {"$ref": "#/$defs/alternateValues"},
+          "hdl": {"$ref": "#/$defs/alternateValues"},
+          "acmdl_doi": {"$ref": "#/$defs/alternateValues"}
         },
-        "isbn13": {
-            "type": "string",
-            "description": "De-hyphenated ISBN-13, 13 digits only.",
-            "pattern": "^[0-9]{13}$"
-        },
-        "arxiv": {
-            "type": "string",
-            "description": "arXiv ID: modern (YYMM.NNNNN[vN]) or legacy (archive/YYMMNNN[vN]).",
-            "pattern": "^(?:\\d{4}\\.\\d{4,5}(?:v\\d+)?|[A-Za-z-]+/\\d{7}(?:v\\d+)?)$"
-        },
-        "url": {
-            "type": "string",
-            "format": "uri"
-        },
-        "mrnumber": {
-            "type": "string",
-            "pattern": "^\\d+$"
-        },
-        "hdl": {
-            "type": "string",
-            "pattern": "^\\S+/\\S+$"
+        "additionalProperties": {
+          "$ref": "#/$defs/alternateValues"
         }
+      },
+      "key_history": {
+        "type": "array",
+        "minItems": 1,
+        "items": {
+          "type": "object",
+          "required": ["key", "main_identifier", "identifier"],
+          "additionalProperties": false,
+          "properties": {
+            "key": {"type": "string", "minLength": 1},
+            "main_identifier": {"type": "string", "minLength": 1},
+            "identifier": {"$ref": "#/$defs/identifierValue"}
+          }
+        }
+      }
     }
+  },
+  "$defs": {
+    "identifierValue": {
+      "type": "string",
+      "minLength": 1
+    },
+    "alternateValues": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/identifierValue"},
+      "minItems": 1,
+      "uniqueItems": true
+    }
+  }
 }

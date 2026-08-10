@@ -1,4 +1,4 @@
-"""Initialize a new biblio workspace."""
+"""Initialize a biblio consumer workspace."""
 
 import logging
 from pathlib import Path
@@ -25,44 +25,33 @@ _EMPTY_BIB = """\
 
 
 def init_workspace(target: Path, *, force: bool = False) -> list[str]:
-    """Scaffold a new biblio workspace.
-
-    Args:
-        target: Directory to initialize
-        force: Overwrite existing biblio.toml if present
-
-    Returns:
-        List of created file paths (relative to target)
-    """
-    target = target.resolve()
+    """Create config, required data files, and the staging directory."""
+    resolved_target = target.resolve()
     created: list[str] = []
-
-    toml_path = target / CONFIG_FILENAME
+    toml_path = resolved_target / CONFIG_FILENAME
     if toml_path.exists() and not force:
-        msg = f"{CONFIG_FILENAME} already exists in {target}. Use --force to overwrite."
-        raise FileExistsError(msg)
+        raise FileExistsError(
+            f"{CONFIG_FILENAME} already exists in {resolved_target}. Use --force to overwrite."
+        )
 
-    # Create directories
-    for subdir in ["bib", "data", "staging"]:
-        (target / subdir).mkdir(parents=True, exist_ok=True)
+    (resolved_target / "bib").mkdir(parents=True, exist_ok=True)
+    (resolved_target / "data").mkdir(parents=True, exist_ok=True)
+    (resolved_target / "staging").mkdir(parents=True, exist_ok=True)
 
-    # Write config file
-    toml_path.write_text(_DEFAULT_TOML, encoding="utf-8")
+    toml_path.write_text(_DEFAULT_TOML, encoding="utf-8", newline="\n")
     created.append(CONFIG_FILENAME)
 
-    # Write empty data files (only if they don't exist)
-    data_files: dict[str, str] = {
+    data_files = {
         "bib/library.bib": _EMPTY_BIB,
         "data/identifier_collection.json": "{}\n",
         "data/add_order.json": "[]\n",
     }
-
-    for rel_path, content in data_files.items():
-        full_path = target / rel_path
-        if not full_path.exists():
-            full_path.write_text(content, encoding="utf-8")
-            created.append(rel_path)
-        else:
-            logger.info("Skipping existing file: %s", rel_path)
+    for relative_name, content in data_files.items():
+        path = resolved_target / relative_name
+        if path.exists():
+            logger.info("Skipping existing file: %s", relative_name)
+            continue
+        path.write_text(content, encoding="utf-8", newline="\n")
+        created.append(relative_name)
 
     return created

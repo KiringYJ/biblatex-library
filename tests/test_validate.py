@@ -1,298 +1,60 @@
-"""Tests for the validation module."""
+"""Tests for canonical bibliography validation."""
 
-import json
-import tempfile
-from pathlib import Path
+import hashlib
 
-from biblio.validate import (
-    extract_citekeys_from_add_order,
-    extract_citekeys_from_bib,
-    extract_citekeys_from_identifier_collection,
-    fix_citekey_labels,
-    validate_citekey_consistency,
-    validate_citekey_labels,
-)
+import bibtexparser
+
+from biblio.bibliography import Bibliography, IdentityIndex
+from biblio.validate import validate_bibliography
 
 
-def test_extract_citekeys_from_bib():
-    """Test extracting citekeys from a .bib file."""
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".bib", delete=False) as f:
-        f.write("""
-@article{key1,
-  title = {Test Title 1},
-  author = {Test Author},
-}
-
-@book{key2,
-  title = {Test Title 2},
-  author = {Test Author},
-}
-""")
-        bib_path = Path(f.name)
-
-    try:
-        citekeys = extract_citekeys_from_bib(bib_path)
-        assert citekeys == {"key1", "key2"}
-    finally:
-        bib_path.unlink()
+def _bibliography(source: str) -> Bibliography:
+    library = bibtexparser.parse_string(source)
+    return Bibliography(library.blocks, IdentityIndex(library.entries))
 
 
-def test_extract_citekeys_from_add_order():
-    """Test extracting citekeys from add_order.json."""
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
-        json.dump(["key1", "key2", "key3"], f)
-        order_path = Path(f.name)
+def test_valid_biblatex_record_passes_without_legacy_json() -> None:
+    suffix = hashlib.sha256(b"2101.00001").hexdigest()[:8]
+    bibliography = _bibliography(
+        f"@online{{doe-2020-{suffix},author={{Doe, Jane}},title={{Work}},date={{2020}},"
+        "eprint={2101.00001},eprinttype={arxiv},ids={old-key}}"
+    )
 
-    try:
-        citekeys = extract_citekeys_from_add_order(order_path)
-        assert citekeys == {"key1", "key2", "key3"}
-    finally:
-        order_path.unlink()
+    result = validate_bibliography(bibliography)
 
-
-def test_extract_citekeys_from_identifier_collection():
-    """Test extracting citekeys from identifier_collection.json."""
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
-        json.dump(
-            {
-                "key1": {"main_identifier": "doi", "identifiers": {"doi": "10.1000/test1"}},
-                "key2": {"main_identifier": "isbn", "identifiers": {"isbn": "1234567890"}},
-            },
-            f,
-        )
-        identifier_path = Path(f.name)
-
-    try:
-        citekeys = extract_citekeys_from_identifier_collection(identifier_path)
-        assert citekeys == {"key1", "key2"}
-    finally:
-        identifier_path.unlink()
+    assert result.valid
+    assert result.issues == ()
 
 
-def test_validate_citekey_consistency_success():
-    """Test successful validation when all sources have same citekeys."""
-    # Create temporary files
-    with tempfile.TemporaryDirectory() as temp_dir:
-        temp_path = Path(temp_dir)
+def test_validation_reports_citekey_and_biblatex_semantic_issues() -> None:
+    bibliography = _bibliography(
+        "@online{BadKey,author={Doe, Jane},date={2020},eprinttype={arxiv},eprintclass={math.AG}}"
+    )
 
-        # Create .bib file
-        bib_path = temp_path / "library.bib"
-        bib_path.write_text("""
-@article{key1,
-  title = {Test Title 1},
-}
+    result = validate_bibliography(bibliography)
 
-@book{key2,
-  title = {Test Title 2},
-}
-""")
-
-        # Create add_order.json
-        order_path = temp_path / "add_order.json"
-        order_path.write_text(json.dumps(["key1", "key2"]))
-
-        # Create identifier_collection.json
-        identifier_path = temp_path / "identifier_collection.json"
-        identifier_path.write_text(
-            json.dumps(
-                {
-                    "key1": {"main_identifier": "doi", "identifiers": {"doi": "10.1000/test1"}},
-                    "key2": {"main_identifier": "isbn", "identifiers": {"isbn": "1234567890"}},
-                }
-            )
-        )
-
-        # Test validation
-        result = validate_citekey_consistency(bib_path, order_path, identifier_path)
-        assert result is True
+    assert not result.valid
+    assert any("generated citekey shape" in issue for issue in result.issues)
+    assert any("no title-bearing field" in issue for issue in result.issues)
+    assert any("without a nonempty eprint" in issue for issue in result.issues)
 
 
-def test_validate_citekey_consistency_failure():
-    """Test validation failure when sources have different citekeys."""
-    with tempfile.TemporaryDirectory() as temp_dir:
-        temp_path = Path(temp_dir)
+def test_eprintclass_requires_arxiv_semantics() -> None:
+    suffix = hashlib.sha256(b"x").hexdigest()[:8]
+    bibliography = _bibliography(
+        f"@online{{doe-2020-{suffix},title={{Work}},eprint={{x}},eprintclass={{math.AG}}}}"
+    )
 
-        # Create .bib file with keys 1,2
-        bib_path = temp_path / "library.bib"
-        bib_path.write_text("""
-@article{key1,
-  title = {Test Title 1},
-}
+    result = validate_bibliography(bibliography)
 
-@book{key2,
-  title = {Test Title 2},
-}
-""")
-
-        # Create add_order.json with keys 1,3 (missing key2, extra key3)
-        order_path = temp_path / "add_order.json"
-        order_path.write_text(json.dumps(["key1", "key3"]))
-
-        # Create identifier_collection.json with keys 1,2
-        identifier_path = temp_path / "identifier_collection.json"
-        identifier_path.write_text(
-            json.dumps(
-                {
-                    "key1": {"main_identifier": "doi", "identifiers": {"doi": "10.1000/test1"}},
-                    "key2": {"main_identifier": "isbn", "identifiers": {"isbn": "1234567890"}},
-                }
-            )
-        )
-
-        # Test validation - should fail
-        result = validate_citekey_consistency(bib_path, order_path, identifier_path)
-        assert result is False
+    assert result.issues == (f"entry 'doe-2020-{suffix}' has eprintclass without eprinttype=arxiv",)
 
 
-def test_validate_citekey_labels_matching():
-    """Test citekey label validation when keys match generated labels."""
-    with tempfile.TemporaryDirectory() as temp_dir:
-        temp_path = Path(temp_dir)
+def test_bibliography_validation_leaves_exact_hash_proof_to_workspace_json() -> None:
+    bibliography = _bibliography(
+        "@book{doe-2020-deadbeef,author={Doe, Jane},title={Work},date={2020}}"
+    )
 
-        # Create .bib file with entries that will generate matching citekeys
-        bib_path = temp_path / "library.bib"
-        bib_path.write_text("""
-@book{bredon-1993-7908a921,
-  author = {Bredon, Glen E.},
-  title = {Test Book},
-  year = {1993},
-}
+    result = validate_bibliography(bibliography)
 
-@article{smith-2020-bca2b41a,
-  author = {Smith, John},
-  title = {Test Article},
-  year = {2020},
-}
-""")
-
-        # Create identifier collection
-        identifier_path = temp_path / "identifier_collection.json"
-        identifier_path.write_text(
-            json.dumps(
-                {
-                    "bredon-1993-7908a921": {
-                        "main_identifier": "doi",
-                        "identifiers": {"doi": "10.1007/978-1-4757-6848-0"},
-                    },
-                    "smith-2020-bca2b41a": {
-                        "main_identifier": "isbn",
-                        "identifiers": {"isbn": "1234567890123"},
-                    },
-                }
-            )
-        )
-
-        # Test validation - should pass
-        result = validate_citekey_labels(bib_path, identifier_path)
-        assert result is True
-
-
-def test_validate_citekey_labels_mismatched():
-    """Test citekey label validation when keys don't match generated labels."""
-    with tempfile.TemporaryDirectory() as temp_dir:
-        temp_path = Path(temp_dir)
-
-        # Create .bib file with entries that have wrong citekeys
-        bib_path = temp_path / "library.bib"
-        bib_path.write_text("""
-@book{wrong-key-1,
-  author = {Bredon, Glen E.},
-  title = {Test Book},
-  year = {1993},
-}
-
-@article{bad-key-2,
-  author = {Smith, John},
-  title = {Test Article},
-  year = {2020},
-}
-""")
-
-        # Create identifier collection
-        identifier_path = temp_path / "identifier_collection.json"
-        identifier_path.write_text(
-            json.dumps(
-                {
-                    "wrong-key-1": {
-                        "main_identifier": "doi",
-                        "identifiers": {"doi": "10.1007/978-1-4757-6848-0"},
-                    },
-                    "bad-key-2": {
-                        "main_identifier": "isbn",
-                        "identifiers": {"isbn": "1234567890123"},
-                    },
-                }
-            )
-        )
-
-        # Test validation - should fail
-        result = validate_citekey_labels(bib_path, identifier_path)
-        assert result is False
-
-
-def test_fix_citekey_labels():
-    """Test fixing citekeys to match generated labels."""
-    with tempfile.TemporaryDirectory() as temp_dir:
-        temp_path = Path(temp_dir)
-
-        # Create .bib file with wrong citekeys
-        bib_path = temp_path / "library.bib"
-        bib_path.write_text("""
-@book{wrong-key-1,
-  author = {Bredon, Glen E.},
-  title = {Test Book},
-  year = {1993},
-}
-
-@article{bad-key-2,
-  author = {Smith, John},
-  title = {Test Article},
-  year = {2020},
-}
-""")
-
-        # Create add_order.json with same wrong keys
-        add_order_path = temp_path / "add_order.json"
-        add_order_path.write_text(json.dumps(["wrong-key-1", "bad-key-2"]))
-
-        # Create identifier collection with same wrong keys
-        identifier_path = temp_path / "identifier_collection.json"
-        identifier_path.write_text(
-            json.dumps(
-                {
-                    "wrong-key-1": {
-                        "main_identifier": "doi",
-                        "identifiers": {"doi": "10.1007/978-1-4757-6848-0"},
-                    },
-                    "bad-key-2": {
-                        "main_identifier": "isbn",
-                        "identifiers": {"isbn": "1234567890123"},
-                    },
-                }
-            )
-        )
-
-        # Fix the citekeys
-        result = fix_citekey_labels(bib_path, add_order_path, identifier_path)
-        assert result is True
-
-        # Verify the fixes worked
-        # Check .bib file
-        bib_content = bib_path.read_text()
-        assert "@book{bredon-1993-7908a921," in bib_content
-        assert "@article{smith-2020-bca2b41a," in bib_content
-        assert "wrong-key-1" not in bib_content
-        assert "bad-key-2" not in bib_content
-
-        # Check add_order.json
-        with open(add_order_path) as f:
-            order_data = json.load(f)
-        assert order_data == ["bredon-1993-7908a921", "smith-2020-bca2b41a"]
-
-        # Check identifier_collection.json
-        with open(identifier_path) as f:
-            id_data = json.load(f)
-        assert "bredon-1993-7908a921" in id_data
-        assert "smith-2020-bca2b41a" in id_data
-        assert "wrong-key-1" not in id_data
-        assert "bad-key-2" not in id_data
+    assert result.valid

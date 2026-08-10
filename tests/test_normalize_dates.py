@@ -1,58 +1,34 @@
-"""Tests for date normalization helpers."""
-
-from __future__ import annotations
-
-from pathlib import Path
+"""Tests for pure date normalization."""
 
 import bibtexparser
 
+from biblio.bibliography import Bibliography, IdentityIndex
 from biblio.normalize.dates import rename_year_to_date_fields
 
 
-def test_rename_year_to_date_updates_entries(tmp_path: Path) -> None:
-    """Entries with year but no date should be converted."""
-    bib_content = """@book{entry-one,
-  title = {First Book},
-  author = {Alpha, Author},
-  year = {2020}
-}
-
-@article{entry-two,
-  title = {Second Article},
-  date = {2021-05-03}
-}
-"""
-    bib_path = tmp_path / "library.bib"
-    bib_path.write_text(bib_content, encoding="utf-8")
-
-    updated_count, updated_keys = rename_year_to_date_fields(bib_path)
-
-    assert updated_count == 1
-    assert updated_keys == ["entry-one"]
-
-    library = bibtexparser.parse_file(str(bib_path))
-    entry_one = next(entry for entry in library.entries if entry.key == "entry-one")
-
-    assert "date" in entry_one.fields_dict
-    assert "year" not in entry_one.fields_dict
-    assert entry_one.fields_dict["date"].value == "2020"
+def _bibliography(source: str) -> Bibliography:
+    library = bibtexparser.parse_string(source)
+    return Bibliography(library.blocks, IdentityIndex(library.entries))
 
 
-def test_rename_year_to_date_dry_run(tmp_path: Path) -> None:
-    """Dry-run should report entries without modifying the file."""
-    bib_content = """@book{entry-one,
-  title = {Dry Run Book},
-  year = {1999}
-}
-"""
-    bib_path = tmp_path / "library.bib"
-    bib_path.write_text(bib_content, encoding="utf-8")
-    before = bib_path.read_text(encoding="utf-8")
+def test_rename_year_to_date_updates_entries_in_place() -> None:
+    bibliography = _bibliography(
+        "@book{one, year={2020}}\n@article{two, date={2021}, year={2020}}\n"
+    )
 
-    updated_count, updated_keys = rename_year_to_date_fields(bib_path, dry_run=True)
+    changes = rename_year_to_date_fields(bibliography)
 
-    assert updated_count == 1
-    assert updated_keys == ["entry-one"]
+    assert changes.changed_keys == ("one",)
+    assert [(delta.field, delta.before, delta.after) for delta in changes.field_deltas] == [
+        ("year", "2020", None),
+        ("date", None, "2020"),
+    ]
+    assert "year" not in bibliography.resolve("one").fields_dict
+    assert bibliography.resolve("one").fields_dict["date"].value == "2020"
+    assert bibliography.resolve("two").fields_dict["year"].value == "2020"
 
-    after = bib_path.read_text(encoding="utf-8")
-    assert after == before
+
+def test_rename_year_to_date_reports_explicit_noop() -> None:
+    bibliography = _bibliography("@article{one, date={2021}}\n")
+
+    assert rename_year_to_date_fields(bibliography).changed is False

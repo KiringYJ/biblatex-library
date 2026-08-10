@@ -1,4 +1,4 @@
-"""Workspace configuration for biblio operations."""
+"""Workspace configuration for the biblio engine."""
 
 import logging
 import tomllib
@@ -11,19 +11,16 @@ logger = logging.getLogger(__name__)
 
 CONFIG_FILENAME = "biblio.toml"
 
-# Default relative paths (matching original repo layout)
 _DEFAULT_BIB = "bib/library.bib"
 _DEFAULT_IDENTIFIERS = "data/identifier_collection.json"
 _DEFAULT_ADD_ORDER = "data/add_order.json"
 _DEFAULT_STAGING = "staging"
+_PATH_KEYS = frozenset({"bib", "identifiers", "add_order", "staging"})
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class BiblioConfig:
-    """Resolved configuration for all biblio operations.
-
-    All paths are absolute after construction.
-    """
+    """Resolved paths used by the bibliography engine."""
 
     root: Path
     bib_path: Path
@@ -33,71 +30,62 @@ class BiblioConfig:
 
     @classmethod
     def defaults(cls, root: Path) -> "BiblioConfig":
-        """Create config with default paths rooted at the given directory."""
-        root = root.resolve()
+        """Create the standard layout rooted at ``root``."""
+        resolved_root = root.resolve()
         return cls(
-            root=root,
-            bib_path=root / "bib" / "library.bib",
-            identifier_path=root / "data" / "identifier_collection.json",
-            add_order_path=root / "data" / "add_order.json",
-            staging_dir=root / "staging",
+            root=resolved_root,
+            bib_path=resolved_root / _DEFAULT_BIB,
+            identifier_path=resolved_root / _DEFAULT_IDENTIFIERS,
+            add_order_path=resolved_root / _DEFAULT_ADD_ORDER,
+            staging_dir=resolved_root / _DEFAULT_STAGING,
         )
 
     @classmethod
     def from_toml(cls, toml_path: Path) -> "BiblioConfig":
-        """Parse a biblio.toml file and resolve paths relative to its directory."""
-        toml_path = toml_path.resolve()
-        root = toml_path.parent
+        """Load paths from ``biblio.toml`` relative to its directory."""
+        resolved_toml = toml_path.resolve()
+        root = resolved_toml.parent
 
-        with open(toml_path, "rb") as f:
-            raw = tomllib.load(f)
+        with resolved_toml.open("rb") as stream:
+            raw = tomllib.load(stream)
 
         paths_raw = raw.get("paths")
         paths: dict[str, str] = {}
-
         if paths_raw is not None:
             if not isinstance(paths_raw, dict):
-                msg = f"[paths] in {toml_path} must be a table"
-                raise ConfigError(msg)
+                raise ConfigError(f"[paths] in {resolved_toml} must be a table")
             for key, value in paths_raw.items():
                 if not isinstance(key, str) or not isinstance(value, str):
-                    msg = f"All [paths] values in {toml_path} must be strings"
-                    raise ConfigError(msg)
+                    raise ConfigError(f"All [paths] values in {resolved_toml} must be strings")
+                if key not in _PATH_KEYS:
+                    raise ConfigError(f"Unsupported [paths] key in {resolved_toml}: {key}")
                 paths[key] = value
 
-        def _resolve(key: str, default: str) -> Path:
-            value = paths.get(key, default)
-            p = Path(value)
-            if p.is_absolute():
-                return p
-            return (root / p).resolve()
+        def resolve_path(key: str, default: str) -> Path:
+            path = Path(paths.get(key, default))
+            return path.resolve() if path.is_absolute() else (root / path).resolve()
 
         return cls(
             root=root,
-            bib_path=_resolve("bib", _DEFAULT_BIB),
-            identifier_path=_resolve("identifiers", _DEFAULT_IDENTIFIERS),
-            add_order_path=_resolve("add_order", _DEFAULT_ADD_ORDER),
-            staging_dir=_resolve("staging", _DEFAULT_STAGING),
+            bib_path=resolve_path("bib", _DEFAULT_BIB),
+            identifier_path=resolve_path("identifiers", _DEFAULT_IDENTIFIERS),
+            add_order_path=resolve_path("add_order", _DEFAULT_ADD_ORDER),
+            staging_dir=resolve_path("staging", _DEFAULT_STAGING),
         )
 
     @classmethod
     def discover(cls, start: Path | None = None) -> "BiblioConfig":
-        """Find biblio.toml by walking up from start (default: CWD).
-
-        Falls back to defaults rooted at start if no config file found.
-        """
+        """Discover ``biblio.toml`` upward, or use defaults at ``start``."""
         origin = (start or Path.cwd()).resolve()
         current = origin
-
         while True:
             candidate = current / CONFIG_FILENAME
             if candidate.is_file():
                 logger.debug("Found config: %s", candidate)
                 return cls.from_toml(candidate)
-            parent = current.parent
-            if parent == current:
+            if current.parent == current:
                 break
-            current = parent
+            current = current.parent
 
         logger.debug("No %s found, using defaults rooted at %s", CONFIG_FILENAME, origin)
         return cls.defaults(origin)
@@ -110,7 +98,7 @@ class BiblioConfig:
         add_order_path: Path | None = None,
         staging_dir: Path | None = None,
     ) -> "BiblioConfig":
-        """Return a new config with non-None values overriding the originals."""
+        """Return a copy with explicitly supplied normal-runtime paths."""
         return BiblioConfig(
             root=self.root,
             bib_path=bib_path.resolve() if bib_path is not None else self.bib_path,
@@ -122,8 +110,3 @@ class BiblioConfig:
             ),
             staging_dir=staging_dir.resolve() if staging_dir is not None else self.staging_dir,
         )
-
-    @staticmethod
-    def schema_path() -> Path:
-        """Return path to the bundled identifier_collection schema."""
-        return Path(__file__).parent / "schema" / "identifier_collection.schema.json"

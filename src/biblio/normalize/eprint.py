@@ -1,92 +1,66 @@
-"""Normalization helpers for eprint-related fields."""
+"""Pure normalization helpers for eprint-related fields."""
 
-from __future__ import annotations
-
-import logging
 from collections.abc import MutableMapping
-from dataclasses import dataclass
-from pathlib import Path
+from dataclasses import dataclass, field
 
-import bibtexparser
-from bibtexparser.library import Library
 from bibtexparser.model import Entry, Field
 
-logger = logging.getLogger(__name__)
+from biblio.bibliography import Bibliography
+from biblio.results import ChangeSet, FieldDelta
 
 
-@dataclass(slots=True)
+@dataclass(frozen=True, slots=True)
 class EprintNormalizationReport:
     """Summary of eprint field normalization."""
 
-    renamed_type: list[str]
-    renamed_class: list[str]
-    normalized_type: list[str]
-    changed_entry_type: list[str]  # misc -> online for arXiv entries
+    renamed_type: tuple[str, ...] = ()
+    renamed_class: tuple[str, ...] = ()
+    normalized_type: tuple[str, ...] = ()
+    changed_entry_type: tuple[str, ...] = ()
+    changes: ChangeSet = field(default_factory=ChangeSet)
 
 
-def normalize_eprint_fields(
-    library_path: Path, *, dry_run: bool = False
-) -> EprintNormalizationReport:
-    """Normalize legacy arXiv field names and values.
-
-    - Renames ``archiveprefix`` → ``eprinttype``
-    - Renames ``primaryclass`` → ``eprintclass``
-    - Ensures ``eprinttype`` value uses lowercase ``arxiv``
-    - Changes entry type from ``misc`` to ``online`` for arXiv entries
-
-    Args:
-        library_path: Path to ``library.bib``
-        dry_run: When ``True``, report changes without writing to disk
-
-    Returns:
-        :class:`EprintNormalizationReport` describing applied changes
-
-    Raises:
-        FileNotFoundError: If ``library_path`` does not exist
-        ValueError: If the bib file cannot be parsed
-    """
-    if not library_path.exists():
-        raise FileNotFoundError(f"Bibliography file not found: {library_path}")
-
-    logger.debug("Loading library for eprint normalization: %s", library_path)
-
-    try:
-        library: Library = bibtexparser.parse_file(str(library_path))
-    except Exception as exc:  # pragma: no cover - parser raises custom errors
-        raise ValueError(f"Failed to parse {library_path}: {exc}") from exc
-
+def normalize_eprint_fields(bibliography: Bibliography) -> EprintNormalizationReport:
+    """Normalize legacy arXiv field names, values, and ``misc`` entry types."""
     renamed_type: list[str] = []
     renamed_class: list[str] = []
     normalized_type: list[str] = []
     changed_entry_type: list[str] = []
+    deltas: list[FieldDelta] = []
 
-    for entry in library.entries:
+    for entry in bibliography:
         fields: MutableMapping[str, Field] = entry.fields_dict
         archive_field = fields.get("archiveprefix")
         archive_value = str(archive_field.value) if archive_field is not None else None
 
-        if _rename_field(entry, fields, "archiveprefix", "eprinttype", dry_run):
+        delta = _rename_field(entry, fields, "archiveprefix", "eprinttype")
+        if delta:
             renamed_type.append(entry.key)
-        if _rename_field(entry, fields, "primaryclass", "eprintclass", dry_run):
+            deltas.extend(delta)
+        delta = _rename_field(entry, entry.fields_dict, "primaryclass", "eprintclass")
+        if delta:
             renamed_class.append(entry.key)
+            deltas.extend(delta)
 
-        if _normalize_eprinttype(entry, entry.fields_dict, archive_value, dry_run):
+        delta = _normalize_eprinttype(entry, archive_value)
+        if delta is not None:
             normalized_type.append(entry.key)
+            deltas.append(delta)
 
-        if _change_arxiv_entry_type(entry, dry_run):
+        delta = _change_arxiv_entry_type(entry)
+        if delta is not None:
             changed_entry_type.append(entry.key)
+            deltas.append(delta)
 
-    if not dry_run and any([renamed_type, renamed_class, normalized_type, changed_entry_type]):
-        logger.debug("Writing eprint normalization changes back to disk: %s", library_path)
-        bibtex_string = bibtexparser.write_string(library)
-        with open(library_path, "w", encoding="utf-8") as bib_file:
-            bib_file.write(str(bibtex_string))
-
+    changed = set(renamed_type + renamed_class + normalized_type + changed_entry_type)
+    changed_keys = tuple(entry.key for entry in bibliography if entry.key in changed)
+    changes = ChangeSet(changed_keys, tuple(deltas))
     return EprintNormalizationReport(
-        renamed_type=renamed_type,
-        renamed_class=renamed_class,
-        normalized_type=normalized_type,
-        changed_entry_type=changed_entry_type,
+        tuple(renamed_type),
+        tuple(renamed_class),
+        tuple(normalized_type),
+        tuple(changed_entry_type),
+        changes,
     )
 
 
@@ -95,123 +69,56 @@ def _rename_field(
     fields: MutableMapping[str, Field],
     old_name: str,
     new_name: str,
-    dry_run: bool,
-) -> bool:
-    if old_name not in fields:
-        return False
-
-    old_field = fields[old_name]
-    new_value = str(old_field.value)
-
-    logger.info(
-        "Renaming %s -> %s for entry %s (value='%s')",
-        old_name,
-        new_name,
-        entry.key,
-        new_value,
-    )
-
-    if dry_run:
-        return True
-
+) -> tuple[FieldDelta, ...]:
+    old_field = fields.get(old_name)
+    if old_field is None:
+        return ()
+    value = str(old_field.value)
+    existing = fields.get(new_name)
+    existing_value = str(existing.value) if existing is not None else None
     _remove_field(entry, old_name)
-    _set_field(entry, new_name, new_value)
-    return True
-
-
-def _normalize_eprinttype(
-    entry: Entry,
-    fields: MutableMapping[str, Field],
-    archive_value: str | None,
-    dry_run: bool,
-) -> bool:
-    field = fields.get("eprinttype")
-
-    current_value: str | None
-    if field is not None:
-        current_value = str(field.value)
-    else:
-        current_value = archive_value
-
-    if current_value is None:
-        return False
-
-    if current_value.lower() != "arxiv":
-        return False
-    if current_value == "arxiv":
-        return False
-
-    logger.info(
-        "Normalizing eprinttype for entry %s: '%s' -> 'arxiv'",
-        entry.key,
-        current_value,
+    _set_field(entry, new_name, value)
+    return (
+        FieldDelta(entry.key, old_name, value, None),
+        FieldDelta(entry.key, new_name, existing_value, value),
     )
 
-    if dry_run:
-        return True
 
-    if field is not None:
-        field.value = "arxiv"
-    else:
+def _normalize_eprinttype(entry: Entry, archive_value: str | None) -> FieldDelta | None:
+    field = entry.fields_dict.get("eprinttype")
+    current = str(field.value) if field is not None else archive_value
+    if current is None or current.casefold() != "arxiv" or current == "arxiv":
+        return None
+    if field is None:
         _set_field(entry, "eprinttype", "arxiv")
+    else:
+        field.value = "arxiv"
+    return FieldDelta(entry.key, "eprinttype", current, "arxiv")
 
-    return True
 
-
-def _change_arxiv_entry_type(entry: Entry, dry_run: bool) -> bool:
-    """Change entry type from misc to online for arXiv entries.
-
-    Args:
-        entry: The bibtex entry to check
-        dry_run: If True, don't actually modify the entry
-
-    Returns:
-        True if the entry type was changed, False otherwise
-    """
-    # Only change misc entries
-    if entry.entry_type.lower() != "misc":
-        return False
-
-    # Check if this is an arXiv entry (has eprinttype=arxiv or archiveprefix=arxiv)
+def _change_arxiv_entry_type(entry: Entry) -> FieldDelta | None:
+    if entry.entry_type.casefold() != "misc":
+        return None
     fields = entry.fields_dict
     eprinttype = fields.get("eprinttype")
-    archiveprefix = fields.get("archiveprefix")
-
-    is_arxiv = False
-    if eprinttype is not None and str(eprinttype.value).lower() == "arxiv":
-        is_arxiv = True
-    elif archiveprefix is not None and str(archiveprefix.value).lower() == "arxiv":
-        is_arxiv = True
-
-    if not is_arxiv:
-        return False
-
-    logger.info(
-        "Changing entry type for %s: 'misc' -> 'online'",
-        entry.key,
-    )
-
-    if dry_run:
-        return True
-
+    if eprinttype is None:
+        eprinttype = fields.get("archiveprefix")
+    if eprinttype is None or str(eprinttype.value).casefold() != "arxiv":
+        return None
+    before = entry.entry_type
     entry.entry_type = "online"
-    return True
+    return FieldDelta(entry.key, "entry_type", before, "online")
 
 
 def _remove_field(entry: Entry, field_name: str) -> None:
     field_obj = entry.fields_dict.get(field_name)
-    if field_obj is None:
-        return
-    for index, field in enumerate(entry.fields):
-        if field is field_obj:
-            entry.fields.pop(index)
-            break
+    if field_obj is not None:
+        entry.fields.remove(field_obj)
 
 
 def _set_field(entry: Entry, field_name: str, value: str) -> None:
     existing = entry.fields_dict.get(field_name)
     if existing is not None:
         existing.value = value
-        return
-
-    entry.fields.append(Field(field_name, value))
+    else:
+        entry.fields.append(Field(field_name, value))

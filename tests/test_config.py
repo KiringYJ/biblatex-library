@@ -1,6 +1,5 @@
-"""Tests for BiblioConfig: TOML parsing, discovery, overrides, and defaults."""
+"""Tests for required workspace path configuration."""
 
-import tempfile
 from pathlib import Path
 
 import pytest
@@ -9,148 +8,108 @@ from biblio.config import CONFIG_FILENAME, BiblioConfig
 from biblio.exceptions import ConfigError
 
 
-def test_defaults_creates_standard_layout():
-    """Default config produces the original repo layout."""
-    root = Path("/fake/root")
-    config = BiblioConfig.defaults(root)
+def test_defaults_resolve_all_required_paths(tmp_path: Path):
+    config = BiblioConfig.defaults(tmp_path)
 
-    assert config.bib_path == root.resolve() / "bib" / "library.bib"
-    assert config.identifier_path == root.resolve() / "data" / "identifier_collection.json"
-    assert config.add_order_path == root.resolve() / "data" / "add_order.json"
-    assert config.staging_dir == root.resolve() / "staging"
-
-
-def test_from_toml_with_defaults():
-    """Parsing an empty [paths] table falls back to defaults."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        root = Path(tmpdir)
-        toml_path = root / CONFIG_FILENAME
-        toml_path.write_text("[paths]\n", encoding="utf-8")
-
-        config = BiblioConfig.from_toml(toml_path)
-
-        assert config.bib_path == root / "bib" / "library.bib"
-        assert config.identifier_path == root / "data" / "identifier_collection.json"
+    assert config.root == tmp_path.resolve()
+    assert config.bib_path == tmp_path.resolve() / "bib" / "library.bib"
+    assert config.identifier_path == tmp_path.resolve() / "data" / "identifier_collection.json"
+    assert config.add_order_path == tmp_path.resolve() / "data" / "add_order.json"
+    assert config.staging_dir == tmp_path.resolve() / "staging"
 
 
-def test_from_toml_custom_paths():
-    """Custom paths in biblio.toml are resolved relative to config file directory."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        root = Path(tmpdir)
-        toml_path = root / CONFIG_FILENAME
-        toml_path.write_text(
-            '[paths]\nbib = "my/refs.bib"\nidentifiers = "my/ids.json"\n',
-            encoding="utf-8",
-        )
+def test_from_toml_resolves_all_custom_paths(tmp_path: Path):
+    config_path = tmp_path / CONFIG_FILENAME
+    config_path.write_text(
+        """\
+[paths]
+bib = "references/library.bib"
+identifiers = "metadata/identifiers.json"
+add_order = "metadata/add_order.json"
+staging = "incoming"
+""",
+        encoding="utf-8",
+    )
 
-        config = BiblioConfig.from_toml(toml_path)
+    config = BiblioConfig.from_toml(config_path)
 
-        assert config.bib_path == (root / "my" / "refs.bib").resolve()
-        assert config.identifier_path == (root / "my" / "ids.json").resolve()
-        # Unspecified paths keep defaults
-        assert config.add_order_path == (root / "data" / "add_order.json").resolve()
-
-
-def test_from_toml_no_paths_section():
-    """A TOML file with no [paths] section uses all defaults."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        root = Path(tmpdir)
-        toml_path = root / CONFIG_FILENAME
-        toml_path.write_text("# empty config\n", encoding="utf-8")
-
-        config = BiblioConfig.from_toml(toml_path)
-
-        assert config.bib_path == (root / "bib" / "library.bib").resolve()
+    assert config.bib_path == (tmp_path / "references" / "library.bib").resolve()
+    assert config.identifier_path == (tmp_path / "metadata" / "identifiers.json").resolve()
+    assert config.add_order_path == (tmp_path / "metadata" / "add_order.json").resolve()
+    assert config.staging_dir == (tmp_path / "incoming").resolve()
 
 
-def test_from_toml_invalid_paths_type():
-    """Non-table [paths] value raises ConfigError."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        toml_path = Path(tmpdir) / CONFIG_FILENAME
-        toml_path.write_text('paths = "not a table"\n', encoding="utf-8")
+def test_from_toml_uses_resolved_defaults_for_missing_values(tmp_path: Path):
+    config_path = tmp_path / CONFIG_FILENAME
+    config_path.write_text("[paths]\n", encoding="utf-8")
 
-        with pytest.raises(ConfigError, match="must be a table"):
-            BiblioConfig.from_toml(toml_path)
+    config = BiblioConfig.from_toml(config_path)
 
-
-def test_from_toml_invalid_path_value():
-    """Non-string path values raise ConfigError."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        toml_path = Path(tmpdir) / CONFIG_FILENAME
-        toml_path.write_text("[paths]\nbib = 42\n", encoding="utf-8")
-
-        with pytest.raises(ConfigError, match="must be strings"):
-            BiblioConfig.from_toml(toml_path)
+    assert config == BiblioConfig.defaults(tmp_path)
 
 
-def test_discover_finds_toml_in_cwd():
-    """discover() finds biblio.toml in the start directory."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        root = Path(tmpdir)
-        toml_path = root / CONFIG_FILENAME
-        toml_path.write_text('[paths]\nbib = "custom.bib"\n', encoding="utf-8")
+@pytest.mark.parametrize("path_key", ["identifiers", "add_order"])
+def test_from_toml_does_not_ignore_restored_path_keys(tmp_path: Path, path_key: str):
+    config_path = tmp_path / CONFIG_FILENAME
+    config_path.write_text(f'[paths]\n{path_key} = "custom.json"\n', encoding="utf-8")
 
-        config = BiblioConfig.discover(start=root)
+    config = BiblioConfig.from_toml(config_path)
 
-        assert config.bib_path == (root / "custom.bib").resolve()
-
-
-def test_discover_walks_up():
-    """discover() walks up parent directories to find biblio.toml."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        root = Path(tmpdir)
-        toml_path = root / CONFIG_FILENAME
-        toml_path.write_text('[paths]\nbib = "top.bib"\n', encoding="utf-8")
-
-        child = root / "a" / "b" / "c"
-        child.mkdir(parents=True)
-
-        config = BiblioConfig.discover(start=child)
-
-        assert config.bib_path == (root / "top.bib").resolve()
+    configured_path = config.identifier_path if path_key == "identifiers" else config.add_order_path
+    assert configured_path == (tmp_path / "custom.json").resolve()
 
 
-def test_discover_falls_back_to_defaults():
-    """discover() returns defaults when no biblio.toml exists anywhere."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        root = Path(tmpdir)
+def test_from_toml_rejects_unknown_path_key(tmp_path: Path):
+    config_path = tmp_path / CONFIG_FILENAME
+    config_path.write_text('[paths]\nfuture = "unknown"\n', encoding="utf-8")
 
-        config = BiblioConfig.discover(start=root)
-
-        assert config.bib_path == root / "bib" / "library.bib"
-        assert config.root == root
+    with pytest.raises(ConfigError, match="Unsupported .* key"):
+        BiblioConfig.from_toml(config_path)
 
 
-def test_with_overrides():
-    """with_overrides replaces only specified paths."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        root = Path(tmpdir)
-        config = BiblioConfig.defaults(root)
-        override_bib = root / "other" / "refs.bib"
+def test_from_toml_rejects_invalid_paths_table(tmp_path: Path):
+    config_path = tmp_path / CONFIG_FILENAME
+    config_path.write_text('paths = "invalid"\n', encoding="utf-8")
 
-        new_config = config.with_overrides(bib_path=override_bib)
-
-        assert new_config.bib_path == override_bib.resolve()
-        # Others unchanged
-        assert new_config.identifier_path == config.identifier_path
-        assert new_config.add_order_path == config.add_order_path
-        assert new_config.staging_dir == config.staging_dir
+    with pytest.raises(ConfigError, match="must be a table"):
+        BiblioConfig.from_toml(config_path)
 
 
-def test_with_overrides_none_is_noop():
-    """with_overrides with all None returns identical config."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        root = Path(tmpdir)
-        config = BiblioConfig.defaults(root)
+def test_from_toml_rejects_non_string_path(tmp_path: Path):
+    config_path = tmp_path / CONFIG_FILENAME
+    config_path.write_text("[paths]\nbib = 42\n", encoding="utf-8")
 
-        new_config = config.with_overrides()
-
-        assert new_config.bib_path == config.bib_path
-        assert new_config.identifier_path == config.identifier_path
+    with pytest.raises(ConfigError, match="must be strings"):
+        BiblioConfig.from_toml(config_path)
 
 
-def test_schema_path_exists():
-    """Bundled schema file should exist on disk."""
-    schema = BiblioConfig.schema_path()
-    assert schema.exists()
-    assert schema.name == "identifier_collection.schema.json"
+def test_discover_walks_up(tmp_path: Path):
+    config_path = tmp_path / CONFIG_FILENAME
+    config_path.write_text('[paths]\nbib = "library.bib"\n', encoding="utf-8")
+    child = tmp_path / "one" / "two"
+    child.mkdir(parents=True)
+
+    config = BiblioConfig.discover(child)
+
+    assert config.root == tmp_path.resolve()
+    assert config.bib_path == (tmp_path / "library.bib").resolve()
+
+
+def test_discover_falls_back_to_origin_defaults(tmp_path: Path):
+    assert BiblioConfig.discover(tmp_path) == BiblioConfig.defaults(tmp_path)
+
+
+def test_with_overrides_changes_only_supplied_paths(tmp_path: Path):
+    config = BiblioConfig.defaults(tmp_path)
+    custom_identifiers = tmp_path / "custom-identifiers.json"
+    custom_order = tmp_path / "custom-order.json"
+
+    overridden = config.with_overrides(
+        identifier_path=custom_identifiers,
+        add_order_path=custom_order,
+    )
+
+    assert overridden.bib_path == config.bib_path
+    assert overridden.identifier_path == custom_identifiers.resolve()
+    assert overridden.add_order_path == custom_order.resolve()
+    assert overridden.staging_dir == config.staging_dir

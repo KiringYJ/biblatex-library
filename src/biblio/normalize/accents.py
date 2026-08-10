@@ -2,17 +2,14 @@
 
 from __future__ import annotations
 
-import logging
 import re
 import unicodedata
-from dataclasses import dataclass
-from pathlib import Path
+from dataclasses import dataclass, field
 
-import bibtexparser
-from bibtexparser.library import Library
 from bibtexparser.model import Entry
 
-logger = logging.getLogger(__name__)
+from biblio.bibliography import Bibliography
+from biblio.results import ChangeSet, FieldDelta
 
 _ACCENT_COMBINING = {
     "'": "\u0301",  # acute
@@ -72,12 +69,37 @@ _SPECIAL_MACROS = {
 
 _SINGLE_CHAR_NONASCII_BRACES = re.compile(r"\{([^{}])\}")
 
+# Identifier values and the fields that type them are opaque. Their exact bytes
+# may carry equality and historical citekey provenance outside this normalizer.
+_IDENTIFIER_FIELDS = frozenset(
+    {
+        "acmdl_doi",
+        "archiveprefix",
+        "doi",
+        "eprint",
+        "eprintclass",
+        "eprinttype",
+        "hdl",
+        "ids",
+        "isbn",
+        "isbn13",
+        "jfm",
+        "mrnumber",
+        "oclc",
+        "primaryclass",
+        "url",
+        "zbl",
+        "zbmath",
+    }
+)
 
-@dataclass(slots=True)
+
+@dataclass(frozen=True, slots=True)
 class AccentNormalizationReport:
     """Summary of LaTeX text normalization."""
 
-    converted: dict[str, list[str]]
+    converted: dict[str, tuple[str, ...]]
+    changes: ChangeSet = field(default_factory=ChangeSet)
 
     @property
     def total_fields(self) -> int:
@@ -85,70 +107,40 @@ class AccentNormalizationReport:
 
 
 def normalize_latex_accents(
-    library_path: Path, *, dry_run: bool = False
+    bibliography: Bibliography,
 ) -> AccentNormalizationReport:
-    """Normalize LaTeX accents and ``mrreviewer`` control spaces.
+    """Normalize LaTeX accents and ``mrreviewer`` control spaces in memory."""
+    converted: dict[str, tuple[str, ...]] = {}
+    deltas: list[FieldDelta] = []
 
-    Args:
-        library_path: Path to ``library.bib``
-        dry_run: When ``True``, preview planned changes without writing to disk
-
-    Returns:
-        :class:`AccentNormalizationReport` describing modified entries
-
-    Raises:
-        FileNotFoundError: If ``library_path`` does not exist
-        ValueError: If the bib file cannot be parsed
-    """
-    if not library_path.exists():
-        raise FileNotFoundError(f"Bibliography file not found: {library_path}")
-
-    logger.debug("Loading library for accent normalization: %s", library_path)
-
-    try:
-        library: Library = bibtexparser.parse_file(str(library_path))
-    except Exception as exc:  # pragma: no cover - parser raises custom errors
-        raise ValueError(f"Failed to parse {library_path}: {exc}") from exc
-
-    converted: dict[str, list[str]] = {}
-
-    for entry in library.entries:
-        changed_fields = _normalize_entry(entry, dry_run=dry_run)
+    for entry in bibliography:
+        entry_deltas = _normalize_entry(entry)
+        changed_fields = tuple(delta.field for delta in entry_deltas)
         if changed_fields:
             converted[entry.key] = changed_fields
+            deltas.extend(entry_deltas)
 
-    if converted and not dry_run:
-        logger.debug("Writing accent normalization changes back to disk: %s", library_path)
-        bibtex_string = bibtexparser.write_string(library)
-        with open(library_path, "w", encoding="utf-8") as bib_file:
-            bib_file.write(str(bibtex_string))
-
-    return AccentNormalizationReport(converted=converted)
+    changes = ChangeSet(tuple(converted), tuple(deltas))
+    return AccentNormalizationReport(converted, changes)
 
 
-def _normalize_entry(entry: Entry, *, dry_run: bool) -> list[str]:
-    changed: list[str] = []
+def _normalize_entry(entry: Entry) -> list[FieldDelta]:
+    changed: list[FieldDelta] = []
 
-    for field in entry.fields:
-        value = str(field.value)
+    for entry_field in entry.fields:
+        field_name = entry_field.key.casefold()
+        if field_name in _IDENTIFIER_FIELDS:
+            continue
+        value = str(entry_field.value)
         normalized = value
-        if field.key == "mrreviewer":
+        if field_name == "mrreviewer":
             normalized = normalized.replace("\\ ", " ")
         normalized = _convert_value(normalized)
         if normalized == value:
             continue
 
-        logger.info(
-            "Normalized LaTeX text for %s.%s: '%s' -> '%s'",
-            entry.key,
-            field.key,
-            value,
-            normalized,
-        )
-        changed.append(field.key)
-
-        if not dry_run:
-            field.value = normalized
+        changed.append(FieldDelta(entry.key, entry_field.key, value, normalized))
+        entry_field.value = normalized
 
     return changed
 

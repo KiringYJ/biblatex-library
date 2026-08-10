@@ -1,4 +1,4 @@
-"""Biblatex library tools package."""
+"""Configurable tools for maintaining BibLaTeX workspaces."""
 
 import logging
 

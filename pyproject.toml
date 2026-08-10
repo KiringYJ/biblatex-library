@@ -5,12 +5,12 @@ build-backend = "hatchling.build"
 [project]
 name = "biblio"
 dynamic = ["version"]
-description = "Tools for a curated biblatex library: validate, sort, convert (CSL-JSON/BibTeX), enrich."
+description = "A configurable CLI engine for validating and maintaining BibLaTeX workspaces."
 readme = "README.md"
 requires-python = ">=3.13"
 license = { file = "LICENSE" }
 authors = [{ name = "Yi-Jing Tseng" }]
-keywords = ["biblatex", "bibtex", "CSL-JSON", "biber", "bibliography"]
+keywords = ["biblatex", "bibliography", "metadata", "cli", "biber"]
 classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.13",
@@ -57,15 +57,7 @@ packages = ["src/biblio"]
 line-length = 100
 target-version = "py313"
 respect-gitignore = true
-extend-exclude = [
-    "build",
-    "dist",
-    ".venv",
-    "latex/**/build",
-    "latex/**/out",
-    "examples/**/build",
-    "examples/**/out",
-]
+extend-exclude = ["build", "dist", ".venv"]
 src = ["src", "tests"]
 
 [tool.ruff.lint]
@@ -86,13 +78,11 @@ quote-style = "double"
 skip-magic-trailing-comma = false
 
 [tool.ty.src]
-include = ["src", "scripts", "tests"]
+include = ["src", "tests"]
 exclude = [
     "**/__pycache__",
     "build",
     "dist",
-    "latex/**/build",
-    "examples/**/build",
 ]
 
 [tool.ty.environment]

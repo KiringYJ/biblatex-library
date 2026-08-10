@@ -503,7 +503,7 @@ def create_parser() -> argparse.ArgumentParser:
     """Create the argument parser for the CLI."""
     parser = argparse.ArgumentParser(
         prog="biblio",
-        description="Tools for a curated biblatex library: validate, sort, sync, normalize.",
+        description="Maintain configurable BibLaTeX workspaces: validate, sort, sync, normalize.",
     )
 
     parser.add_argument(

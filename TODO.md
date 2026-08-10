@@ -1,58 +1,47 @@
-# TODO
+# Roadmap
 
-> **Done** = implementation merged, **Verified** = manually tested / snapshot-covered.
-
-## Planned Features
-
-| Done | Verified | Item |
-|:----:|:--------:|------|
-| [ ]  | [ ]      | Biblatex to BibTeX conversion |
-| [ ]  | [ ]      | CSL-JSON export |
-| [ ]  | [ ]      | API enrichment (CrossRef, arXiv) |
-| [ ]  | [ ]      | Duplicate detection |
-| [ ]  | [ ]      | Citation analysis |
-
----
-
-### Biblatex to BibTeX conversion
-
-**File:** `src/biblio/convert/` (empty, reserved)
-- Convert `@online` -> `@misc`, `@thesis` -> `@phdthesis`/`@mastersthesis`
-- Field conversion: `date` -> `year`/`month`, `journaltitle` -> `journal`, etc.
-- Integration with `biber --tool` for robust processing
-- CLI target: `biblio convert input.bib output.bib`
-
-### CSL-JSON export
-
-**File:** `csl/` (mostly empty, `schema/` dir reserved)
-- Generate CSL-JSON from `library.bib` for Pandoc/Zotero compatibility
-- Declarative type/field mappings planned (YAML)
-
-### API enrichment (CrossRef, arXiv)
-
-- Auto-fill missing metadata from CrossRef, arXiv, MathSciNet APIs
-- `httpx` already in dependencies (`pyproject.toml`)
-
-### Duplicate detection
-
-- Find and merge duplicate entries based on identifiers (DOI, ISBN, etc.)
-
-### Citation analysis
-
-- Generate usage reports and statistics for the bibliography database
-
----
-
-## Test Gaps
+`biblio` is a pure engine. New features belong under `src/biblio`, with tests
+that use temporary consumer workspaces. Do not add production bibliography
+data, TeX styles, or manuscript examples to this repository.
 
 | Done | Verified | Item |
-|:----:|:--------:|------|
-| [ ]  | [ ]      | Template tests |
+|:----:|:--------:|---|
+| [ ] | [ ] | BibLaTeX-to-BibTeX conversion |
+| [ ] | [ ] | CSL-JSON export |
+| [ ] | [ ] | API enrichment |
+| [ ] | [ ] | Duplicate detection |
+| [ ] | [ ] | Citation analysis |
 
----
+## BibLaTeX-to-BibTeX conversion
 
-### Template tests
+- Map BibLaTeX-only entry types such as `@online` and `@thesis` to classic
+  BibTeX equivalents.
+- Convert fields such as `date` and `journaltitle` without losing semantic
+  information silently.
+- Define a CLI contract with explicit input/output paths and regression
+  fixtures before implementation.
 
-**File:** `tests/test_template.py` (does not exist)
-- `biblio template` has no test coverage
-- Needs tests for: template generation, overwrite behavior, identifier priority selection, edge cases
+## CSL-JSON export
+
+- Export configured BibLaTeX data for Pandoc/Zotero-compatible consumers.
+- Keep type and field mappings declarative and tested.
+- Write output to a caller-selected path rather than a repository-owned data
+  directory.
+
+## API enrichment
+
+- Enrich configured records from services such as Crossref and arXiv.
+- Require explicit selection, deterministic merge rules, and dry-run output.
+- Keep credentials and caches outside the engine repository.
+
+## Duplicate detection
+
+- Detect candidates using canonical identifiers before weaker metadata
+  similarity.
+- Report candidates separately from any destructive merge operation.
+
+## Citation analysis
+
+- Accept usage data or document manifests as explicit inputs.
+- Produce machine-readable reports without coupling the engine to a manuscript
+  repository or TeX build system.

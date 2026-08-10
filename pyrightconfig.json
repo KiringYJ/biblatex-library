@@ -2,41 +2,29 @@
     // What to type-check
     "include": [
         "src",
-        "scripts",
         "tests"
     ],
     "exclude": [
         "**/__pycache__",
         "build",
-        "dist",
-        "latex/**/build",
-        "examples/**/build"
+        "dist"
     ],
-    // Interpreter / venv discovery
+    // Interpreter and virtual-environment discovery
     "venvPath": ".",
     "venv": ".venv",
     "pythonVersion": "3.13",
-    // Strict mode covers most type checking rules
     "typeCheckingMode": "strict",
-    // Stub paths for type checking
     "stubPath": "typings",
-    // Additional strictness beyond default "strict" mode
-    "reportImplicitStringConcatenation": "error", // Explicit string concatenation
-    "reportUnnecessaryIsInstance": "error", // Remove redundant isinstance
-    "reportUnnecessaryCast": "error", // Remove redundant casts
-    "reportUnnecessaryComparison": "error", // Remove redundant comparisons
-    "reportUnnecessaryContains": "error", // Remove redundant contains
-    "reportUnusedCoroutine": "error", // No forgotten awaits
-    // Make "src" imports work without relative dots
+    // Additional strictness beyond the default strict mode
+    "reportImplicitStringConcatenation": "error",
+    "reportUnnecessaryIsInstance": "error",
+    "reportUnnecessaryCast": "error",
+    "reportUnnecessaryComparison": "error",
+    "reportUnnecessaryContains": "error",
+    "reportUnusedCoroutine": "error",
     "executionEnvironments": [
         {
             "root": "src",
-            "extraPaths": [
-                "src"
-            ]
-        },
-        {
-            "root": "scripts",
             "extraPaths": [
                 "src"
             ]

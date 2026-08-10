@@ -27,6 +27,11 @@ data, TeX styles, or manuscript examples to this repository.
 - Keep type and field mappings declarative and tested.
 - Write output to a caller-selected path rather than a repository-owned data
   directory.
+- Keep `library.bib` as the bibliographic source of truth until a separate,
+  lossless CSL cutover is designed and verified.
+- Preserve `identifier_collection.json` as the exact identity and citekey
+  provenance bridge; a CSL record alone must not discard alternate,
+  catalogue, or historical hash inputs.
 
 ## API enrichment
 

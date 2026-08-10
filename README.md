@@ -1,23 +1,46 @@
 # biblio
 
-`biblio` is a Python 3.13 command-line engine for maintaining BibLaTeX
-workspaces. It validates related data files, generates stable citekeys, imports
-staged entries, synchronizes identifiers, sorts records, and normalizes common
-metadata problems.
+`biblio` is a Python 3.13 command-line engine for maintaining a coordinated
+BibLaTeX workspace. It validates and changes three consumer-owned artifacts as
+one integrity set:
 
-This repository ships the engine, its schema, tests, and an optional consumer
-hook template. It does **not** ship a production bibliography, manuscript
-sources, TeX styles, or LaTeX examples.
+- `library.bib` is the authority for active bibliographic metadata, BibLaTeX
+  rendering fields, canonical citekeys, and `ids` aliases consumed by biber.
+- `identifier_collection.json` is the authority for the exact, complete
+  identifier inventory and the identifier values used to derive citekey
+  hashes. Optional `identifier_alternates` and `key_history` retain promotion
+  provenance while remaining backward compatible with records containing
+  only `main_identifier` and `identifiers`.
+- `add_order.json` is the authority for the chronological order of active
+  records. Its order must equal physical entry order in `library.bib`.
 
-## Primary consumer
+This repository contains only the engine, tests, schemas, and type stubs. It
+does not contain or modify a production bibliography, staging inbox,
+manuscript, TeX style, or publication build.
+
+BibLaTeX is the current bibliographic interchange and rendering format. A
+future CSL-backed design could replace the bibliographic-metadata layer, but
+it would still need to preserve exact identifier provenance, citekey history,
+and chronological ordering.
+
+The current engine recognizes eleven identifier kinds: `doi`, `isbn13`,
+`arxiv`, `url`, `mrnumber`, `zbl`, `zbmath`, `jfm`, `oclc`, `hdl`, and
+`acmdl_doi`. The JSON codec and schema preserve an unknown kind so future data
+is not discarded, but workspace validation reports it as unsupported and
+mutation commands fail closed until the engine gains an explicit comparison
+and projection rule for that kind. JSON-only values of the eleven supported
+kinds are valid and remain part of the complete inventory.
+
+## Principal consumer
 
 The principal consumer is
-[`KiringYJ/tex-studies`](https://github.com/KiringYJ/tex-studies), whose local
-Windows checkout is `D:\tex-studies` in the maintainer workspace.
-`tex-studies` installs this repository as a Git dependency and owns the live
-bibliography data, TeX formatting, biber builds, and publication exports.
+[`KiringYJ/tex-studies`](https://github.com/KiringYJ/tex-studies), locally
+checked out as `D:\tex-studies` in the maintainer workspace. That repository
+owns its live bibliography, BibLaTeX styles, biber and LuaLaTeX builds, and
+publication exports. It is referenced here as a read-only consumer example;
+this engine repository does not edit or migrate it.
 
-Its `biblio.toml` maps the engine to consumer-owned files:
+Its exact four-path configuration is:
 
 ```toml
 [paths]
@@ -27,35 +50,9 @@ add_order = "shared/data/add_order.json"
 staging = "shared/bibtex/bib/staging"
 ```
 
-That division is intentional:
-
-- `biblio` owns bibliography-maintenance behavior and validation rules.
-- Consumer repositories own their records, path layout, citation policy, and
-  document build system.
-
-## Capabilities
-
-- Validate citekey consistency across the `.bib` file, identifier metadata,
-  and addition-order ledger.
-- Generate deterministic `lastname-year-hash` citekeys with collision
-  handling.
-- Create identifier JSON templates for staged `.bib` files.
-- Add staged records while updating all three canonical data files together.
-- Sort records alphabetically or by addition order.
-- Synchronize identifiers such as DOI, ISBN, MR, ZBL, arXiv, and URL values
-  into BibLaTeX entries.
-- Normalize legacy dates, publisher/location pairs, eprint fields, LaTeX
-  accents, ISBNs, and redundant DOI/arXiv URLs.
-- Operate against different workspace layouts through `biblio.toml` or CLI
-  path overrides.
-
-CSL-JSON export, classic BibTeX conversion, remote enrichment, duplicate
-detection, and citation analysis are roadmap items rather than current
-features; see [TODO.md](TODO.md).
+Paths are resolved relative to `biblio.toml`.
 
 ## Installation
-
-For development:
 
 ```powershell
 git clone https://github.com/KiringYJ/biblatex-library.git
@@ -64,7 +61,7 @@ uv sync --dev
 uv run biblio --help
 ```
 
-A consumer project can declare the Git dependency directly:
+A consumer can install a pinned Git revision:
 
 ```toml
 [project]
@@ -73,57 +70,118 @@ dependencies = [
 ]
 ```
 
-Pin the resolved revision in the consumer lockfile.
+## Initialize a workspace
 
-## Workspace model
+```powershell
+biblio init D:\path\to\bibliography-workspace
+```
 
-The engine operates on four configured paths:
-
-| Path | Role |
-|---|---|
-| `bib` | Canonical BibLaTeX `.bib` file |
-| `identifiers` | JSON object containing external identifiers by citekey |
-| `add_order` | JSON array recording citekeys in addition order |
-| `staging` | Incoming `.bib` files and their identifier JSON companions |
-
-Paths in `biblio.toml` are resolved relative to that file. Without a config,
-the CLI uses these defaults relative to the current workspace:
+This creates:
 
 ```text
+biblio.toml
 bib/library.bib
 data/identifier_collection.json
 data/add_order.json
 staging/
 ```
 
-Create an empty consumer workspace with:
+The default config is:
 
-```powershell
-biblio init D:\path\to\bibliography-workspace
+```toml
+[paths]
+bib = "bib/library.bib"
+identifiers = "data/identifier_collection.json"
+add_order = "data/add_order.json"
+staging = "staging"
 ```
 
-`biblio init` creates the default directories and empty data files in the
-target workspace. Those directories are runtime data owned by the consumer;
-they are not source directories in this engine repository.
+Existing data files are never overwritten. `biblio init --force` permits
+replacing an existing `biblio.toml`, not consumer bibliography data.
 
-## Commands
+## CLI
 
-| Command | Purpose |
-|---|---|
-| `biblio init [DIR]` | Initialize a consumer workspace |
-| `biblio validate` | Check three-file citekey consistency and generated labels |
-| `biblio validate --fix` | Rename inconsistent citekeys after consistency checks pass |
-| `biblio template` | Generate identifier JSON companions for staged `.bib` files |
-| `biblio add` | Import valid staging pairs into the canonical files |
-| `biblio generate-labels` | Write deterministic citekey mappings |
-| `biblio sort alphabetical` | Sort the `.bib` and identifier map by citekey |
-| `biblio sort add-order` | Sort them according to the addition-order ledger |
-| `biblio sync --dry-run` | Preview identifier-to-BibLaTeX synchronization |
-| `biblio sync` | Apply identifier-to-BibLaTeX synchronization |
-| `biblio normalize [ACTION] --dry-run` | Preview one or all normalization passes |
-| `biblio normalize [ACTION]` | Apply one or all normalization passes |
+Global path options must precede the command:
 
-Normalization actions are:
+```text
+--config PATH       Use an explicit biblio.toml
+--bib PATH          Override library.bib
+--identifiers PATH  Override identifier_collection.json
+--add-order PATH    Override add_order.json
+--staging PATH      Override the staging directory
+-v / -vv            Increase diagnostic verbosity
+```
+
+For the principal consumer, a read-only validation invocation is:
+
+```powershell
+biblio --config D:\tex-studies\biblio.toml validate
+```
+
+### Upgrade a legacy identifier inventory
+
+Legacy workspaces may contain supported identifiers in `library.bib` that are
+missing from `identifier_collection.json`. Reconcile those one way before the
+first validation:
+
+```powershell
+biblio reconcile --dry-run
+biblio reconcile
+biblio validate
+```
+
+This upgrade does not edit a consumer automatically. Run it only inside the
+consumer workspace selected by its config or explicit path overrides.
+
+### Validate
+
+```powershell
+biblio validate
+```
+
+Validation reads a stable three-file snapshot and checks:
+
+- equal canonical key sets across all artifacts;
+- physical `.bib` order equal to `add_order.json`;
+- exact main-identifier hash provenance;
+- identifier inventory completeness and global uniqueness;
+- BibLaTeX aliases equal the optional `key_history` projection; and
+- absence of unresolved workspace recovery state.
+
+### Add and consume staging files
+
+```powershell
+biblio add --dry-run
+biblio add
+biblio add D:\temporary\one-record.bib --dry-run
+```
+
+Staging filenames are arbitrary temporary names. They do not need dates,
+slugs, or matching JSON companions. Directory intake is nonrecursive and
+processes regular `.bib` files in deterministic filename order. A positional
+`STAGING` value may identify one `.bib` file or another inbox directory.
+
+`add` derives citekeys, exact identifier records, and chronological order in
+one coordinated transaction. Before committing, it durably records a cleanup
+receipt bound to the exact staging bytes, generated keys, and original and
+candidate workspace digests. Staging files are deleted only after the
+three-artifact commit is verified. They remain untouched after dry-run,
+validation failure, write failure, or an unverified commit.
+
+If verified content commits but file deletion cannot finish, the reduced
+cleanup receipt remains and the command exits nonzero. Rerun the same
+`biblio add` command to resume digest- and key-checked cleanup. A changed file
+is retained and reported as a conflict; it is never deleted on the basis of a
+stale or fabricated receipt.
+
+### Normalize
+
+```powershell
+biblio normalize --dry-run
+biblio normalize trivial-url
+```
+
+The default action is `all`. Individual actions are:
 
 - `year-to-date`
 - `publisher-location`
@@ -132,69 +190,127 @@ Normalization actions are:
 - `isbn`
 - `trivial-url`
 
-Global options must precede the subcommand:
+Normalization changes presentation metadata in `library.bib` while loading
+and validating the complete workspace. It preserves identifier-ledger and
+add-order bytes when their data is unchanged.
 
-```text
---config PATH       Select a biblio.toml file
---bib PATH          Override the canonical .bib path
---identifiers PATH  Override the identifier JSON path
---add-order PATH    Override the addition-order JSON path
--v / -vv            Enable informational or debug logging
-```
-
-For example:
+### Reconcile missing identifier projections
 
 ```powershell
-biblio --config D:\tex-studies\biblio.toml validate
-biblio --bib D:\other-workspace\references.bib normalize trivial-url --dry-run
-```
-
-## Staging workflow
-
-Staged files use matching stems, conventionally
-`YYYY-MM-DD-description.bib` and `YYYY-MM-DD-description.json`.
-
-```powershell
-# Generate missing JSON companions from staged .bib files.
-biblio template
-
-# Review and validate the current workspace.
-biblio validate
-
-# Import complete pairs. The add command creates a timestamped backup first.
-biblio add
-
-# Confirm the resulting three-file state.
+biblio reconcile --dry-run
+biblio reconcile
 biblio validate
 ```
 
-The three canonical files form one integrity set. Adding, removing, renaming,
-or reordering citekeys must preserve agreement between the `.bib` file,
-identifier map, and addition-order ledger.
+`reconcile` is an explicit one-way upgrade and repair operation. For each
+supported identifier projected by `library.bib` but absent from that record's
+JSON inventory, it appends the exact `.bib` value to
+`identifier_collection.json`. If the identifier kind already has a different
+primary value, the missing exact value is appended to
+`identifier_alternates`.
 
-## Safety boundaries
+The operation never overwrites or deletes an inventory value, changes
+`main_identifier`, changes citekey/hash provenance, modifies `library.bib`, or
+modifies `add_order.json`. Unknown identifier kinds remain blocked rather than
+being guessed. Use the dry-run report to review additions before apply.
 
-- Keep consumer bibliography data under version control.
-- Use `--dry-run` for synchronization and normalization before applying
-  changes.
-- `biblio add` creates a timestamped backup under the configured staging
-  directory before modifying canonical files.
-- Test engine changes only with pytest fixtures or temporary workspaces, never
-  against a consumer's production bibliography.
-- All text and JSON I/O is UTF-8; JSON is written without ASCII escaping.
-- Parse and serialize bibliography data through `bibtexparser` rather than
-  hand-written regular expressions.
+### Remove
 
-[`pre-commit-data-hooks.yaml`](pre-commit-data-hooks.yaml) contains optional
-consumer-side hooks for the default scaffold layout. Copy and adapt those hooks
-in the consumer repository; they are not part of this engine's own pre-commit
-pipeline.
+```powershell
+biblio remove KEY --dry-run
+biblio remove KEY
+```
+
+`KEY` may be a canonical citekey or BibLaTeX alias. Apply hard-deletes the
+active record from `library.bib`, its exact identifier record, and its active
+chronology position. Git or another consumer-owned history system provides
+historical recovery for intentional removal.
+
+### Promote an arXiv record
+
+```powershell
+biblio promote OLD_KEY published-record.bib --dry-run
+biblio promote OLD_KEY published-record.bib
+```
+
+The payload must contain exactly one published record and one publisher DOI.
+Promotion installs a DOI-derived canonical citekey, keeps the old arXiv key as
+a BibLaTeX `ids` alias, retains exact arXiv/DOI identifier provenance through
+`identifier_alternates` and `key_history`, and preserves the record's
+chronological position. Existing documents may continue citing the old key.
+An arXiv-derived DOI such as `10.48550/arXiv...` is rejected as the publisher
+DOI.
+
+### Recover a coordinated transaction
+
+```powershell
+biblio recover --status
+biblio recover --dry-run
+biblio recover
+```
+
+`--status` and `--dry-run` inspect the workspace coordinator without changing
+it. Apply recovers the whole three-artifact vector, choosing the recorded
+original or candidate state from the transaction's last changed artifact
+(`library.bib` is installed last whenever it changes) and repairing the other
+artifacts consistently. Recovery also completes pending transaction-artifact
+cleanup. Do not delete coordinator, candidate, shadow, or lock files manually.
+
+## Retired surfaces
+
+The following commands are intentionally absent:
+
+- `sort`: alphabetical mutation conflicts with chronological physical order.
+- `sync`: ambiguous or bidirectional synchronization is retired. The narrow
+  `reconcile` command only appends missing supported `.bib` projections to the
+  JSON inventory and has no reverse direction.
+- `template`: staging consists only of arbitrary temporary `.bib` files.
+- `generate-labels`: add and promote derive keys transactionally.
+- migration-away commands: identifier and order artifacts remain required
+  normal-runtime authorities.
+
+## Safety and history
+
+- The engine is Git-independent. It never invokes Git or requires a checkout.
+- The engine does not create timestamped backups or archive copies. Consumers
+  choose their own history system.
+- Multi-file writes use a coordinator, per-artifact digest evidence, ordered
+  replacement, and explicit recovery. They fail closed when the workspace
+  cannot be proved consistent.
+- Use `--dry-run` before add, normalize, reconcile, remove, or promote when
+  reviewing a change.
+- Test engine changes with fixtures or temporary workspaces, never against a
+  consumer's production data.
+- Text is UTF-8; deterministic engine writes use LF line endings and one final
+  newline.
+
+Clean mutations intentionally retain hidden lock, coordinator, and resolution
+evidence beside workspace artifacts. These files make later proof and recovery
+possible; their presence does not mean a transaction is unresolved. The
+engine is Git-independent, and `biblio init` deliberately does not create or
+edit `.gitignore`. A Git-based consumer may ignore the exact internal patterns:
+
+```gitignore
+**/.*.biblio.lock
+**/.*.biblio-workspace.json
+**/.*.biblio-workspace-resolved.json
+**/.*.biblio-workspace-*.candidate
+**/.*.biblio-workspace-*.original
+**/.biblio-add-cleanup.json
+```
+
+Candidate, original, and cleanup-receipt files normally exist only while work
+or cleanup is pending, but they are included because unresolved evidence must
+not enter commits. Ignoring evidence never authorizes deleting it. Inspect with
+`biblio recover --status` and resolve with `biblio recover`; never manually
+delete an unresolved coordinator, resolution record, candidate, original,
+cleanup receipt, or lock sidecar.
+
+[`pre-commit-data-hooks.yaml`](pre-commit-data-hooks.yaml) is an optional
+consumer template. Its coordinated hooks run when any of the three artifacts
+changes; the template is not this engine repository's own hook configuration.
 
 ## Development
-
-The wheel contains only `src/biblio`. Repository tests use temporary
-workspaces, so development does not require a live bibliography or TeX
-installation.
 
 ```powershell
 uv sync --dev
@@ -205,13 +321,8 @@ uv run ty check
 uv build
 ```
 
-Main source areas:
-
-```text
-src/biblio/        CLI, configuration, domain operations, and bundled schema
-tests/             Unit and integration-style tests using temporary data
-typings/           Local type stubs for external packages
-```
+The wheel contains `src/biblio`. Tests use temporary workspaces; the marked
+biber integration test additionally requires biber.
 
 ## License
 

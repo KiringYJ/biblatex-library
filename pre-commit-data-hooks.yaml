@@ -5,18 +5,7 @@
 # These hooks normalize and validate your bibliography data on each commit.
 # They require the biblio CLI and (optionally) biber to be installed.
 
-  # Validate identifier_collection.json against schema
-  - repo: https://github.com/python-jsonschema/check-jsonschema
-    rev: 0.33.3
-    hooks:
-      - id: check-jsonschema
-        name: Validate identifier_collection.json
-        files: ^data/identifier_collection\.json$
-        args:
-          - --schemafile
-          - src/biblio/schema/identifier_collection.schema.json
-
-  # Normalize and validate library data
+  # Normalize and validate the coordinated three-artifact workspace.
   - repo: local
     hooks:
       - id: normalize-latex-accents
@@ -24,7 +13,7 @@
         entry: uv
         args: ["run", "biblio", "normalize", "latex-accents"]
         language: system
-        files: ^bib/library\.bib$
+        files: ^(bib/library\.bib|data/identifier_collection\.json|data/add_order\.json)$
         pass_filenames: false
 
       - id: normalize-dates
@@ -32,7 +21,7 @@
         entry: uv
         args: ["run", "biblio", "normalize", "year-to-date"]
         language: system
-        files: ^bib/library\.bib$
+        files: ^(bib/library\.bib|data/identifier_collection\.json|data/add_order\.json)$
         pass_filenames: false
 
       - id: normalize-eprint
@@ -40,7 +29,7 @@
         entry: uv
         args: ["run", "biblio", "normalize", "eprint-fields"]
         language: system
-        files: ^bib/library\.bib$
+        files: ^(bib/library\.bib|data/identifier_collection\.json|data/add_order\.json)$
         pass_filenames: false
 
       - id: normalize-isbn
@@ -48,15 +37,15 @@
         entry: uv
         args: ["run", "biblio", "normalize", "isbn"]
         language: system
-        files: ^(bib/library\.bib|data/identifier_collection\.json)$
+        files: ^(bib/library\.bib|data/identifier_collection\.json|data/add_order\.json)$
         pass_filenames: false
 
-      - id: validate-citekey-consistency
-        name: Validate citekey consistency and labels
+      - id: validate-bibliography
+        name: Validate coordinated bibliography workspace
         entry: uv
         args: ["run", "biblio", "validate"]
         language: system
-        files: ^(bib/library\.bib|data/add_order\.json|data/identifier_collection\.json)$
+        files: ^(bib/library\.bib|data/identifier_collection\.json|data/add_order\.json)$
         pass_filenames: false
 
       # Direct biber validation of .bib file integrity

@@ -1,0 +1,50 @@
+{
+  "model": "opus",
+  "effortLevel": "high",
+  "permissions": {
+    "allow": [
+      "Bash(uv run pytest:*)",
+      "Bash(uv run ruff:*)",
+      "Bash(uv run ty:*)",
+      "Bash(uv run biblio:*)",
+      "Bash(uv run python:*)",
+      "Bash(uv sync:*)",
+      "Bash(uv pip:*)",
+      "Bash(git status:*)",
+      "Bash(git log:*)",
+      "Bash(git diff:*)",
+      "Bash(git branch:*)",
+      "Bash(git show:*)",
+      "Bash(git stash list:*)",
+      "Bash(git rev-parse:*)",
+      "Bash(git remote -v:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git checkout:*)",
+      "Bash(git switch:*)",
+      "Bash(git check-ignore:*)",
+      "Bash(ls:*)",
+      "Bash(wc:*)",
+      "Bash(pwd:*)",
+      "mcp__ide__getDiagnostics",
+      "mcp__plugin_oh-my-claudecode_t__state_write",
+      "mcp__plugin_oh-my-claudecode_t__lsp_diagnostics",
+      "mcp__plugin_oh-my-claudecode_t__ast_grep_search",
+      "mcp__plugin_oh-my-claudecode_t__state_clear",
+      "WebSearch"
+    ],
+    "deny": [
+      "Bash(rmdir:*)",
+      "Bash(del:*)",
+      "Bash(git reset --hard:*)",
+      "Bash(git clean:*)",
+      "Bash(git checkout -- .:*)",
+      "Bash(git restore .:*)",
+      "Bash(git branch -D:*)",
+      "Bash(git rebase -i:*)",
+      "Bash(git stash drop:*)",
+      "Bash(git stash clear:*)",
+      "Bash(uv pip uninstall:*)"
+    ]
+  }
+}

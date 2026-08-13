@@ -122,12 +122,13 @@ class PlatformLockBackend:
     def _acquire_windows(descriptor: int) -> LockHandle:
         import msvcrt
 
+        msvcrt_api = vars(msvcrt)
         if os.fstat(descriptor).st_size < 1:
             os.write(descriptor, b"\0")
             os.fsync(descriptor)
         os.lseek(descriptor, 0, os.SEEK_SET)
         try:
-            msvcrt.locking(descriptor, msvcrt.LK_NBLCK, 1)
+            msvcrt_api["locking"](descriptor, msvcrt_api["LK_NBLCK"], 1)
         except OSError as error:
             if getattr(error, "winerror", None) in {32, 33, 36} or error.errno in {13, 36}:
                 raise LockUnavailableError("bibliography lock is already held") from error
@@ -135,7 +136,7 @@ class PlatformLockBackend:
 
         def unlock(fd: int) -> None:
             os.lseek(fd, 0, os.SEEK_SET)
-            msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
+            msvcrt_api["locking"](fd, msvcrt_api["LK_UNLCK"], 1)
 
         return _DescriptorLock(descriptor, unlock)
 

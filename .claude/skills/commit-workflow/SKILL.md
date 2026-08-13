@@ -23,11 +23,3 @@ description: Prepare, verify, stage, and create atomic one-logical-change git co
 ## Safety
 
 Never stage unrelated files, bypass hooks, push, rewrite history, or run destructive git commands without explicit authorization. Treat pre-commit hook failures as issues to diagnose and fix, not as obstacles to skip.
-
----
-
-# Claude Adapter
-
-Generate a project skill at `.claude/skills/commit-workflow/SKILL.md` when the Claude target is enabled. Keep the generated skill body derived from the canonical neutral skill and add only this adapter note.
-
-If Claude Code has an official, bundled, or installed equivalent for this capability in the current environment, prefer that native surface and keep the canonical skill as fallback. Do not require Claude Marketplace or user-scope plugin installation.

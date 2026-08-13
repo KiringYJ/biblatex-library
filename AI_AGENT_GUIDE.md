@@ -79,6 +79,50 @@ Update documentation when behavior, commands, configuration, public APIs, file l
 
 Treat `README.md` as user-facing product documentation. Keep it focused on what the project does, who it is for, how to install or use it, common workflows, troubleshooting, and support. Move maintainer-only architecture, exhaustive file trees, internal sync mechanics, and implementation notes into dedicated maintainer docs such as `CONTRIBUTING.md`, `ARCHITECTURE.md`, or `AI_AGENT_PROJECT.md` unless a README reader explicitly needs them.
 
+# Prompting and Agent Execution
+
+This module keeps reusable prompts outcome-oriented and compatible with capable agentic models. It follows the current [OpenAI GPT-5.6 model guidance](https://developers.openai.com/api/docs/guides/model-guidance?model=gpt-5.6) while keeping the workbench vendor-neutral; model-specific request settings belong in vendor configuration, not in canonical project prompts.
+
+## Prompt Contract
+
+For a non-trivial task, make these elements explicit when they are not already established by project context:
+
+- **Outcome**: the concrete result the user should receive.
+- **Context**: the files, systems, facts, and prior decisions that matter.
+- **Constraints**: hard requirements, preservation rules, and action boundaries.
+- **Evidence**: the checks, citations, measurements, or artifacts needed to support the result.
+- **Success criteria**: observable conditions that make the task complete.
+- **Output**: the required format, structure, and level of detail.
+- **Ambiguity gate**: the missing information that should trigger a question because guessing would materially change the result or risk.
+
+Prefer decision criteria over a prescribed step-by-step script when several valid implementations exist. Preserve user-provided values and established project conventions.
+
+## Keep Prompts Lean
+
+- State each instruction once and keep the authoritative rule at the narrowest durable scope.
+- Remove repeated reminders, generic encouragement, and examples that do not encode a requirement or repair a measured failure.
+- Keep tool descriptions concise and expose only tools relevant to the task.
+- Put stable context before changing request-specific context when the platform can reuse prompt prefixes.
+- Change one prompt concern at a time and compare representative tasks before treating the revision as an improvement.
+
+Do not repeat the full autonomy, safety, or verification policy inside every workflow prompt. Refer to the canonical guide and add only workflow-specific boundaries.
+
+## Tool Routing
+
+Use the single action policy in `Security and Safety`; workflow prompts should add only narrower exceptions or approval gates.
+
+When a task can use multiple tools or execution routes, specify the stage, eligible tools, expected result shape, required evidence, retry limit, and stopping condition. Keep adaptive judgment, approvals, citation preservation, and final validation on a direct path. Do not select a batched or programmatic route merely because it is available.
+
+## Response and Completion
+
+- Lead with the outcome. Preserve required facts, decisions, evidence, caveats, and next actions before trimming secondary detail.
+- Describe tone through concrete writing choices rather than broad labels.
+- Use project or model configuration for a default verbosity when supported; use the task prompt for required content and structure.
+- Define the stopping condition. If it cannot be met, return the strongest supported result, the exact gap, and the smallest useful next step.
+- Do not count fewer tool calls, fewer tokens, or shorter output as an improvement unless the final result still passes the relevant quality checks.
+
+Reasoning effort, pro modes, caching, and other vendor-specific capabilities are evaluation and configuration decisions. Do not replace a clear outcome, evidence standard, or validation loop with instructions to “think harder.”
+
 # Git and Change Management
 
 ## Safe Staging
@@ -144,29 +188,21 @@ Before reporting completion:
 - Confirm project-specific files were preserved.
 - Include verification commands and outcomes.
 
-# Workspace Configuration Orphan Branch
+# Repository-Tracked Workspace Configuration
 
-Use a dedicated orphan Git branch named `workspace-config` for reproducible local workspace overlays such as agent instructions, editor settings, prompts, and local automation. This keeps product branches clean while still versioning the files an agent or developer needs to recreate the same workspace.
+Track reusable agent instructions, editor settings, prompts, and local automation in the repository's normal branch history. This is the required layout for agent-workbench managed artifacts: contributors should receive them with a normal clone, and `main` should contain the authoritative version.
 
-Recommended repository shape:
-
-```text
-same project repo
-├─ main                # clean product branch
-├─ dev                 # clean integration branch
-├─ feature/*           # normal product work
-└─ workspace-config    # orphan workspace overlay branch, never merged
-```
+Feature branches may update workspace configuration like any other project file. Review and merge those changes through the repository's normal workflow; do not maintain a separate configuration branch or worktree.
 
 ## Core Invariant
 
-`workspace-config` must never be merged, rebased, or cherry-picked wholesale into `main`, `dev`, or product feature branches.
+`main` is the source of truth for shared workspace configuration.
 
-Product branches must not track workspace-only files. Workspace files may physically exist in a normal product worktree, but they must stay ignored locally through `.git/info/exclude`, not through project `.gitignore`, unless the project explicitly decides those paths are project-wide policy.
+Project-wide workspace files must not be hidden through `.git/info/exclude` or broad project `.gitignore` rules. Keep only genuinely personal, machine-local, generated, cached, or secret-bearing files untracked.
 
-## What Belongs in `workspace-config`
+## What Belongs in the Repository
 
-The branch is for reproducible local development setup, not product source code. Core agent-workbench overlay files include the human config and the agent-owned provenance ledger:
+Core agent-workbench files are shared project policy and should be tracked:
 
 ```text
 AI_AGENT_GUIDE.md
@@ -182,7 +218,7 @@ GEMINI.md
 opencode.json
 ```
 
-Additional local workspace paths may also belong on `workspace-config` when they are not project-owned:
+Additional workspace paths may also be tracked when they are useful to every contributor:
 
 ```text
 .agent/
@@ -192,167 +228,64 @@ prompts/
 scripts/
 ```
 
-Exceptions are allowed only when a file is intentionally part of the project for all contributors. For example, a repository may choose to track `.vscode/extensions.json`, `prompts/`, or `scripts/` on `main`; if so, document that exception in `AI_AGENT_PROJECT.md`.
-
-## What Belongs on Product Branches
-
-`main`, `dev`, and `feature/*` should contain product source code, product documentation, tests, and configuration required by the actual application or library.
-
-They should not track local workspace overlays such as agent prompts, editor workspaces, local automation, or vendor-specific AI-agent files unless the project explicitly promotes that file into project policy.
+Classify optional paths before adding them. Shared extensions, tasks, prompts, and deterministic automation belong in the repository; personal UI preferences, caches, credentials, absolute machine paths, and local runtime state do not.
 
 ## Initial Setup
 
-Create the orphan branch from the repository root:
+Create or synchronize the workspace files on the current normal development branch. Inspect the result before staging:
 
 ```bash
 git status --short
-git switch --orphan workspace-config
-git rm -rf .
+git diff -- AI_AGENT_GUIDE.md AI_AGENT_PROJECT.md AGENTS.md CLAUDE.md GEMINI.md .agent-workbench.yaml .agent-workbench.lock.json .agents .codex .claude opencode.json
 ```
 
-Start only from a clean product worktree. If `git status --short` shows changes, preserve or commit them before switching branches.
-
-Create or restore the workspace files, then commit them:
+When the user requests a commit, stage only the reviewed project-wide paths:
 
 ```bash
 git add AI_AGENT_GUIDE.md AI_AGENT_PROJECT.md AGENTS.md CLAUDE.md GEMINI.md .agent-workbench.yaml .agent-workbench.lock.json .agents .codex .claude opencode.json
-git commit -m "chore: add workspace config overlay"
-git push -u origin workspace-config
+git commit -m "chore: synchronize workspace configuration"
 ```
 
-Add optional workspace-only paths such as `.cursor/`, `.vscode/`, `prompts/`, or `scripts/` only after confirming they are not product-owned.
+Do not stage optional editor or automation directories until they have been classified as project-wide and reviewed for secrets or machine-local state.
 
-Return to product development:
+## Updating Workspace Configuration
+
+Update managed files in the current working tree and review them alongside the project changes that require them. A normal clone, branch switch, merge, or rebase carries the configuration without a restore step or auxiliary worktree.
+
+Before committing:
+
+1. Inspect `git status --short` and the relevant diff.
+2. Confirm managed files are not hidden by `.git/info/exclude` or `.gitignore`.
+3. Preserve `AI_AGENT_PROJECT.md`, explicit manual blocks, and unregistered local workflows according to the sync contract.
+4. Stage only the intended files.
+5. Run the repository's documented validation.
+
+## Forced Migration from the Retired Layout
+
+The former `workspace-config` module identifier and orphan branch layout are not supported. Replace the module identifier with `repository-workspace`, then migrate any files held on a legacy branch by comparing and copying them into a clean normal branch. Do not merge unrelated branch histories wholesale.
 
 ```bash
-git switch main
+git status --short
+git fetch origin
+git branch --all --list "*workspace-config*"
+legacy_ref=origin/workspace-config
+git ls-tree -r --name-only "$legacy_ref"
+git restore --source="$legacy_ref" -- AI_AGENT_GUIDE.md AI_AGENT_PROJECT.md AGENTS.md CLAUDE.md GEMINI.md .agent-workbench.yaml .agent-workbench.lock.json .agents .codex .claude opencode.json
 ```
 
-If the branch was previously named `agent-config`, rename it:
+Update `.agent-workbench.yaml` so it selects `repository-workspace` and contains no `workspace-config` alias. Remove only the exact legacy entries that hide managed paths from `.git/info/exclude` or `.gitignore`, then inspect and stage the migrated files on the normal branch. Preserve any newer project-owned version after resolving differences file by file.
 
-```bash
-git switch agent-config
-git branch -m workspace-config
-git push origin :agent-config
-git push -u origin workspace-config
-```
-
-## Local Excludes on Product Branches
-
-In the normal product worktree, add workspace-overlay paths to `.git/info/exclude`. Use local excludes instead of `.gitignore` because this is local workspace policy, not necessarily product policy.
-
-Bash:
-
-```bash
-cat >> .git/info/exclude <<'EOF'
-AI_AGENT_GUIDE.md
-AI_AGENT_PROJECT.md
-AGENTS.md
-CLAUDE.md
-GEMINI.md
-.agent-workbench.yaml
-.agent-workbench.lock.json
-.agents/
-.codex/
-.claude/
-opencode.json
-EOF
-```
-
-Append optional paths such as `.agent/`, `.cursor/`, `.vscode/`, `prompts/`, or `scripts/` only when the project treats them as workspace-only.
-
-PowerShell:
-
-```powershell
-@"
-AI_AGENT_GUIDE.md
-AI_AGENT_PROJECT.md
-AGENTS.md
-CLAUDE.md
-GEMINI.md
-.agent-workbench.yaml
-.agent-workbench.lock.json
-.agents/
-.codex/
-.claude/
-opencode.json
-"@ | Add-Content .git/info/exclude
-```
-
-Append optional paths such as `.agent/`, `.cursor/`, `.vscode/`, `prompts/`, or `scripts/` only when the project treats them as workspace-only.
-
-## Restore Workspace Files into a Product Worktree
-
-On a new machine or fresh clone:
-
-```bash
-git clone <project-url> my-project
-cd my-project
-git restore --source=origin/workspace-config -- AI_AGENT_GUIDE.md AI_AGENT_PROJECT.md AGENTS.md CLAUDE.md GEMINI.md .agent-workbench.yaml .agent-workbench.lock.json .agents .codex .claude opencode.json
-```
-
-Then add the local excludes shown above. After this, the workspace files physically exist in the product worktree but are not tracked by product branches.
-
-## Updating Workspace Config
-
-Prefer a temporary worktree for updates so the orphan branch remains isolated:
-
-```bash
-git worktree add ../my-project-workspace-config workspace-config
-```
-
-Copy the updated workspace files from the product worktree into that temporary worktree:
-
-```bash
-cp -r AI_AGENT_GUIDE.md AI_AGENT_PROJECT.md AGENTS.md CLAUDE.md GEMINI.md .agent-workbench.yaml .agent-workbench.lock.json .agents .codex .claude opencode.json ../my-project-workspace-config/
-```
-
-PowerShell alternative:
-
-```powershell
-Copy-Item -Recurse -Force AI_AGENT_GUIDE.md, AI_AGENT_PROJECT.md, AGENTS.md, CLAUDE.md, GEMINI.md, .agent-workbench.yaml, .agent-workbench.lock.json, .agents, .codex, .claude, opencode.json ..\my-project-workspace-config\
-```
-
-Commit from the temporary worktree:
-
-```bash
-cd ../my-project-workspace-config
-git add -A
-git commit -m "chore: update workspace config overlay"
-git push
-```
-
-Refresh local workspace files in the product worktree:
-
-```bash
-git restore --source=origin/workspace-config -- AI_AGENT_GUIDE.md AI_AGENT_PROJECT.md AGENTS.md CLAUDE.md GEMINI.md .agent-workbench.yaml .agent-workbench.lock.json .agents .codex .claude opencode.json
-```
-
-## If Workspace Files Are Already Tracked on a Product Branch
-
-Remove them from the product branch index while preserving the physical files:
-
-```bash
-git rm -r --cached AI_AGENT_GUIDE.md AI_AGENT_PROJECT.md AGENTS.md CLAUDE.md GEMINI.md .agent-workbench.yaml .agent-workbench.lock.json .agents .codex .claude opencode.json
-git commit -m "chore: stop tracking local workspace config"
-```
-
-Then ensure `.git/info/exclude` contains those paths and commit the files on `workspace-config`. The `.agent-workbench.lock.json` file belongs with this overlay because it records the last sync baseline used to detect confirmed upstream removal, confirmed removal with local edits, suspected legacy removal, deselected by local config, source changed / migration required, local unmanaged artifacts, and retainedRemovals context.
+The old branch is no longer authoritative once the normal branch contains and verifies every intended file. Deleting local or remote legacy branches is a separate destructive cleanup and requires explicit authorization.
 
 ## Agent Rules
 
-When working in a repository that uses this design:
-
-1. Treat `main`, `dev`, and `feature/*` as product-code branches.
-2. Treat `workspace-config` as an orphan branch for local development overlay files.
-3. Never merge `workspace-config` into a product branch.
-4. Never add workspace-only files to product branches.
-5. Restore workspace files from `workspace-config` when they are needed in a normal worktree.
-6. Commit workspace-file updates on `workspace-config`, preferably through a temporary worktree.
-7. Use `.git/info/exclude` to keep restored workspace files untracked on product branches.
-8. Before committing on a product branch, run `git status --short` and confirm workspace files are not staged.
-
-Git has no native rule that means "track these files on `dev`, but automatically omit them when merging into `main`." Therefore `dev` must remain clean, and `workspace-config` is the versioned storage location for local workspace configuration.
+1. Treat shared workspace configuration as project-owned content in normal branch history.
+2. Keep `main` authoritative; do not create or refresh a separate workspace configuration branch.
+3. Do not hide managed project-wide paths in `.git/info/exclude` or `.gitignore`.
+4. Preserve genuinely local files and never commit secrets, credentials, caches, or machine-specific state.
+5. Show workspace changes in normal Git status and diff output.
+6. Stage, commit, push, or delete a legacy branch only when the user requests the corresponding Git action.
+7. When migrating legacy branch content, compare and copy intended paths rather than merging unrelated histories wholesale.
 
 # Security and Safety
 
@@ -362,8 +295,11 @@ Git has no native rule that means "track these files on `dev`, but automatically
 - If sensitive material appears in the working tree, stop and report it without copying the secret into logs or summaries.
 - Do not print secret values. Redact them when context is necessary.
 
-## Scope Boundaries
+## Action and Scope Boundaries
 
+- For requests to answer, explain, review, diagnose, or plan, inspect the relevant material and report the result. Do not implement changes unless the request also asks for them.
+- For requests to change, build, or fix, make the requested in-scope local changes and run relevant non-destructive validation without asking first.
+- Require confirmation for external writes, destructive or irreversible actions, purchases or other material costs, credential-gated actions, or a material expansion of scope.
 - Modify only files relevant to the requested task.
 - Do not modify application source code during an agent-workbench sync unless the user separately requests application changes.
 - Do not install dependencies, plugins, marketplaces, extensions, or global/user-scope configuration as part of instruction sync.
@@ -389,11 +325,7 @@ The sync process may update only:
 - Registered portable skills under `.agents/skills/`
 - Generated Claude project skills under `.claude/skills/` when the Claude target is enabled
 
-Any broader edit requires explicit user authorization. Sync may classify generated artifacts as confirmed upstream removal, confirmed removal with local edits, suspected legacy removal, deselected by local config, source changed / migration required, or local unmanaged, but it must not delete downstream artifacts without explicit user confirmation. Deletion candidates must be normalized, allowlisted workspace-overlay paths; local/unmanaged artifacts are preserved by default, and kept removals should be recorded in `retainedRemovals`.
-
-## High-Risk Operations
-
-Ask for explicit confirmation before destructive, irreversible, production-affecting, or credential-dependent operations. If a safe read-only inspection can answer the question, do that first.
+Any broader edit requires explicit user authorization. Sync may classify generated artifacts as confirmed upstream removal, confirmed removal with local edits, suspected legacy removal, deselected by local config, source changed / migration required, or local unmanaged, but it must not delete downstream artifacts without explicit user confirmation. Deletion candidates must be normalized, allowlisted managed output paths; local/unmanaged artifacts are preserved by default, and kept removals should be recorded in `retainedRemovals`.
 
 # Testing and Verification
 
@@ -477,73 +409,49 @@ Final summaries should include:
 
 # Portable Agent Workflows
 
-Every synchronized project should carry the same core agent workflows regardless of which vendor agent is active. Treat these as portable capabilities, not Claude plugins, Codex-only skills, or Gemini-only extensions.
-
-Use a hybrid strategy:
-
-```text
-canonical neutral capability
-        -> thin vendor adapter or generated vendor surface
-        -> optional official implementation, when available
-```
-
-The canonical capability is the source of truth. Vendor-native skills, commands, hooks, extensions, or plugins are accelerators and adapters; they must not become independently maintained copies of the workflow.
+Every synchronized project should carry the same core workflows regardless of which coding agent is active. Use the Agent Skills standard directly instead of describing each workflow again through a capability registry or per-vendor adapter files.
 
 ## Canonical Project-Local Locations
 
-- `.agents/prompts/` stores reusable prompt workflows that any capable coding agent can read and execute.
-- `.agents/skills/` stores portable Agent Skills using `SKILL.md` folders.
-- `.agents/guardrails/` stores vendor-neutral guardrail rule documents.
-- `capabilities/<name>/capability.yaml` records the portability level, canonical skill/prompt files, vendor outputs, and official-preferred fallbacks.
-- `.agent-workbench.lock.json` records agent-owned sync provenance: source commit, manifest digest, scoped baselines, installed artifacts, and retained removals. Keep `.agent-workbench.yaml` as human-owned desired configuration.
+- `.agents/prompts/` stores supporting prompt workflows that any capable coding agent can read and execute.
+- `.agents/skills/` stores the canonical project copies of portable Agent Skills, including optional `scripts/`, `references/`, and `assets/` resources.
+- `.agents/guardrails/` stores vendor-neutral guardrail documents.
+- `.agent-workbench.lock.json` records sync provenance, scoped baselines, installed artifacts, and retained removals. Keep `.agent-workbench.yaml` as human-owned desired configuration.
 
-Vendor-native discovery paths such as `.codex/skills/`, `.gemini/skills/`, `.claude/commands/`, `.gemini/commands/`, or hook config files may be generated as optional mirrors only when the project explicitly wants them. The canonical source remains under `.agents/`.
+`manifest.yaml` registers prompts and skills directly. Do not introduce a second registry that repeats their paths, portability labels, vendor targets, or fallback behavior.
 
-Claude Code is the main exception for skill discovery: when the Claude target is enabled, sync may generate project skills under `.claude/skills/<name>/SKILL.md` from the same canonical capability so Claude can discover them natively. These generated files are adapter surfaces, not new sources of truth.
+## Vendor Discovery Boundary
 
-## Portability Levels
+Codex, Gemini CLI, OpenCode, and other compatible agents should discover the shared `.agents/skills/` tree directly.
 
-- `portable-guide`: guidance belongs in `AI_AGENT_GUIDE.md`; no separate skill is required.
-- `portable-skill`: a neutral `SKILL.md` expresses the workflow well across vendors.
-- `vendor-adapted`: the concept is shared, but execution needs vendor-specific config, hooks, permissions, or commands.
-- `official-preferred`: a vendor has a native implementation that should be used first when present; keep the neutral skill as fallback.
+Claude Code uses `.claude/skills/` for project skill discovery. When the Claude target is enabled, sync should copy the registered managed source/resource set for each canonical skill from `.agents/skills/<name>/` to `.claude/skills/<name>/` without appending adapter prose or changing its resources. Corresponding managed files must be byte-identical; unregistered local files remain preserved only in `.agents/skills/`. The Claude copy is a generated discovery mirror, not another source of truth. Use real copied files rather than symlinks so synchronized repositories behave consistently on Windows and other environments.
 
-## Required Portable Capabilities
+Do not generate `.codex/skills/`, `.gemini/skills/`, or `.opencode/skills/` mirrors by default. Create a vendor-specific file only when it encodes actual runtime behavior that the shared standard cannot express, such as loader configuration, permissions, hooks, invocation controls, or vendor metadata.
 
-Each project should have these workflows available after sync:
+## Required Portable Workflows
 
-| Capability | Canonical artifact | Replaces or abstracts |
-| --- | --- | --- |
-| Workbench sync and audit | `.agents/prompts/sync-agent-workbench.md`, `.agents/prompts/audit-agent-workbench.md`, `.agents/prompts/repair-agent-workbench.md`, `.agents/skills/sync-agent-workbench/SKILL.md` | `claude-md-management`, `claude-code-setup` |
-| Loop until done | `.agents/prompts/loop-until-done.md`, `.agents/skills/loop-until-done/SKILL.md` | `ralph-loop` |
-| Guardrail authoring | `.agents/prompts/create-guardrail.md`, `.agents/skills/guardrail-authoring/SKILL.md` | `hookify` |
-| Skill authoring | `.agents/prompts/create-agent-skill.md`, `.agents/skills/skill-authoring/SKILL.md` | `skill-creator` |
-| Commit workflow | `.agents/prompts/commit-workflow.md`, `.agents/skills/commit-workflow/SKILL.md` | `commit-commands` |
-| Linus-style review | `.agents/prompts/linus-review.md`, `.agents/skills/linus-review/SKILL.md` | strict maintainer review mode |
+| Workflow | Canonical artifacts |
+| --- | --- |
+| Workbench sync and audit | `.agents/prompts/sync-agent-workbench.md`, `.agents/prompts/audit-agent-workbench.md`, `.agents/prompts/repair-agent-workbench.md`, `.agents/skills/sync-agent-workbench/SKILL.md` |
+| Loop until done | `.agents/prompts/loop-until-done.md`, `.agents/skills/loop-until-done/SKILL.md` |
+| Guardrail authoring | `.agents/prompts/create-guardrail.md`, `.agents/skills/guardrail-authoring/SKILL.md` |
+| Skill authoring | `.agents/prompts/create-agent-skill.md`, `.agents/skills/skill-authoring/SKILL.md` |
+| Commit workflow | `.agents/prompts/commit-workflow.md`, `.agents/skills/commit-workflow/SKILL.md` |
+| Linus-style review | `.agents/prompts/linus-review.md`, `.agents/skills/linus-review/SKILL.md` |
 
 ## Portability Rules
 
-- Treat install as the first sync. The same sync workflow should detect new, legacy/no-lockfile, and already-managed repositories.
-- Use `.agent-workbench.lock.json` as a provenance/baseline ledger, not a package-manager lockfile. Use it with the current desired set to detect removed or deselected managed artifacts.
-- Classify sync drift with explicit statuses: confirmed upstream removal, confirmed removal with local edits, suspected legacy removal, deselected by local config, source changed / migration required, and local unmanaged.
-- Never delete generated downstream artifacts without explicit user confirmation. If a user keeps a removed artifact, record that decision in `retainedRemovals` so future syncs preserve context.
-- Do not make a consumer project depend on a marketplace, global extension, user-scope config, or machine-local absolute path to get these workflows.
-- Prefer a prompt or portable skill first unless the capability is marked `official-preferred` for the active vendor.
-- Use vendor-specific hooks, slash commands, plugins, or extensions as generated adapters only.
-- Keep the vendor-specific adapter thin: it should point to the `.agents/` prompt, skill, or guardrail instead of duplicating the workflow.
-- Do not symlink skills for portability; copy managed skill folders when a vendor-specific mirror is required.
-- Keep generated project workflows in English and project-local.
-- Do not manually maintain four full copies of the same skill. Maintain one canonical capability plus small vendor adapters.
+- Treat install as the first sync. The same workflow should detect new, legacy/no-lockfile, and already-managed repositories.
+- Use `.agent-workbench.lock.json` as a provenance/baseline ledger, not a package-manager lockfile.
+- Classify sync drift as confirmed upstream removal, confirmed removal with local edits, suspected legacy removal, deselected by local config, source changed / migration required, or local unmanaged.
+- Never delete downstream artifacts without explicit user confirmation. Record a decision to retain an obsolete managed artifact in `retainedRemovals`.
+- Keep skills within the standard `SKILL.md` format unless an explicit target requires an extension.
+- Prefer a compatible built-in or installed implementation when the active environment provides one, but keep the portable skill available as the project-owned fallback.
+- Store any vendor preference or fallback rule once in the canonical skill or supporting prompt, not in four parallel adapter notes.
+- Do not make a consumer project depend on a marketplace, plugin, extension, global configuration, submodule, or machine-local path.
+- Keep generated workflows in English and project-local.
 
-## When a Vendor Has a Native Equivalent
-
-Native equivalents are allowed as accelerators, not as the source of truth:
-
-- Codex: built-in `$skill-creator` and project/user skills can help author or consume Agent Skills.
-- Gemini: Agent Skills and extensions can load skills, hooks, and commands; Ralph-style looping can be implemented with `AfterAgent` hooks.
-- Claude Code: `CLAUDE.md`, custom commands, hooks, and plugins can adapt the same workflows.
-
-If a native feature is missing, unstable, or disabled, execute the `.agents/prompts/*.md` workflow directly.
+If a native feature is missing, unstable, or disabled, execute the canonical `.agents/skills/` or `.agents/prompts/` workflow directly.
 
 # Python Agent Guide
 

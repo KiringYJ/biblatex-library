@@ -10,11 +10,12 @@ description: Create or update portable Agent Skills under .agents/skills with co
 ## Workflow
 
 1. Read `.agents/prompts/create-agent-skill.md` if present.
-2. Gather concrete trigger examples and the repeated task the skill should improve.
-3. Create `.agents/skills/<skill-name>/SKILL.md`.
-4. Use frontmatter with only `name` and `description` unless a target explicitly requires more.
-5. Add `scripts/`, `references/`, or `assets/` only when they materially reduce repeated work or increase reliability.
-6. Test scripts and validate frontmatter.
+2. If the active environment provides a compatible built-in skill creator, prefer it while keeping the output in the standard project-local format below; otherwise run this portable workflow directly.
+3. Gather concrete trigger examples and the repeated task the skill should improve.
+4. Create `.agents/skills/<skill-name>/SKILL.md`.
+5. Use frontmatter with only `name` and `description` unless a target explicitly requires more.
+6. Add `scripts/`, `references/`, or `assets/` only when they materially reduce repeated work or increase reliability.
+7. Test scripts and validate frontmatter.
 
 ## Quality Bar
 

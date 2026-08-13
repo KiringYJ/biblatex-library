@@ -10,15 +10,16 @@ description: Keep working on a requested task through bounded work, root-cause d
 ## Workflow
 
 1. Read `.agents/prompts/loop-until-done.md` if present.
-2. Identify task, completion criteria, verification commands, and maximum iterations.
-3. For each iteration:
+2. If the active environment provides a compatible built-in or installed bounded-loop workflow, prefer it while preserving the criteria and safety rules below; otherwise run this portable workflow directly.
+3. Identify task, completion criteria, verification commands, and maximum iterations.
+4. For each iteration:
    - Inspect current state.
    - For bugs or failures, prove the root cause before implementing a fix; avoid "it just worked" workarounds.
    - Make the smallest useful change.
    - Run verification.
    - Inspect diffs and status.
    - Continue only if the criteria remain unmet and the iteration limit is not reached.
-4. Stop for cancellation, unsafe escalation, ambiguous completion, or satisfied criteria.
+5. Stop for cancellation, unsafe escalation, ambiguous completion, or satisfied criteria.
 
 ## Reporting
 

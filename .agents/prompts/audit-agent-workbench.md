@@ -54,19 +54,20 @@ Do not modify files in audit mode. Inspect and report only.
 
 9. `.agent-workbench.lock.json` provenance ledger
    - Exists after a full sync or first install unless the repository is intentionally legacy/no-lockfile.
-   - Is valid JSON with `schemaVersion`, `source.resolvedCommit`, `manifestDigest`, `syncMode`, `targets`, scoped baselines, `installedArtifacts`, and `retainedRemovals` when present.
-   - Records only normalized repository-relative output paths inside allowed workspace-overlay paths.
+   - Is valid schema version 2 JSON with `source.resolvedCommit`, `manifestDigest`, `syncMode`, `targets`, scoped baselines, `installedArtifacts`, and `retainedRemovals` when present.
+   - Reports schema version 1 `vendor_adapters`, `capability`, or `vendor` fields as a known migration requirement rather than an upstream removal.
+   - Records only normalized repository-relative output paths inside allowed managed output paths.
    - Does not contain absolute paths, `..` traversal, or application source paths as managed deletion candidates.
    - Separates human config (`.agent-workbench.yaml`) from agent-owned baseline/provenance state.
    - Reports retained removals and malformed/stale lockfile state without modifying files.
 
 10. Portable workflows
-   - `manifest.yaml` registers capabilities and each capability file exists.
-   - Each capability declares a canonical skill or prompt, portability level, and vendor targets.
+   - `manifest.yaml` registers portable prompts and skills directly, and every registered source exists.
    - `.agents/prompts/` contains the registered portable prompts from the workbench manifest.
    - `.agents/skills/` contains the registered portable skills from the workbench manifest.
-   - Canonical workflow content lives under `.agents/`, not only in Claude/Codex/Gemini-specific folders.
-   - If the Claude target is enabled, generated `.claude/skills/*/SKILL.md` files are thin surfaces derived from canonical capabilities.
+   - Canonical workflow content lives under `.agents/`, not only in Claude/Codex/Gemini/OpenCode-specific folders.
+   - If the Claude target is enabled, every registered managed file in `.claude/skills/<name>/` is byte-identical to the corresponding `.agents/skills/<name>/` file. Unregistered local files under `.agents/skills/<name>/` are outside mirror parity and remain preserved only in the canonical tree.
+   - No per-workflow capability registry or generic vendor adapter note is required for standard skill distribution.
    - No registered portable prompt or skill is a symlink.
 
 11. Removal and drift classification
@@ -74,7 +75,7 @@ Do not modify files in audit mode. Inspect and report only.
    - Reports **confirmed removal with local edits** when a removed artifact's local checksum differs from the last applied output.
    - Reports **suspected legacy removal** only for no-lockfile repos with objective managed ownership signals.
    - Reports **deselected by local config** when current profile or targets stop selecting a previously generated artifact.
-   - Reports **source changed / migration required** when repo, branch, manifest, source path, artifact id, or capability identity prevents safe comparison.
+   - Reports **source changed / migration required** when repo, branch, manifest, source path, or artifact id prevents safe comparison after applying any known lockfile schema migration.
    - Reports **local unmanaged** for artifacts without a lockfile record or objective managed ownership signal, and does not frame them as upstream removals.
    - Confirms that audit mode never deletes files and only suggests safe repair/sync actions.
 
@@ -84,12 +85,12 @@ Do not modify files in audit mode. Inspect and report only.
    - No global or user-scope configuration is required.
    - No `AGENT.md` typo exists as the primary entrypoint.
 
-13. Workspace-config orphan branch policy
-   - If the repository uses Git, `workspace-config` exists as the workspace-overlay branch or `AI_AGENT_PROJECT.md` documents an explicit opt-out.
-   - `workspace-config` has not been merged into `main`, `dev`, or product feature branches when this can be checked safely.
-   - Workspace-overlay paths, including `.agent-workbench.lock.json`, are not tracked on product branches unless `AI_AGENT_PROJECT.md` documents a project-wide exception.
-   - `.git/info/exclude` contains local excludes for restored workspace-overlay paths.
-   - Workspace files that physically exist in a product worktree are ignored locally rather than added to project `.gitignore`, unless the project intentionally makes them policy.
+13. Repository-tracked workspace policy
+   - The resolved module set includes `repository-workspace` and does not include the retired `workspace-config` identifier. Treat the legacy identifier as a migration failure, not a supported alias.
+   - Core agent-workbench managed files, including `.agent-workbench.lock.json`, are tracked in ordinary repository history or are visible as pending additions from the current sync.
+   - `main` is the authoritative source for shared agent/editor configuration; normal clones do not depend on an auxiliary branch or restore step.
+   - `.git/info/exclude` and `.gitignore` do not hide managed project-wide paths. Personal, machine-local, generated, cached, or secret-bearing files may remain ignored.
+   - If a legacy `workspace-config` branch exists, report whether it contains content missing from `main`. Missing content is a migration failure; a fully superseded branch is cleanup debt and must not be deleted in audit mode.
 
 ## Output
 

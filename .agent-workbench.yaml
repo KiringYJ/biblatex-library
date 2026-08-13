@@ -7,7 +7,7 @@ profile: python
 modules:
   - base
   - git
-  - workspace-config
+  - repository-workspace
   - security
   - testing
   - review

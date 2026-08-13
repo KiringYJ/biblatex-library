@@ -10,20 +10,13 @@ description: Create or update portable Agent Skills under .agents/skills with co
 ## Workflow
 
 1. Read `.agents/prompts/create-agent-skill.md` if present.
-2. Gather concrete trigger examples and the repeated task the skill should improve.
-3. Create `.agents/skills/<skill-name>/SKILL.md`.
-4. Use frontmatter with only `name` and `description` unless a target explicitly requires more.
-5. Add `scripts/`, `references/`, or `assets/` only when they materially reduce repeated work or increase reliability.
-6. Test scripts and validate frontmatter.
+2. If the active environment provides a compatible built-in skill creator, prefer it while keeping the output in the standard project-local format below; otherwise run this portable workflow directly.
+3. Gather concrete trigger examples and the repeated task the skill should improve.
+4. Create `.agents/skills/<skill-name>/SKILL.md`.
+5. Use frontmatter with only `name` and `description` unless a target explicitly requires more.
+6. Add `scripts/`, `references/`, or `assets/` only when they materially reduce repeated work or increase reliability.
+7. Test scripts and validate frontmatter.
 
 ## Quality Bar
 
 Keep skills concise, non-obvious, reusable, project-safe, and actionable.
-
----
-
-# Claude Adapter
-
-Generate a project skill at `.claude/skills/skill-authoring/SKILL.md` when the Claude target is enabled. Keep the generated skill body derived from the canonical neutral skill and add only this adapter note.
-
-If Claude Code has an official, bundled, or installed equivalent for this capability in the current environment, prefer that native surface and keep the canonical skill as fallback. Do not require Claude Marketplace or user-scope plugin installation.

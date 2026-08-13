@@ -34,11 +34,10 @@ kinds are valid and remain part of the complete inventory.
 ## Principal consumer
 
 The principal consumer is
-[`KiringYJ/tex-studies`](https://github.com/KiringYJ/tex-studies), locally
-checked out as `D:\tex-studies` in the maintainer workspace. That repository
-owns its live bibliography, BibLaTeX styles, biber and LuaLaTeX builds, and
-publication exports. It is referenced here as a read-only consumer example;
-this engine repository does not edit or migrate it.
+[`KiringYJ/tex-studies`](https://github.com/KiringYJ/tex-studies). That
+repository owns its live bibliography, BibLaTeX styles, biber and LuaLaTeX
+builds, and publication exports. It is referenced here as a read-only consumer
+example; this engine repository does not edit or migrate it.
 
 Its exact four-path configuration is:
 
@@ -112,10 +111,11 @@ Global path options must precede the command:
 -v / -vv            Increase diagnostic verbosity
 ```
 
-For the principal consumer, a read-only validation invocation is:
+From the root of a configured consumer checkout, a read-only validation
+invocation is:
 
 ```powershell
-biblio --config D:\tex-studies\biblio.toml validate
+biblio --config .\biblio.toml validate
 ```
 
 ### Upgrade a legacy identifier inventory

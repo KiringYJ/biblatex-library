@@ -11,8 +11,8 @@ three-artifact validation and recovery, tests, schemas, and type stubs.
 
 It does not own production bibliography data, staging inputs, TeX styles,
 classes, manuscripts, or publication builds. The principal consumer is
-`KiringYJ/tex-studies`, checked out locally at `D:\tex-studies`. Treat that
-repository as read-only unless the user explicitly places it in scope.
+`KiringYJ/tex-studies`, maintained in a separate checkout. Treat that repository
+as read-only unless the user explicitly places it in scope.
 
 The engine repository must not track consumer `bib/`, `data/`, `staging/`,
 `latex/`, or `tex/` trees. The wheel target is only `src/biblio`.
@@ -87,7 +87,7 @@ three-artifact commit. Standalone `sort`, `sync`, `template`,
 
 - Never test or debug against consumer production data. Use pytest fixtures or
   `tempfile.TemporaryDirectory()`.
-- Do not modify `D:\tex-studies` while changing this engine.
+- Do not modify the principal consumer checkout while changing this engine.
 - The engine is Git-independent and must not create timestamped backups.
 - Mutation uses the recoverable workspace transaction. Transaction-only
   candidate and rollback shadows are crash evidence, not user history.

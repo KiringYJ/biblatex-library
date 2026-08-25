@@ -112,6 +112,15 @@ class AuditResult:
 
 
 @dataclass(frozen=True, slots=True)
+class TemplateResult:
+    """Generated or retained staging identifier templates."""
+
+    created_paths: tuple[Path, ...] = ()
+    skipped_paths: tuple[Path, ...] = ()
+    normalization_diagnostics: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
 class ValidateResult:
     """Bibliography validation outcome."""
 
@@ -134,6 +143,8 @@ class AddResult:
     retained_paths: tuple[Path, ...] = ()
     conflicted_paths: tuple[Path, ...] = ()
     cleanup_diagnostics: tuple[str, ...] = ()
+    normalization_actions: tuple[str, ...] = ()
+    normalization_diagnostics: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

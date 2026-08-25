@@ -17,6 +17,7 @@ from biblio.results import (
     ReconcileResult,
     RecoverResult,
     RemoveResult,
+    TemplateResult,
     ValidateResult,
     WorkspaceCommitResult,
 )
@@ -85,6 +86,7 @@ def test_parser_has_only_current_commands_and_restored_overrides():
         "init",
         "validate",
         "audit",
+        "template",
         "add",
         "normalize",
         "reconcile",
@@ -93,10 +95,11 @@ def test_parser_has_only_current_commands_and_restored_overrides():
         "recover",
     ):
         assert command in help_text
-    for retired in ("migrate", "sort", "sync", "template", "generate-labels"):
+    for retired in ("migrate", "sort", "sync", "generate-labels"):
         assert retired not in help_text
     for option in ("--bib", "--identifiers", "--add-order", "--staging"):
         assert option in help_text
+    assert "Normalize, validate" in help_text
 
 
 def test_reconcile_help_states_one_way_non_destructive_direction(
@@ -248,6 +251,25 @@ def test_add_passes_staging_override_and_dry_run(tmp_path: Path, monkeypatch: py
 
     assert status == 0
     assert calls == [(_paths(tmp_path), staging.resolve(), True)]
+
+
+def test_template_passes_staging_override_and_overwrite(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config = _write_config(tmp_path)
+    staging = tmp_path / "incoming"
+    calls: list[tuple[Path, bool]] = []
+
+    def fake_template(path: Path, *, overwrite: bool) -> TemplateResult:
+        calls.append((path, overwrite))
+        return TemplateResult()
+
+    monkeypatch.setattr(commands, "template", fake_template)
+
+    status = cli.run(["--config", str(config), "template", str(staging), "--overwrite"])
+
+    assert status == 0
+    assert calls == [(staging.resolve(), True)]
 
 
 def test_normalize_defaults_to_all(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):

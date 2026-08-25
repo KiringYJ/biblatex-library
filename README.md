@@ -175,6 +175,31 @@ An audit finding without `fix_action` is intentionally review-only. The engine
 can prove the local inconsistency but cannot choose, for example, a print versus
 electronic ISSN or an authoritative journal spelling without source evidence.
 
+### Generate reviewable staging templates
+
+```powershell
+biblio template
+biblio template D:\temporary\batch.bib
+biblio template --overwrite
+```
+
+`template` writes one editable `.json` companion beside each selected `.bib`
+file. A single `.bib` may contain many entries; the companion contains one
+independent `main_identifier` and complete identifier inventory per temporary
+entry key. Review or change those selections before `add`. JSON-only supported
+identifiers may be added to the companion without placing non-rendering data in
+BibLaTeX fields.
+
+Template generation applies the same deterministic DOI canonicalization and
+in-memory normalization used by `add`, so the displayed identifier values and
+default selections match the eventual candidate. Existing companions are
+preserved unless `--overwrite` is explicit.
+
+The default priority is `doi`, `isbn13`, `mrnumber`, `arxiv`, `zbmath`, `zbl`,
+`jfm`, `oclc`, `hdl`, `acmdl_doi`, then `url`. When a DOI is only the matching
+arXiv-issued `10.48550/arXiv...` form, the arXiv eprint remains the default main
+identifier. A distinct publisher DOI retains normal DOI priority.
+
 ### Add and consume staging files
 
 ```powershell
@@ -183,17 +208,27 @@ biblio add
 biblio add D:\temporary\one-record.bib --dry-run
 ```
 
-Staging filenames are arbitrary temporary names. They do not need dates,
-slugs, or matching JSON companions. Directory intake is nonrecursive and
-processes regular `.bib` files in deterministic filename order. A positional
-`STAGING` value may identify one `.bib` file or another inbox directory.
+Staging filenames are arbitrary temporary names and do not need dates or
+slugs. Directory intake is nonrecursive and processes regular `.bib` files in
+deterministic filename order. A positional `STAGING` value may identify one
+`.bib` file or another inbox directory. When a same-stem `.json` companion is
+present, `add` validates and honors every reviewed per-entry selection; without
+one, it uses the documented deterministic identifier priority.
 
-`add` derives citekeys, exact identifier records, and chronological order in
-one coordinated transaction. Before committing, it durably records a cleanup
-receipt bound to the exact staging bytes, generated keys, and original and
-candidate workspace digests. Staging files are deleted only after the
-three-artifact commit is verified. They remain untouched after dry-run,
-validation failure, write failure, or an unverified commit.
+`add` applies every deterministic normalization action to the incoming entries
+before deriving citekeys and identifier records. It does not normalize existing
+library entries as a side effect of an import. The command validates the current
+workspace before intake and the complete normalized three-artifact candidate
+before any write, so a successful `add` does not require a separate `normalize`
+or `validate` command.
+
+The normalized entries, exact identifier records, and chronological order are
+installed in one coordinated transaction. Before committing, `add` durably
+records a cleanup receipt bound to the exact `.bib` and companion bytes,
+generated keys, and original and candidate workspace digests. Staging files
+and companions are deleted only after the three-artifact commit is verified.
+They remain untouched after dry-run, normalization or validation failure,
+write failure, or an unverified commit.
 
 If verified content commits but file deletion cannot finish, the reduced
 cleanup receipt remains and the command exits nonzero. Rerun the same
@@ -294,7 +329,6 @@ The following commands are intentionally absent:
 - `sync`: ambiguous or bidirectional synchronization is retired. The narrow
   `reconcile` command only appends missing supported `.bib` projections to the
   JSON inventory and has no reverse direction.
-- `template`: staging consists only of arbitrary temporary `.bib` files.
 - `generate-labels`: add and promote derive keys transactionally.
 - migration-away commands: identifier and order artifacts remain required
   normal-runtime authorities.

@@ -137,8 +137,23 @@ def cmd_audit(args: argparse.Namespace) -> int:
     return 0 if result.clean else 1
 
 
+def cmd_template(args: argparse.Namespace) -> int:
+    """Generate editable per-entry identifier templates for staged bibliographies."""
+    try:
+        config = resolve_config(args)
+        staging = Path(args.staging_path).resolve() if args.staging_path else config.staging_dir
+        result = commands.template(staging, overwrite=args.overwrite)
+    except (ConfigError, OSError, StorageError, ValueError) as error:
+        _diagnose(str(error))
+        return 1
+    _render(result)
+    for diagnostic in result.normalization_diagnostics:
+        _diagnose(diagnostic)
+    return 0
+
+
 def cmd_add(args: argparse.Namespace) -> int:
-    """Append and then consume verified staging inputs."""
+    """Normalize, validate, append, and then consume verified staging inputs."""
     try:
         config = resolve_config(args)
         staging = Path(args.staging_path).resolve() if args.staging_path else config.staging_dir
@@ -148,6 +163,8 @@ def cmd_add(args: argparse.Namespace) -> int:
         return 1
     _render(result)
     _render_commit_diagnostics(result.commit)
+    for diagnostic in result.normalization_diagnostics:
+        _diagnose(diagnostic)
     for diagnostic in result.cleanup_diagnostics:
         _diagnose(diagnostic)
     commit_status = _commit_exit_code(result.commit)
@@ -265,7 +282,26 @@ def create_parser() -> argparse.ArgumentParser:
     )
     audit_parser.set_defaults(handler=cmd_audit)
 
-    add_parser = subparsers.add_parser("add", help="Append and consume staged entries")
+    template_parser = subparsers.add_parser(
+        "template",
+        help="Generate editable identifier templates for staged entries",
+        description=(
+            "Generate one editable JSON identifier template beside each staged .bib file. "
+            "Each entry retains an independently reviewable main_identifier selection."
+        ),
+    )
+    template_parser.add_argument("staging_path", nargs="?", metavar="STAGING")
+    template_parser.add_argument("--overwrite", action="store_true")
+    template_parser.set_defaults(handler=cmd_template)
+
+    add_parser = subparsers.add_parser(
+        "add",
+        help="Normalize, validate, append, and consume staged entries",
+        description=(
+            "Normalize incoming entries, validate the complete workspace candidate, "
+            "then append and consume the exact staged inputs."
+        ),
+    )
     add_parser.add_argument("staging_path", nargs="?", metavar="STAGING")
     add_parser.add_argument("--dry-run", action="store_true")
     add_parser.set_defaults(handler=cmd_add)

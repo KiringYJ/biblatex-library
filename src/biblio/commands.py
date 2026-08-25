@@ -16,6 +16,7 @@ from .add_entries import (
     discover_staged_bib_files,
     doi_fields,
     parse_staged_entries,
+    prepare_identifier_template,
     prepare_staged_sources,
     replace_doi,
     select_main_identifier,
@@ -35,12 +36,14 @@ from .reconcile import reconcile_identifier_inventory
 from .results import (
     AddResult,
     AuditResult,
+    ChangeSet,
     CommitOutcome,
     NormalizeResult,
     PromoteResult,
     ReconcileResult,
     RecoverResult,
     RemoveResult,
+    TemplateResult,
     ValidateResult,
 )
 from .storage import (
@@ -182,6 +185,8 @@ class _ReceiptItem:
     sha256: str
     keys: tuple[str, ...]
     entries: tuple["_EntryManifest", ...]
+    template_name: str | None = None
+    template_sha256: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -298,8 +303,10 @@ def _parse_receipt(directory: Path, protected: tuple[Path, ...] = ()) -> _Cleanu
     }
     if not isinstance(raw, dict) or set(raw) != expected:
         raise ValueError("staging cleanup receipt has an invalid top-level shape")
+    version = raw["version"]
     if (
-        raw["version"] != 2
+        not isinstance(version, int)
+        or version not in {2, 3}
         or not isinstance(raw["transaction_id"], str)
         or not isinstance(raw["added_keys"], list)
         or not isinstance(raw["files"], list)
@@ -319,10 +326,15 @@ def _parse_receipt(directory: Path, protected: tuple[Path, ...] = ()) -> _Cleanu
     items: list[_ReceiptItem] = []
     names: set[str] = set()
     for item in raw["files"]:
-        if not isinstance(item, dict) or set(item) != {"name", "sha256", "keys", "entries"}:
+        expected_item = {"name", "sha256", "keys", "entries"}
+        if version == 3:
+            expected_item |= {"template_name", "template_sha256"}
+        if not isinstance(item, dict) or set(item) != expected_item:
             raise ValueError("staging cleanup receipt file item is invalid")
         name = item["name"]
         digest = item["sha256"]
+        template_name = item.get("template_name")
+        template_digest = item.get("template_sha256")
         raw_keys = item["keys"]
         keys = tuple(raw_keys) if isinstance(raw_keys, list) else ()
         raw_entries = item["entries"]
@@ -353,8 +365,34 @@ def _parse_receipt(directory: Path, protected: tuple[Path, ...] = ()) -> _Cleanu
         entries = tuple(_parse_entry_manifest(value) for value in raw_entries)
         if tuple(entry.key for entry in entries) != keys:
             raise ValueError("staging cleanup receipt entry manifests differ from file keys")
-        items.append(_ReceiptItem(name, digest, keys, entries))
         names.add(normalized_name)
+        if (template_name is None) != (template_digest is None):
+            raise ValueError("staging cleanup receipt template evidence is incomplete")
+        if template_name is not None:
+            normalized_template = (
+                os.path.normcase(template_name) if isinstance(template_name, str) else ""
+            )
+            if (
+                not isinstance(template_name, str)
+                or Path(template_name).name != template_name
+                or Path(template_name).suffix.casefold() != ".json"
+                or normalized_template in names
+                or not isinstance(template_digest, str)
+                or len(template_digest) != 64
+                or any(character not in "0123456789abcdef" for character in template_digest)
+            ):
+                raise ValueError(
+                    "staging cleanup receipt contains hostile or invalid template evidence"
+                )
+            template_candidate = directory / template_name
+            if template_candidate.resolve().parent != directory.resolve():
+                raise ValueError("staging cleanup receipt template escapes its staging directory")
+            if _is_protected(template_candidate, protected):
+                raise ValueError(
+                    "staging cleanup receipt template references a protected workspace artifact"
+                )
+            names.add(normalized_template)
+        items.append(_ReceiptItem(name, digest, keys, entries, template_name, template_digest))
     if tuple(key for item in items for key in item.keys) != added_keys:
         raise ValueError("staging cleanup receipt file keys differ from added_keys")
     pending_files = tuple(raw["pending_files"])
@@ -517,21 +555,26 @@ def _parse_entry_manifest(raw: object) -> _EntryManifest:
 
 
 def _receipt_payload(receipt: _CleanupReceipt, *, include_pending: bool) -> dict[str, object]:
-    payload = {
-        "version": 2,
+    version = 3 if any(item.template_name is not None for item in receipt.files) else 2
+    files: list[dict[str, object]] = []
+    for item in receipt.files:
+        encoded: dict[str, object] = {
+            "name": item.name,
+            "sha256": item.sha256,
+            "keys": list(item.keys),
+            "entries": [_manifest_json(entry) for entry in item.entries],
+        }
+        if version == 3:
+            encoded["template_name"] = item.template_name
+            encoded["template_sha256"] = item.template_sha256
+        files.append(encoded)
+    payload: dict[str, object] = {
+        "version": version,
         "transaction_id": receipt.transaction_id,
         "added_keys": list(receipt.added_keys),
         "original_sha256": _vector_json(receipt.original_sha256),
         "candidate_sha256": _vector_json(receipt.candidate_sha256),
-        "files": [
-            {
-                "name": item.name,
-                "sha256": item.sha256,
-                "keys": list(item.keys),
-                "entries": [_manifest_json(entry) for entry in item.entries],
-            }
-            for item in receipt.files
-        ],
+        "files": files,
     }
     if include_pending:
         payload["pending_files"] = list(receipt.pending_files)
@@ -573,6 +616,13 @@ class _ReceiptResolution:
     diagnostics: tuple[str, ...] = ()
 
 
+def _receipt_item_paths(directory: Path, item: _ReceiptItem) -> tuple[Path, ...]:
+    bibliography = directory / item.name
+    if item.template_name is None:
+        return (bibliography,)
+    return (bibliography, directory / item.template_name)
+
+
 def _prove_receipt_item(
     path: Path,
     item: _ReceiptItem,
@@ -587,18 +637,39 @@ def _prove_receipt_item(
     )
     if committed != item.entries:
         return f"committed entry content differs from staging receipt: {path}"
+    template_path = path.parent / item.template_name if item.template_name is not None else None
     try:
-        data = path.read_bytes()
-        prepared = prepare_staged_sources(((path, data),))
-        source_manifests = tuple(_added_entry_manifest(entry) for entry in prepared.entries)
+        bibliography_data = path.read_bytes() if path.exists() else None
+        template_data = (
+            template_path.read_bytes()
+            if template_path is not None and template_path.exists()
+            else None
+        )
     except (OSError, ValueError) as error:
         return f"could not prove staging file '{path}': {error}"
-    if (
-        _digest(data) != item.sha256
-        or prepared.files[0].keys != item.keys
-        or source_manifests != item.entries
+    if bibliography_data is not None and _digest(bibliography_data) != item.sha256:
+        return f"staging bibliography digest changed: {path}"
+    if template_data is not None and (
+        item.template_sha256 is None or _digest(template_data) != item.template_sha256
     ):
-        return f"staging source digest, keys, or content changed: {path}"
+        return f"staging template digest changed: {template_path}"
+    if bibliography_data is not None and (item.template_name is None or template_data is not None):
+        templates = (
+            {path: (template_path, template_data)}
+            if template_path is not None and template_data is not None
+            else None
+        )
+        try:
+            prepared = prepare_staged_sources(((path, bibliography_data),), templates)
+            source_manifests = tuple(
+                _entry_manifest(entry, record)
+                for file in prepared.files
+                for entry, record in zip(file.entries, file.identifier_records, strict=True)
+            )
+        except (OSError, ValueError) as error:
+            return f"could not prove staging file '{path}': {error}"
+        if prepared.files[0].keys != item.keys or source_manifests != item.entries:
+            return f"staging source keys or content changed: {path}"
     return None
 
 
@@ -613,7 +684,9 @@ def _resolve_receipt(
         return _ReceiptResolution(proceed=True)
     pending_names = set(receipt_record.pending_files)
     pending_items = tuple(item for item in receipt_record.files if item.name in pending_names)
-    input_paths = tuple(directory / item.name for item in pending_items)
+    input_paths = tuple(
+        path for item in pending_items for path in _receipt_item_paths(directory, item)
+    )
     current = _snapshot_vector(snapshot)
     if current == receipt_record.original_sha256:
         try:
@@ -685,13 +758,15 @@ def _resolve_receipt(
     remaining: list[_ReceiptItem] = []
     for item in pending_items:
         path = directory / item.name
-        if not path.exists():
-            consumed.append(path)
+        item_paths = _receipt_item_paths(directory, item)
+        existing_paths = tuple(candidate for candidate in item_paths if candidate.exists())
+        if not existing_paths:
+            consumed.extend(item_paths)
             continue
         issue = _prove_receipt_item(path, item, aggregate)
         if issue is not None:
-            retained.append(path)
-            conflicted.append(path)
+            retained.extend(existing_paths)
+            conflicted.extend(existing_paths)
             remaining.append(item)
             diagnostics.append(issue)
     if conflicted:
@@ -706,23 +781,43 @@ def _resolve_receipt(
         )
     for item in pending_items:
         path = directory / item.name
-        if not path.exists():
+        item_paths = _receipt_item_paths(directory, item)
+        if not any(candidate.exists() for candidate in item_paths):
             continue
         issue = _prove_receipt_item(path, item, aggregate)
         if issue is not None:
-            retained.append(path)
-            conflicted.append(path)
+            existing_paths = tuple(candidate for candidate in item_paths if candidate.exists())
+            retained.extend(existing_paths)
+            conflicted.extend(existing_paths)
             remaining.append(item)
             diagnostics.append(f"source drifted before unlink: {issue}")
             continue
-        try:
-            path.unlink()
-            _fsync_directory(directory)
-            consumed.append(path)
-        except OSError as error:
-            retained.append(path)
-            remaining.append(item)
-            diagnostics.append(f"could not consume staging file '{path}': {error}")
+        item_failed = False
+        for candidate in item_paths:
+            if not candidate.exists():
+                consumed.append(candidate)
+                continue
+            issue = _prove_receipt_item(path, item, aggregate)
+            if issue is not None:
+                existing_paths = tuple(current for current in item_paths if current.exists())
+                retained.extend(existing_paths)
+                conflicted.extend(existing_paths)
+                remaining.append(item)
+                diagnostics.append(f"source drifted before unlink: {issue}")
+                item_failed = True
+                break
+            try:
+                candidate.unlink()
+                _fsync_directory(directory)
+                consumed.append(candidate)
+            except OSError as error:
+                retained.extend(current for current in item_paths if current.exists())
+                remaining.append(item)
+                diagnostics.append(f"could not consume staging file '{candidate}': {error}")
+                item_failed = True
+                break
+        if item_failed:
+            continue
     try:
         if remaining:
             _write_receipt(
@@ -747,6 +842,34 @@ def _resolve_receipt(
     )
 
 
+def template(staging: Path, *, overwrite: bool = False) -> TemplateResult:
+    """Generate editable per-entry identifier templates for staged bibliographies."""
+    directory, explicit = _selected_staging(staging)
+    if _receipt_path(directory).exists():
+        raise ValueError("cannot generate templates while staging cleanup is pending")
+    bibliography_paths = _staging_paths(directory, explicit, ())
+    created: list[Path] = []
+    skipped: list[Path] = []
+    diagnostics: list[str] = []
+    for bibliography_path in bibliography_paths:
+        template_path = bibliography_path.with_suffix(".json")
+        if template_path.exists() and not overwrite:
+            if not template_path.is_file():
+                raise ValueError(f"staging template path is not a regular file: {template_path}")
+            skipped.append(template_path)
+            continue
+        prepared = prepare_identifier_template(bibliography_path, bibliography_path.read_bytes())
+        _durable_replace(template_path, prepared.data)
+        if template_path.read_bytes() != prepared.data:
+            raise OSError(f"staging template verification failed: {template_path}")
+        created.append(template_path)
+        diagnostics.extend(
+            f"{bibliography_path.name}:{diagnostic}"
+            for diagnostic in prepared.normalization_diagnostics
+        )
+    return TemplateResult(tuple(created), tuple(skipped), tuple(diagnostics))
+
+
 def add(
     paths: WorkspacePaths,
     staging: Path,
@@ -755,7 +878,7 @@ def add(
     lock_backend: LockBackend | None = None,
     fault_hook: FaultHook = _noop_fault_hook,
 ) -> AddResult:
-    """Append staged entries and consume exact inputs only after verified commit."""
+    """Normalize, validate, append, and consume staged inputs in one transaction."""
     directory, explicit = _selected_staging(staging)
     protected = (paths.bibliography, paths.identifiers, paths.add_order)
     with WorkspaceTransaction(
@@ -775,7 +898,9 @@ def add(
                 cleanup_diagnostics=(str(error),),
             )
         pending_paths = (
-            tuple(directory / item.name for item in pending.files) if pending is not None else ()
+            tuple(path for item in pending.files for path in _receipt_item_paths(directory, item))
+            if pending is not None
+            else ()
         )
         if dry_run and pending is not None:
             return AddResult(
@@ -805,21 +930,45 @@ def add(
                 cleanup_diagnostics=resolution.diagnostics,
             )
 
-        input_paths = _staging_paths(directory, explicit, protected)
-        sources = tuple((path, path.read_bytes()) for path in input_paths)
-        prepared_batch = prepare_staged_sources(sources)
+        bibliography_paths = _staging_paths(directory, explicit, protected)
+        sources = tuple((path, path.read_bytes()) for path in bibliography_paths)
+        templates: dict[Path, tuple[Path, bytes]] = {}
+        for path in bibliography_paths:
+            template_path = path.with_suffix(".json")
+            if template_path.exists():
+                if not template_path.is_file() or _is_protected(template_path, protected):
+                    raise ValueError(f"invalid staging template path: {template_path}")
+                templates[path] = (template_path, template_path.read_bytes())
+        prepared_batch = prepare_staged_sources(sources, templates)
         prepared = prepared_batch.entries
+        input_paths = tuple(
+            selected
+            for file in prepared_batch.files
+            for selected in (
+                file.path,
+                *((file.template_path,) if file.template_path is not None else ()),
+            )
+        )
 
         domain_result = lifecycle.add(aggregate.bibliography, prepared)
-        for entry in prepared:
-            inventory = identifiers_from_entry(entry)
-            main, _value = select_main_identifier(inventory)
-            aggregate.identifiers[entry.key] = IdentifierRecord(main, inventory)
+        for key, record in prepared_batch.identifier_records:
+            aggregate.identifiers[key] = record
         aggregate.add_order = (*aggregate.add_order, *domain_result.added_keys)
         _require_valid(aggregate)
         candidate = _candidate(aggregate)
         result = replace(
             domain_result,
+            changes=ChangeSet(
+                changed_keys=domain_result.changes.changed_keys,
+                field_deltas=prepared_batch.normalization_changes.field_deltas,
+                alias_deltas=(
+                    *prepared_batch.normalization_changes.alias_deltas,
+                    *domain_result.changes.alias_deltas,
+                ),
+                order_delta=domain_result.changes.order_delta,
+            ),
+            normalization_actions=prepared_batch.normalization_actions,
+            normalization_diagnostics=prepared_batch.normalization_diagnostics,
             stripped_doi_query_keys=prepared_batch.stripped_doi_query_keys,
             stripped_doi_fragment_keys=prepared_batch.stripped_doi_fragment_keys,
             input_paths=input_paths,
@@ -837,7 +986,12 @@ def add(
                     file.path.name,
                     file.sha256,
                     file.keys,
-                    tuple(_added_entry_manifest(entry) for entry in file.entries),
+                    tuple(
+                        _entry_manifest(entry, record)
+                        for entry, record in zip(file.entries, file.identifier_records, strict=True)
+                    ),
+                    file.template_path.name if file.template_path is not None else None,
+                    file.template_sha256,
                 )
                 for file in prepared_batch.files
             ),

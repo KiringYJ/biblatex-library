@@ -19,6 +19,7 @@ from biblio.identifier_collection import (
     serialize_add_order,
     serialize_identifier_collection,
 )
+from biblio.normalize.pipeline import NORMALIZATION_ACTIONS
 from biblio.results import CommitOutcome
 from biblio.storage import (
     BibliographyCodec,
@@ -238,6 +239,148 @@ def test_add_spaced_arxiv_marker_uses_eprint_and_validate_rejects_wrong_json_mai
     assert any("does not match exact identifier hash" in issue for issue in validation.issues)
 
 
+def test_add_normalizes_incoming_entries_before_key_derivation_and_validates_candidate(
+    tmp_path: Path,
+) -> None:
+    paths = _workspace(tmp_path)
+    staged = tmp_path / "book.bib"
+    staged.write_text(
+        "@book{temporary,author={Doe , Jane},year={2020},title={Book},"
+        "isbn={0-387-97926-3},pages={100}}\n",
+        encoding="utf-8",
+    )
+
+    preview = commands.add(paths, staged, dry_run=True)
+
+    normalized_isbn = "978-0-387-97926-7"
+    expected_key = _key("doe-2020", normalized_isbn)
+    assert preview.added_keys == (expected_key,)
+    assert preview.normalization_actions == NORMALIZATION_ACTIONS
+    assert {delta.field for delta in preview.changes.field_deltas} == {
+        "author",
+        "date",
+        "isbn",
+        "pages",
+        "pagetotal",
+        "year",
+    }
+    assert all(delta.canonical_key == expected_key for delta in preview.changes.field_deltas)
+    assert _workspace_bytes(paths) == (b"", b"{}\n", b"[]\n")
+    assert staged.exists()
+
+    committed = commands.add(paths, staged)
+
+    assert committed.added_keys == (expected_key,)
+    entry = BibliographyCodec.parse_bytes(paths.bibliography.read_bytes()).resolve(expected_key)
+    assert str(entry.fields_dict["author"].value) == "Doe, Jane"
+    assert str(entry.fields_dict["date"].value) == "2020"
+    assert str(entry.fields_dict["isbn"].value) == normalized_isbn
+    assert str(entry.fields_dict["pagetotal"].value) == "100"
+    assert "year" not in entry.fields_dict
+    assert "pages" not in entry.fields_dict
+    record = parse_identifier_collection(paths.identifiers.read_bytes())[expected_key]
+    assert record.main_identifier == "isbn13"
+    assert record.identifiers == {"isbn13": normalized_isbn}
+    assert commands.validate(paths).valid
+
+
+def test_template_reviews_each_entry_and_add_honors_selected_main_identifiers(
+    tmp_path: Path,
+) -> None:
+    paths = _workspace(tmp_path)
+    staged = tmp_path / "batch.bib"
+    staged.write_text(
+        "@article{first,author={Doe, Jane},year={2020},title={First},"
+        "doi={10.1000/first},eprint={2001.00001},eprinttype={arxiv}}\n"
+        "@online{second,author={Roe, Richard},year={2021},title={Second},"
+        "url={https://example.test/second}}\n",
+        encoding="utf-8",
+    )
+
+    generated = commands.template(staged)
+
+    template_path = staged.with_suffix(".json")
+    assert generated.created_paths == (template_path,)
+    records = parse_identifier_collection(template_path.read_bytes())
+    assert tuple(records) == ("first", "second")
+    assert records["first"].main_identifier == "doi"
+    assert records["second"].main_identifier == "url"
+
+    records["first"].main_identifier = "arxiv"
+    records["second"].identifiers["hdl"] = "20.5000/second"
+    records["second"].main_identifier = "hdl"
+    template_path.write_bytes(serialize_identifier_collection(records))
+
+    preview = commands.add(paths, staged, dry_run=True)
+
+    first_key = _key("doe-2020", "2001.00001")
+    second_key = _key("roe-2021", "20.5000/second")
+    assert preview.added_keys == (first_key, second_key)
+    assert preview.input_paths == (staged.resolve(), template_path.resolve())
+    assert staged.exists()
+    assert template_path.exists()
+
+    committed = commands.add(paths, staged)
+
+    assert committed.added_keys == (first_key, second_key)
+    committed_records = parse_identifier_collection(paths.identifiers.read_bytes())
+    assert committed_records[first_key].main_identifier == "arxiv"
+    assert committed_records[first_key].identifiers == {
+        "doi": "10.1000/first",
+        "arxiv": "2001.00001",
+    }
+    assert committed_records[second_key].main_identifier == "hdl"
+    assert committed_records[second_key].identifiers == {
+        "url": "https://example.test/second",
+        "hdl": "20.5000/second",
+    }
+    assert commands.validate(paths).valid
+    assert not staged.exists()
+    assert not template_path.exists()
+
+
+def test_add_rejects_an_incomplete_multi_entry_template_without_mutation(
+    tmp_path: Path,
+) -> None:
+    paths = _workspace(tmp_path)
+    staged = tmp_path / "batch.bib"
+    staged.write_text(
+        "@article{first,author={Doe, Jane},date={2020},title={First},doi={10.1000/first}}\n"
+        "@article{second,author={Roe, Richard},date={2021},title={Second},"
+        "doi={10.1000/second}}\n",
+        encoding="utf-8",
+    )
+    commands.template(staged)
+    template_path = staged.with_suffix(".json")
+    records = parse_identifier_collection(template_path.read_bytes())
+    del records["second"]
+    template_path.write_bytes(serialize_identifier_collection(records))
+    before = _workspace_bytes(paths)
+
+    with pytest.raises(ValueError, match="keys must exactly match"):
+        commands.add(paths, staged)
+
+    assert _workspace_bytes(paths) == before
+    assert staged.exists()
+    assert template_path.exists()
+
+
+def test_add_validation_failure_preserves_workspace_and_staging(tmp_path: Path) -> None:
+    paths = _workspace(tmp_path)
+    staged = tmp_path / "missing-title.bib"
+    staged.write_text(
+        "@article{temporary,author={Doe, Jane},year={2020},doi={10.1000/work}}\n",
+        encoding="utf-8",
+    )
+    before = _workspace_bytes(paths)
+
+    with pytest.raises(ValueError, match="has no title-bearing field"):
+        commands.add(paths, staged)
+
+    assert _workspace_bytes(paths) == before
+    assert staged.exists()
+
+
 def test_add_rejects_explicit_non_bib_and_preserves_dry_run(tmp_path: Path) -> None:
     paths = _workspace(tmp_path)
     wrong = tmp_path / "input.txt"
@@ -274,6 +417,36 @@ def test_add_changed_file_after_commit_is_retained_as_conflict(
     assert result.commit.outcome is CommitOutcome.COMMITTED_VERIFIED
     assert result.conflicted_paths == (staged.resolve(),)
     assert staged.exists()
+    assert (tmp_path / commands._RECEIPT_NAME).exists()
+
+
+def test_add_changed_template_after_commit_retains_the_staging_pair(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    paths = _workspace(tmp_path)
+    staged = tmp_path / "opaque.bib"
+    _staged(staged)
+    commands.template(staged)
+    template_path = staged.with_suffix(".json")
+    original_write = commands._write_receipt
+    mutated = False
+
+    def write_then_change(directory: Path, receipt: commands._CleanupReceipt) -> None:
+        nonlocal mutated
+        original_write(directory, receipt)
+        if not mutated:
+            mutated = True
+            template_path.write_text("{}\n", encoding="utf-8")
+
+    monkeypatch.setattr(commands, "_write_receipt", write_then_change)
+
+    result = commands.add(paths, staged)
+
+    assert result.commit is not None
+    assert result.commit.outcome is CommitOutcome.COMMITTED_VERIFIED
+    assert result.conflicted_paths == (staged.resolve(), template_path.resolve())
+    assert staged.exists()
+    assert template_path.exists()
     assert (tmp_path / commands._RECEIPT_NAME).exists()
 
 
@@ -879,6 +1052,6 @@ def test_only_add_and_promote_call_new_doi_canonicalizer() -> None:
             ):
                 callers.add((path.name, function.name))
     assert callers == {
-        ("add_entries.py", "prepare_staged_sources"),
+        ("add_entries.py", "_canonicalized_normalized_entries"),
         ("commands.py", "promote"),
     }

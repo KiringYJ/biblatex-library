@@ -66,8 +66,8 @@ typings/                     precise external-package stubs
 ```
 
 Normal commands load one workspace aggregate and request at most one
-three-artifact commit. Standalone `sort`, `sync`, `template`,
-`generate-labels`, and migration-away commands are retired.
+three-artifact commit. Standalone `sort`, `sync`, `generate-labels`, and
+migration-away commands are retired.
 
 ## Invariants
 
@@ -96,9 +96,15 @@ three-artifact commit. Standalone `sort`, `sync`, `template`,
 - `validate` and `audit` are side-effect-free; mutation and recovery use deterministic
   multi-file locking.
 - Staging filenames are arbitrary. Directory intake is nonrecursive and
-  accepts regular `*.bib` files only. Consume inputs only after a verified
-  workspace commit, using digest-bound cleanup receipts; dry-run and failure
-  preserve inputs.
+  selects regular `*.bib` files. `template` writes a same-stem JSON companion
+  with one independently reviewable identifier record per temporary entry key;
+  `add` honors a present companion and otherwise uses deterministic defaults.
+  Consume bibliography and companion inputs only after a verified workspace
+  commit, using digest-bound cleanup receipts; dry-run and failure preserve
+  inputs.
+- `add` runs all deterministic normalization actions against incoming entries
+  before canonical key derivation, leaves existing entries untouched, and
+  validates the complete normalized workspace candidate before committing.
 - All text I/O is UTF-8. JSON serialization uses `ensure_ascii=False`.
 - Use `bibtexparser` v2 for parsing/serialization and check failed blocks.
 
@@ -137,6 +143,7 @@ Current commands are:
 biblio init
 biblio validate
 biblio audit
+biblio template [STAGING] [--overwrite]
 biblio add [STAGING] [--dry-run]
 biblio normalize [ACTION] [--dry-run]
 biblio remove KEY [--dry-run]

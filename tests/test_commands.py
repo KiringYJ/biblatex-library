@@ -121,6 +121,26 @@ def test_validate_reports_cross_artifact_mismatch(tmp_path: Path) -> None:
     assert any("canonical keysets differ" in issue for issue in result.issues)
 
 
+def test_audit_is_read_only_and_reports_bibliography_compliance(tmp_path: Path) -> None:
+    doi = "10.1000/audit"
+    key = _key("doe-2024", doi)
+    paths = _workspace(
+        tmp_path,
+        f"@article{{{key},author={{Doe, Jane}},date={{2024}},title={{Work}},"
+        f"journal={{J. Test}},fjournal={{Journal of Tests}},doi={{{doi}}}}}\n",
+    )
+    before = _workspace_bytes(paths)
+
+    result = commands.audit(paths)
+
+    assert not result.clean
+    assert [finding.code for finding in result.findings] == [
+        "legacy-journal-field",
+        "legacy-journal-field",
+    ]
+    assert _workspace_bytes(paths) == before
+
+
 def test_add_directory_orders_weird_names_and_consumes_only_bib_files(tmp_path: Path) -> None:
     paths = _workspace(tmp_path)
     staging = tmp_path / "staging"

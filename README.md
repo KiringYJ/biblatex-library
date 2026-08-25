@@ -148,6 +148,33 @@ Validation reads a stable three-file snapshot and checks:
 - BibLaTeX aliases equal the optional `key_history` projection; and
 - absence of unresolved workspace recovery state.
 
+### Audit deterministic bibliography conventions
+
+```powershell
+biblio audit
+```
+
+`audit` is read-only and uses only the parsed bibliography. It does not query
+publishers, catalogues, identifier registries, or the network. Findings name an
+exact `fix_action` only when `normalize` can preserve the stored value without
+choosing new authority data.
+
+The audit currently detects:
+
+- legacy `journal`/`fjournal` fields, conflicting modern targets, and a lone
+  `journal` whose full-versus-short role is ambiguous;
+- nonstandard `eissn`, comma-packed `issn`, and invalid ISSN check digits;
+- unambiguous whole-book extents stored in `pages`, ambiguous page ranges, and
+  conflicts with `pagetotal`;
+- four confirmed invalid field/type pairs on `@online` and `@unpublished`;
+- year-like `edition` values and whitespace before commas in name fields;
+- multiple journal names or abbreviations attached to one exact ISSN; and
+- series values that differ only by letter case.
+
+An audit finding without `fix_action` is intentionally review-only. The engine
+can prove the local inconsistency but cannot choose, for example, a print versus
+electronic ISSN or an authoritative journal spelling without source evidence.
+
 ### Add and consume staging files
 
 ```powershell
@@ -186,6 +213,9 @@ The default action is `all`. Individual actions are:
 - `year-to-date`
 - `publisher-location`
 - `eprint-fields`
+- `journal-fields`
+- `book-pagination`
+- `name-spacing`
 - `latex-accents`
 - `isbn`
 - `trivial-url`

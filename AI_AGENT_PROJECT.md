@@ -57,6 +57,7 @@ src/biblio/
   storage.py                codecs, locks, transactions, and recovery
   lifecycle.py              pure add/remove/promotion transforms
   add_entries.py            arbitrary .bib staging intake and key preparation
+  audit.py                  deterministic source-free compliance findings
   normalize/                pure in-memory normalization passes
   validate.py               BibLaTeX semantic validation
   schema/                   current identifier collection schema
@@ -92,7 +93,7 @@ three-artifact commit. Standalone `sort`, `sync`, `template`,
 - Mutation uses the recoverable workspace transaction. Transaction-only
   candidate and rollback shadows are crash evidence, not user history.
 - Never bypass unresolved recovery state or overwrite a third-party digest.
-- `validate` is side-effect-free; mutation and recovery use deterministic
+- `validate` and `audit` are side-effect-free; mutation and recovery use deterministic
   multi-file locking.
 - Staging filenames are arbitrary. Directory intake is nonrecursive and
   accepts regular `*.bib` files only. Consume inputs only after a verified
@@ -135,6 +136,7 @@ Current commands are:
 ```text
 biblio init
 biblio validate
+biblio audit
 biblio add [STAGING] [--dry-run]
 biblio normalize [ACTION] [--dry-run]
 biblio remove KEY [--dry-run]
@@ -143,7 +145,8 @@ biblio recover [--status|--dry-run]
 ```
 
 Current normalization actions are `year-to-date`, `publisher-location`,
-`eprint-fields`, `latex-accents`, `isbn`, and `trivial-url`.
+`eprint-fields`, `journal-fields`, `book-pagination`, `name-spacing`,
+`latex-accents`, `isbn`, and `trivial-url`.
 
 Preferred Conventional Commit scopes are `domain`, `storage`, `cli`, `config`,
 `normalize`, `validate`, `lifecycle`, `init`, `schema`, `tests`, `tooling`, and

@@ -20,6 +20,7 @@ from .add_entries import (
     replace_doi,
     select_main_identifier,
 )
+from .audit import audit_bibliography
 from .identifier_collection import (
     IdentifierRecord,
     identifiers_from_entry,
@@ -33,6 +34,7 @@ from .normalize.pipeline import normalize_bibliography
 from .reconcile import reconcile_identifier_inventory
 from .results import (
     AddResult,
+    AuditResult,
     CommitOutcome,
     NormalizeResult,
     PromoteResult,
@@ -118,6 +120,13 @@ def validate(paths: WorkspacePaths) -> ValidateResult:
         issues.append(f"workspace recovery state is {recovery.state.value}")
         issues.extend(recovery.diagnostics)
     return ValidateResult(valid=not issues, issues=tuple(dict.fromkeys(issues)))
+
+
+def audit(paths: WorkspacePaths) -> AuditResult:
+    """Audit bibliography conventions from one stable, read-only snapshot."""
+    snapshot = read_workspace_snapshot(paths)
+    bibliography = BibliographyCodec.parse_bytes(snapshot.bibliography.data)
+    return audit_bibliography(bibliography)
 
 
 def _selected_staging(staging: Path) -> tuple[Path, Path | None]:

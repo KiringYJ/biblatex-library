@@ -9,6 +9,8 @@ import pytest
 from biblio import cli, commands
 from biblio.results import (
     AddResult,
+    AuditFinding,
+    AuditResult,
     CommitOutcome,
     NormalizeResult,
     PromoteResult,
@@ -82,6 +84,7 @@ def test_parser_has_only_current_commands_and_restored_overrides():
     for command in (
         "init",
         "validate",
+        "audit",
         "add",
         "normalize",
         "reconcile",
@@ -131,6 +134,33 @@ def test_validate_calls_one_service_with_all_workspace_paths(
     assert captured.err == ""
 
 
+def test_audit_calls_one_service_and_exits_nonzero_for_findings(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+):
+    config = _write_config(tmp_path)
+    calls: list[WorkspacePaths] = []
+    finding = AuditFinding(
+        code="multiple-issn",
+        canonical_keys=("record",),
+        fields=("issn",),
+        message="entry has multiple ISSNs",
+    )
+
+    def fake_audit(paths: WorkspacePaths) -> AuditResult:
+        calls.append(paths)
+        return AuditResult(clean=False, findings=(finding,))
+
+    monkeypatch.setattr(commands, "audit", fake_audit)
+
+    status = cli.run(["--config", str(config), "audit"])
+
+    captured = capsys.readouterr()
+    assert status == 1
+    assert calls == [_paths(tmp_path)]
+    assert json.loads(captured.out)["findings"][0]["code"] == "multiple-issn"
+    assert "multiple-issn:record:issn: entry has multiple ISSNs" in captured.err
+
+
 def test_restored_overrides_build_exact_workspace_paths(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
@@ -169,6 +199,7 @@ def test_restored_overrides_build_exact_workspace_paths(
 @pytest.mark.parametrize(
     ("argv", "service_name", "result"),
     [
+        (["audit"], "audit", AuditResult(clean=True)),
         (["add", "inbox", "--dry-run"], "add", AddResult(())),
         (["normalize", "--dry-run"], "normalize", NormalizeResult(("all",))),
         (["reconcile", "--dry-run"], "reconcile", ReconcileResult()),

@@ -92,6 +92,26 @@ class WorkspaceCommitResult:
 
 
 @dataclass(frozen=True, slots=True)
+class AuditFinding:
+    """One deterministic bibliography-compliance observation."""
+
+    code: str
+    canonical_keys: tuple[str, ...]
+    fields: tuple[str, ...]
+    message: str
+    values: tuple[str, ...] = ()
+    fix_action: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class AuditResult:
+    """Source-free bibliography audit outcome."""
+
+    clean: bool
+    findings: tuple[AuditFinding, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
 class ValidateResult:
     """Bibliography validation outcome."""
 

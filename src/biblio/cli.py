@@ -19,6 +19,9 @@ _NORMALIZATION_ACTIONS = (
     "year-to-date",
     "publisher-location",
     "eprint-fields",
+    "journal-fields",
+    "book-pagination",
+    "name-spacing",
     "latex-accents",
     "isbn",
     "trivial-url",
@@ -117,6 +120,21 @@ def cmd_validate(args: argparse.Namespace) -> int:
     for issue in result.issues:
         _diagnose(issue)
     return 0 if result.valid else 1
+
+
+def cmd_audit(args: argparse.Namespace) -> int:
+    """Audit deterministic bibliography conventions without external lookup."""
+    try:
+        result = commands.audit(workspace_paths(resolve_config(args)))
+    except (ConfigError, OSError, StorageError, ValueError) as error:
+        _diagnose(str(error))
+        return 1
+    _render(result)
+    for finding in result.findings:
+        keys = ",".join(finding.canonical_keys)
+        fields = ",".join(finding.fields)
+        _diagnose(f"{finding.code}:{keys}:{fields}: {finding.message}")
+    return 0 if result.clean else 1
 
 
 def cmd_add(args: argparse.Namespace) -> int:
@@ -241,6 +259,11 @@ def create_parser() -> argparse.ArgumentParser:
 
     validate_parser = subparsers.add_parser("validate", help="Validate the workspace")
     validate_parser.set_defaults(handler=cmd_validate)
+
+    audit_parser = subparsers.add_parser(
+        "audit", help="Audit deterministic bibliography conventions"
+    )
+    audit_parser.set_defaults(handler=cmd_audit)
 
     add_parser = subparsers.add_parser("add", help="Append and consume staged entries")
     add_parser.add_argument("staging_path", nargs="?", metavar="STAGING")

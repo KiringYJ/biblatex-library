@@ -94,3 +94,36 @@ def test_no_change_manual_review_and_invalid_isbn_diagnostics_survive() -> None:
         "publisher-location:manual-review:publisher",
         "isbn:invalid:isbn:not-an-isbn",
     )
+
+
+def test_new_field_normalizers_report_conflicts_without_overwriting() -> None:
+    bibliography = _bibliography(
+        "@article{journal,journal={Legacy},shortjournal={Current}}\n"
+        "@book{book,pages={100},pagetotal={200}}\n"
+    )
+
+    result = normalize_bibliography(bibliography, "all")
+
+    assert result.changes.changed is False
+    assert result.diagnostics == (
+        "journal-fields:manual-review:journal:journal->shortjournal:conflict",
+        "book-pagination:manual-review:book:conflict",
+    )
+
+
+def test_new_field_normalizers_are_individually_selectable() -> None:
+    bibliography = _bibliography(
+        "@article{journal,journal={J. Test},fjournal={Journal of Tests},"
+        "author={Macrì , Emanuele}}\n@book{book,pages={100}}\n"
+    )
+
+    journal = normalize_bibliography(bibliography, "journal-fields")
+    pagination = normalize_bibliography(bibliography, "book-pagination")
+    names = normalize_bibliography(bibliography, "name-spacing")
+
+    assert journal.actions == ("journal-fields",)
+    assert pagination.actions == ("book-pagination",)
+    assert names.actions == ("name-spacing",)
+    assert bibliography.resolve("journal").fields_dict["shortjournal"].value == "J. Test"
+    assert bibliography.resolve("book").fields_dict["pagetotal"].value == "100"
+    assert bibliography.resolve("journal").fields_dict["author"].value == "Macrì, Emanuele"

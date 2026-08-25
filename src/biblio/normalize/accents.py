@@ -29,29 +29,40 @@ _ACCENT_COMBINING = {
     "v": "\u030c",  # caron
 }
 
+_SPECIAL_BASE_MAP = {
+    "\\i": "i",
+    "\\j": "j",
+}
+_SPECIAL_BASE_TARGET_PATTERN = (
+    rf"(?:{'|'.join(re.escape(target) for target in _SPECIAL_BASE_MAP)})(?![A-Za-z@])"
+)
+
 # Split accent commands by type.  Letter accent commands (\r, \u, \v, ...)
 # followed directly by a letter are ambiguous with LaTeX font/control commands
 # (\rm, \bf, ...).  We require whitespace before a bare letter target for
 # letter accent commands to avoid false matches.
 _SYMBOL_ACCENT_CHARS = "".join(sorted(c for c in _ACCENT_COMBINING if not c.isalpha()))
 _LETTER_ACCENT_CHARS = "".join(sorted(c for c in _ACCENT_COMBINING if c.isalpha()))
+_SYMBOL_ACCENT_TARGET_PATTERN = rf"([A-Za-z]|{_SPECIAL_BASE_TARGET_PATTERN})"
+_LETTER_ACCENT_TARGET_PATTERN = rf"(\s+[A-Za-z]|{_SPECIAL_BASE_TARGET_PATTERN})"
 
 _BRACED_SYMBOL_ACCENT_RE = re.compile(
-    rf"\{{\\([{_SYMBOL_ACCENT_CHARS}])(?:\s*\{{([^{{}}]+)\}}|([A-Za-z]))\}}"
+    rf"\{{\\([{_SYMBOL_ACCENT_CHARS}])"
+    rf"(?:\s*\{{([^{{}}]+)\}}|{_SYMBOL_ACCENT_TARGET_PATTERN})\}}"
 )
 _BRACED_LETTER_ACCENT_RE = re.compile(
-    rf"\{{\\([{_LETTER_ACCENT_CHARS}])(?:\s*\{{([^{{}}]+)\}}|\s+([A-Za-z]))\}}"
+    rf"\{{\\([{_LETTER_ACCENT_CHARS}])"
+    rf"(?:\s*\{{([^{{}}]+)\}}|{_LETTER_ACCENT_TARGET_PATTERN})\}}"
 )
 
-_SYMBOL_ACCENT_RE = re.compile(rf"\\([{_SYMBOL_ACCENT_CHARS}])(?:\s*\{{([^{{}}]+)\}}|([A-Za-z]))")
+_SYMBOL_ACCENT_RE = re.compile(
+    rf"\\([{_SYMBOL_ACCENT_CHARS}])"
+    rf"(?:\s*\{{([^{{}}]+)\}}|{_SYMBOL_ACCENT_TARGET_PATTERN})"
+)
 _LETTER_ACCENT_RE = re.compile(
-    rf"\\([{_LETTER_ACCENT_CHARS}])(?:\s*\{{([^{{}}]+)\}}|\s+([A-Za-z]))"
+    rf"\\([{_LETTER_ACCENT_CHARS}])"
+    rf"(?:\s*\{{([^{{}}]+)\}}|{_LETTER_ACCENT_TARGET_PATTERN})"
 )
-
-_SPECIAL_BASE_MAP = {
-    "\\i": "i",
-    "\\j": "j",
-}
 
 _SPECIAL_MACROS = {
     "\\ae": "æ",

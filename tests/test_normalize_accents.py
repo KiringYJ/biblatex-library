@@ -32,6 +32,23 @@ def test_normalizes_accents_special_macros_and_reviewer_spaces() -> None:
     assert fields["mrreviewer"].value == "Victor Mikhailovich"
 
 
+def test_normalizes_unbraced_special_macro_accent_target() -> None:
+    bibliography = _bibliography(
+        r"""@book{unbraced,
+  author = {Macr\`\i },
+  note = {Keep \`\iota}
+}
+"""
+    )
+
+    report = normalize_latex_accents(bibliography)
+
+    assert report.converted == {"unbraced": ("author",)}
+    fields = bibliography.resolve("unbraced").fields_dict
+    assert fields["author"].value == "Macrì "
+    assert fields["note"].value == r"Keep \`\iota"
+
+
 def test_preserves_font_commands_math_spacing_and_identity_aliases() -> None:
     bibliography = _bibliography(
         r"""@incollection{font,

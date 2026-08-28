@@ -250,7 +250,7 @@ The default action is `all`. Only bounded representation changes are automatic:
 | Action | Supported transformation |
 | --- | --- |
 | `year-to-date` | Rename an exact four-digit ASCII `year` when neither `date` nor `month` is present. Other year values remain for review. |
-| `eprint-fields` | Migrate the documented `archiveprefix`/`primaryclass` aliases and canonicalize the arXiv marker. Preserve conflicting values and the declared entry type. |
+| `eprint-fields` | Migrate the documented `archiveprefix`/`primaryclass` aliases and canonicalize the arXiv marker. Restore the arXiv import convention: `@misc` with an explicit arXiv type and nonempty `eprint` becomes `@online`. Preserve other entry types and conflicting metadata. |
 | `latex-accents` | Convert complete supported accent and letter commands in text/name fields, preserving groups and unrelated text. Leave opaque identifiers and unsupported TeX contexts unchanged. |
 | `name-spacing` | Remove ordinary horizontal space before top-level name-part commas. Preserve braced/literal names, quoted parts, control spaces, and unsupported syntax; never reorder names. |
 | `journal-fields` | On MR-marked entries, treat a nonempty `journal` + `fjournal` pair as short title and full title respectively. Migrate both atomically to `shortjournal` + `journaltitle`; preserve the pair if either destination conflicts. |
@@ -266,6 +266,13 @@ journal migration so compatible
 accent spellings do not defer migration until a second run. See the
 [BibLaTeX manual](https://mirrors.ctan.org/macros/latex/contrib/biblatex/doc/biblatex.pdf)
 for field aliases and date conventions.
+
+The `@misc` to `@online` conversion is an explicit arXiv import convention,
+not a rule for every record available on arXiv. Existing `@article`, `@book`,
+and other types are not reclassified. A URL alone, missing/blank eprint, or
+conflicting eprint aliases does not enable the conversion. `template` and
+`add` use this same rule; dry-run change reports show the entry-type change,
+and staging files themselves remain unchanged until normal verified cleanup.
 
 Both MR-specific rules require at least one nonempty `mrnumber`, `mrclass`, or
 `mrreviewer` field in the BibLaTeX entry itself. The pair alone, URLs, citekeys,

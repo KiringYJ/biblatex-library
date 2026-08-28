@@ -285,6 +285,71 @@ def test_add_normalizes_incoming_entries_before_key_derivation_and_validates_can
     assert commands.validate(paths).valid
 
 
+def test_arxiv_misc_template_add_restores_online_without_rewriting_staging(tmp_path: Path) -> None:
+    paths = _workspace(tmp_path)
+    staged = tmp_path / "arxiv.bib"
+    arxiv = "2602.21791v2"
+    source = (
+        "@misc{temporary,author={Doe, Jane},year={2026},title={Preprint},"
+        f"archiveprefix={{arXiv}},primaryclass={{math.AG}},eprint={{{arxiv}}}}}\n"
+    )
+    staged.write_text(source, encoding="utf-8")
+
+    commands.template(staged)
+    companion = staged.with_suffix(".json")
+    template_bytes = companion.read_bytes()
+    preview = commands.add(paths, staged, dry_run=True)
+
+    key = _key("doe-2026", arxiv)
+    assert preview.added_keys == (key,)
+    assert staged.read_text(encoding="utf-8") == source
+    assert companion.read_bytes() == template_bytes
+    assert _workspace_bytes(paths) == (b"", b"{}\n", b"[]\n")
+    type_changes = [delta for delta in preview.changes.field_deltas if delta.field == "entry_type"]
+    assert [(delta.canonical_key, delta.before, delta.after) for delta in type_changes] == [
+        (key, "misc", "online")
+    ]
+
+    result = commands.add(paths, staged)
+
+    assert result.added_keys == (key,)
+    entry = BibliographyCodec.parse_bytes(paths.bibliography.read_bytes()).resolve(key)
+    assert entry.entry_type == "online"
+    assert entry.fields_dict["eprint"].value == arxiv
+    assert entry.fields_dict["eprinttype"].value == "arxiv"
+    record = parse_identifier_collection(paths.identifiers.read_bytes())[key]
+    assert record.main_identifier == "arxiv"
+    assert record.identifiers == {"arxiv": arxiv}
+    assert commands.validate(paths).valid
+    assert not commands.normalize(paths, "all").changes.changed
+
+
+def test_arxiv_type_normalization_preserves_existing_identifier_provenance(tmp_path: Path) -> None:
+    arxiv = "2602.21791v2"
+    key = _key("doe-2026", arxiv)
+    paths = _workspace(
+        tmp_path,
+        f"@misc{{{key},author={{Doe, Jane}},title={{Preprint}},date={{2026}},"
+        f"eprinttype={{arxiv}},eprint={{{arxiv}}}}}\n",
+    )
+    before = _workspace_bytes(paths)
+
+    preview = commands.normalize(paths, "eprint-fields", dry_run=True)
+
+    assert preview.changes.changed_keys == (key,)
+    assert _workspace_bytes(paths) == before
+
+    result = commands.normalize(paths, "eprint-fields")
+
+    assert result.commit is not None
+    assert BibliographyCodec.parse_bytes(paths.bibliography.read_bytes()).resolve(
+        key
+    ).entry_type == ("online")
+    assert paths.identifiers.read_bytes() == before[1]
+    assert paths.add_order.read_bytes() == before[2]
+    assert commands.validate(paths).valid
+
+
 def test_template_and_add_preserve_reviewed_isbn_provenance(tmp_path: Path) -> None:
     paths = _workspace(tmp_path)
     staged = tmp_path / "book.bib"

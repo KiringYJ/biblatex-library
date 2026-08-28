@@ -1,4 +1,4 @@
-"""Pure representation normalization for documented eprint field aliases."""
+"""Eprint aliases and the explicit arXiv miscellaneous-entry import convention."""
 
 from dataclasses import dataclass, field
 
@@ -8,29 +8,36 @@ from biblio.bibliography import Bibliography
 from biblio.results import ChangeSet, FieldDelta
 
 _ALIASES = (("archiveprefix", "eprinttype"), ("primaryclass", "eprintclass"))
+_PARTICIPATING_FIELDS = {name for pair in _ALIASES for name in pair} | {"eprint"}
 
 
 @dataclass(frozen=True, slots=True)
 class EprintNormalizationReport:
-    """Summary of alias migration, canonical spelling, and preserved conflicts."""
+    """Summary of alias migration, arXiv type conversion, and preserved conflicts."""
 
     renamed_type: tuple[str, ...] = ()
     renamed_class: tuple[str, ...] = ()
     normalized_type: tuple[str, ...] = ()
     conflicts: tuple[tuple[str, str, str], ...] = ()
     changes: ChangeSet = field(default_factory=ChangeSet)
+    changed_entry_type: tuple[str, ...] = ()
 
 
 def normalize_eprint_fields(bibliography: Bibliography) -> EprintNormalizationReport:
-    """Migrate nonconflicting aliases without inferring an entry's type."""
+    """Migrate aliases and convert explicit arXiv ``misc`` records to ``online``.
+
+    Require a nonempty eprint and preserve every other entry type. Alias
+    conflicts preserve the complete eprint namespace and the original type.
+    """
     renamed_type: list[str] = []
     renamed_class: list[str] = []
     normalized_type: list[str] = []
     conflicts: list[tuple[str, str, str]] = []
+    changed_entry_type: list[str] = []
     deltas: list[FieldDelta] = []
+    entries = [(entry, _eprint_fields(entry)) for entry in bibliography]
 
-    for entry in bibliography:
-        fields = {item.key.casefold(): item for item in entry.fields}
+    for entry, fields in entries:
         entry_conflicts = [
             (entry.key, source, target)
             for source, target in _ALIASES
@@ -61,13 +68,43 @@ def normalize_eprint_fields(bibliography: Bibliography) -> EprintNormalizationRe
                 normalized_type.append(entry.key)
                 deltas.append(FieldDelta(entry.key, "eprinttype", value, "arxiv"))
 
-    changed = set(renamed_type + renamed_class + normalized_type)
+        eprint = fields.get("eprint")
+        if (
+            entry.entry_type.casefold() == "misc"
+            and eprinttype is not None
+            and str(eprinttype.value).strip().casefold() == "arxiv"
+            and eprint is not None
+            and str(eprint.value).strip()
+        ):
+            before = entry.entry_type
+            entry.entry_type = "online"
+            changed_entry_type.append(entry.key)
+            deltas.append(FieldDelta(entry.key, "entry_type", before, "online"))
+
+    changed = set(renamed_type + renamed_class + normalized_type + changed_entry_type)
     changes = ChangeSet(
         tuple(entry.key for entry in bibliography if entry.key in changed), tuple(deltas)
     )
     return EprintNormalizationReport(
-        tuple(renamed_type), tuple(renamed_class), tuple(normalized_type), tuple(conflicts), changes
+        renamed_type=tuple(renamed_type),
+        renamed_class=tuple(renamed_class),
+        normalized_type=tuple(normalized_type),
+        conflicts=tuple(conflicts),
+        changes=changes,
+        changed_entry_type=tuple(changed_entry_type),
     )
+
+
+def _eprint_fields(entry: Entry) -> dict[str, Field]:
+    fields: dict[str, Field] = {}
+    for entry_field in entry.fields:
+        name = entry_field.key.casefold()
+        if name not in _PARTICIPATING_FIELDS:
+            continue
+        if name in fields:
+            raise ValueError(f"entry '{entry.key}' has duplicate '{name}' fields")
+        fields[name] = entry_field
+    return fields
 
 
 def _alias_values_equal(source: str, old: str, new: str) -> bool:

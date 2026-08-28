@@ -108,6 +108,11 @@ migration-away commands are retired.
 - Normalization must not infer bibliographic roles or rewrite unparsed TeX/name
   syntax. Match field names case-insensitively and reject duplicates before
   mutation. Preserve unsupported values and conflicting aliases for review.
+- The explicit arXiv import convention converts only `@misc` with arXiv
+  `eprinttype` (or `archiveprefix`) and a nonempty `eprint` to `@online`.
+  Preserve all other entry types and the exact identifier. Conflicting aliases
+  block the entire eprint transformation; duplicate eprint fields fail before
+  mutation. Do not remove this accepted convention as generic type inference.
 - Both journal-field and book-pagination migration require a nonempty
   `mrnumber`, `mrclass`, or `mrreviewer` field in the entry, using the shared
   `normalize/mr.py` predicate. Do not infer this from similar names, URLs,
@@ -179,7 +184,8 @@ Current normalization actions are `year-to-date`, `eprint-fields`,
 `trivial-url`, in that order. Text representation changes precede MR-pair comparison to keep
 `all` idempotent. The pipeline registry also supplies CLI choices through the
 commands service. Year conversion requires a bare ASCII four-digit year with
-no date/month; eprint aliases must not override conflicts or change entry type;
+no date/month; eprint aliases must not override conflicts, and only the explicit
+arXiv `@misc` import convention may change the entry type;
 URL removal requires an exact identifier-derived link, not URL equivalence.
 
 `publisher-location` is retired and rejected. Audit may offer MR-pair,

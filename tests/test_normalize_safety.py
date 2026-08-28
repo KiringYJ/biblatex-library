@@ -69,7 +69,8 @@ def test_cli_rejects_retired_actions(action: str) -> None:
         r"@book{one,author={{Research , Development}}}",
         r"@book{one,title={\LaTeX and \textit{É}}}",
         r"@book{one,mrreviewer={Victor\ Mikhailovich}}",
-        "@misc{one,eprinttype={arxiv},eprint={2602.21791}}",
+        "@misc{one,eprinttype={arxiv}}",
+        "@article{one,eprinttype={arxiv},eprint={2602.21791}}",
         "@book{one,year={2020},month={12}}",
         "@book{one,year={2020},MONTH={12}}",
         "@book{one,year={2020},DATE={2021}}",
@@ -170,7 +171,7 @@ def test_case_insensitive_fields_use_the_same_safe_rules() -> None:
         "isbn": "9780387979267",
         "doi": "10.1000/work",
     }
-    assert entry.entry_type == "misc"
+    assert entry.entry_type == "online"
     assert first.changes.changed
     assert not second.changes.changed
 

@@ -45,7 +45,7 @@ def test_all_actions_share_one_aggregate_and_preserve_physical_order() -> None:
         == original_nonentry_blocks
     )
     first = bibliography.resolve("first")
-    assert first.entry_type == "misc"
+    assert first.entry_type == "online"
     assert first.fields_dict["date"].value == "2020"
     assert first.fields_dict["title"].value == "José"
     assert "url" not in first.fields_dict

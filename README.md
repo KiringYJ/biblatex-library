@@ -111,6 +111,20 @@ Global path options must precede the command:
 -v / -vv            Increase diagnostic verbosity
 ```
 
+Commands print concise human-readable summaries by default. Pass `--json`
+before or after the command to print the complete machine-readable result:
+
+```powershell
+biblio add --json
+biblio --json validate
+biblio normalize --dry-run --json
+```
+
+Scripts that previously parsed the default JSON output must now request
+`--json`; its payload format is unchanged. Warnings and errors remain on
+standard error in both modes, and exit codes are unchanged. `-v` and `-vv`
+only change logging verbosity, not the result format.
+
 From the root of a configured consumer checkout, a read-only validation
 invocation is:
 
@@ -209,6 +223,18 @@ biblio add --dry-run
 biblio add
 biblio add D:\temporary\one-record.bib --dry-run
 ```
+
+A verified import prints the added-entry count and only the new citekeys:
+
+```text
+Added 1 entry.
+  doe-2024-01234567
+```
+
+Dry runs are labeled as previews; failed or unverified commits and incomplete
+cleanup are reported separately. Use `biblio add --dry-run --json` to review
+the complete normalization changes and before/after order. Plain output omits
+those internal details and per-artifact hashes.
 
 Staging filenames are arbitrary temporary names and do not need dates or
 slugs. Directory intake is nonrecursive and processes regular `.bib` files in

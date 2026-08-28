@@ -2,6 +2,7 @@
 
 import ast
 import json
+from dataclasses import asdict, is_dataclass, replace
 from pathlib import Path
 
 import pytest
@@ -9,10 +10,15 @@ import pytest
 from biblio import cli, commands
 from biblio.results import (
     AddResult,
+    ArtifactCommitEvidence,
     AuditFinding,
     AuditResult,
+    ChangeSet,
     CommitOutcome,
+    FieldDelta,
+    IdentifierAddition,
     NormalizeResult,
+    OrderDelta,
     PromoteResult,
     ReconcileResult,
     RecoverResult,
@@ -133,7 +139,7 @@ def test_validate_calls_one_service_with_all_workspace_paths(
     captured = capsys.readouterr()
     assert status == 0
     assert calls == [_paths(tmp_path)]
-    assert json.loads(captured.out)["valid"] is True
+    assert captured.out == "Workspace is valid.\n"
     assert captured.err == ""
 
 
@@ -160,7 +166,7 @@ def test_audit_calls_one_service_and_exits_nonzero_for_findings(
     captured = capsys.readouterr()
     assert status == 1
     assert calls == [_paths(tmp_path)]
-    assert json.loads(captured.out)["findings"][0]["code"] == "multiple-issn"
+    assert captured.out == "Audit found 1 finding.\n"
     assert "multiple-issn:record:issn: entry has multiple ISSNs" in captured.err
 
 
@@ -521,3 +527,375 @@ def test_main_raises_system_exit_at_process_boundary(
         cli.main(["--config", str(config), "validate"])
 
     assert raised.value.code == 0
+
+
+def _detailed_add_result(root: Path) -> AddResult:
+    existing_keys = tuple(f"existing-{number}" for number in range(1000))
+    added_keys = ("new-étude-2024",)
+    source = root / "staging" / "incoming.bib"
+    return AddResult(
+        added_keys,
+        changes=ChangeSet(
+            changed_keys=added_keys,
+            field_deltas=(FieldDelta(added_keys[0], "date", None, "2024"),),
+            order_delta=OrderDelta(existing_keys, (*existing_keys, *added_keys)),
+        ),
+        commit=WorkspaceCommitResult(
+            CommitOutcome.COMMITTED_VERIFIED,
+            (
+                ArtifactCommitEvidence(
+                    "bibliography",
+                    str(root / "library.bib"),
+                    "a" * 64,
+                    "b" * 64,
+                    "b" * 64,
+                    True,
+                    True,
+                ),
+            ),
+        ),
+        input_paths=(source,),
+        consumed_paths=(source,),
+        normalization_actions=("year-to-date",),
+        normalization_diagnostics=("review unsupported name syntax",),
+    )
+
+
+@pytest.mark.parametrize("verbosity", [[], ["-v"], ["-vv"]])
+def test_add_default_output_is_concise_at_every_logging_level(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    verbosity: list[str],
+) -> None:
+    config = _write_config(tmp_path)
+    result = _detailed_add_result(tmp_path)
+    monkeypatch.setattr(commands, "add", lambda *args, **kwargs: result)
+
+    assert cli.run(["--config", str(config), *verbosity, "add"]) == 0
+
+    captured = capsys.readouterr()
+    assert captured.out == "Added 1 entry.\n  new-étude-2024\n"
+    assert captured.err == "review unsupported name syntax\n"
+    assert "existing-" not in captured.out
+    assert "sha256" not in captured.out
+
+
+@pytest.mark.parametrize(
+    "argv", [["--json", "add"], ["add", "--json"], ["--json", "add", "--json"]]
+)
+def test_add_json_preserves_the_complete_original_payload(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    argv: list[str],
+) -> None:
+    config = _write_config(tmp_path)
+    result = _detailed_add_result(tmp_path)
+    original = asdict(result)
+    monkeypatch.setattr(commands, "add", lambda *args, **kwargs: result)
+
+    assert cli.run(["--config", str(config), *argv]) == 0
+
+    captured = capsys.readouterr()
+    assert (
+        captured.out == json.dumps(original, ensure_ascii=False, sort_keys=True, default=str) + "\n"
+    )
+    assert captured.err == "review unsupported name syntax\n"
+    assert asdict(result) == original
+
+
+@pytest.mark.parametrize("json_output", [False, True])
+@pytest.mark.parametrize(
+    ("argv", "service_name", "result", "summary", "status"),
+    [
+        (["validate"], "validate", ValidateResult(True), "Workspace is valid.", 0),
+        (
+            ["validate"],
+            "validate",
+            ValidateResult(False, ("ledger mismatch",)),
+            "Validation failed: 1 issue.",
+            1,
+        ),
+        (["audit"], "audit", AuditResult(True), "No audit findings.", 0),
+        (
+            ["template"],
+            "template",
+            TemplateResult((Path("new.json"),), (Path("existing.json"),)),
+            "Created 1 template; skipped 1 existing template.\n  new.json",
+            0,
+        ),
+        (["add"], "add", AddResult(()), "No new entries added.", 0),
+        (
+            ["normalize", "--dry-run"],
+            "normalize",
+            NormalizeResult(("all",), changes=ChangeSet(changed_keys=("one", "two"))),
+            "Dry run: would normalize 2 entries.",
+            0,
+        ),
+        (
+            ["normalize"],
+            "normalize",
+            NormalizeResult(
+                ("all",),
+                changes=ChangeSet(changed_keys=("one",)),
+                commit=_commit(CommitOutcome.COMMITTED_VERIFIED),
+            ),
+            "Normalized 1 entry.",
+            0,
+        ),
+        (
+            ["normalize"],
+            "normalize",
+            NormalizeResult(("all",)),
+            "No changes committed.",
+            0,
+        ),
+        (
+            ["reconcile", "--dry-run"],
+            "reconcile",
+            ReconcileResult(
+                additions=(
+                    IdentifierAddition("one", "doi", "10.1000/one", "primary"),
+                    IdentifierAddition("one", "mrnumber", "123", "primary"),
+                ),
+                changes=ChangeSet(changed_keys=("one",)),
+            ),
+            "Dry run: would add 2 identifiers across 1 entry.",
+            0,
+        ),
+        (
+            ["remove", "old", "--dry-run"],
+            "remove",
+            RemoveResult("old", ()),
+            "Dry run: would remove old.",
+            0,
+        ),
+        (
+            ["promote", "old", "published.bib", "--dry-run"],
+            "promote",
+            PromoteResult("old", "new", ("old",), "10.1000/new"),
+            "Dry run: would promote old -> new.",
+            0,
+        ),
+        (
+            ["recover", "--status"],
+            "recover",
+            RecoverResult("recovery_required"),
+            "Recovery required; run 'biblio recover'.",
+            1,
+        ),
+        (
+            ["recover", "--status"],
+            "recover",
+            RecoverResult("invalid"),
+            "Recovery state is invalid.",
+            2,
+        ),
+        (
+            ["recover"],
+            "recover",
+            RecoverResult("not_committed"),
+            "Recovered original workspace; transaction was not committed.",
+            0,
+        ),
+        (
+            ["recover"],
+            "recover",
+            RecoverResult("future_resolution"),
+            "Recovery status: future_resolution.",
+            0,
+        ),
+    ],
+)
+def test_commands_have_human_summaries_and_opt_in_json(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    json_output: bool,
+    argv: list[str],
+    service_name: str,
+    result: object,
+    summary: str,
+    status: int,
+) -> None:
+    config = _write_config(tmp_path)
+    monkeypatch.setattr(commands, service_name, lambda *args, **kwargs: result)
+
+    assert cli.run(["--config", str(config), *argv, *(["--json"] if json_output else [])]) == status
+
+    captured = capsys.readouterr()
+    if json_output:
+        assert is_dataclass(result) and not isinstance(result, type)
+        assert (
+            captured.out
+            == json.dumps(asdict(result), ensure_ascii=False, sort_keys=True, default=str) + "\n"
+        )
+    else:
+        assert captured.out == summary + "\n"
+    if service_name == "validate" and status == 1:
+        assert captured.err == "ledger mismatch\n"
+
+
+@pytest.mark.parametrize("json_output", [False, True])
+def test_init_supports_both_output_modes(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], json_output: bool
+) -> None:
+    assert cli.run([*(["--json"] if json_output else []), "init", str(tmp_path)]) == 0
+
+    captured = capsys.readouterr()
+    if json_output:
+        payload = json.loads(captured.out)
+        assert payload["target"] == str(tmp_path.resolve())
+        assert payload["created"] == [
+            "biblio.toml",
+            "bib/library.bib",
+            "data/identifier_collection.json",
+            "data/add_order.json",
+        ]
+    else:
+        assert captured.out == f"Initialized workspace at {tmp_path.resolve()} (4 files written).\n"
+    assert captured.err == ""
+
+
+@pytest.mark.parametrize(
+    ("outcome", "status", "expected"),
+    [
+        (CommitOutcome.NOT_COMMITTED, 1, "Changes not committed."),
+        (
+            CommitOutcome.COMMITTED_UNVERIFIED,
+            2,
+            "Commit outcome unverified; run 'biblio recover --status'.",
+        ),
+    ],
+)
+@pytest.mark.parametrize("json_output", [False, True])
+def test_add_does_not_report_proposed_keys_as_success_on_failed_commit(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    outcome: CommitOutcome,
+    status: int,
+    expected: str,
+    json_output: bool,
+) -> None:
+    config = _write_config(tmp_path)
+    result = replace(
+        _detailed_add_result(tmp_path),
+        commit=_commit(outcome, diagnostics=("transaction detail",)),
+        consumed_paths=(),
+    )
+    monkeypatch.setattr(commands, "add", lambda *args, **kwargs: result)
+
+    assert cli.run(["--config", str(config), "add", *(["--json"] if json_output else [])]) == status
+
+    captured = capsys.readouterr()
+    if json_output:
+        assert json.loads(captured.out)["commit"]["outcome"] == outcome.value
+    else:
+        assert captured.out == expected + "\n"
+        assert "Added" not in captured.out
+    assert captured.err == "transaction detail\nreview unsupported name syntax\n"
+
+
+def test_add_receipt_write_failure_is_not_reported_as_success(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    config = _write_config(tmp_path)
+    result = replace(
+        _detailed_add_result(tmp_path),
+        commit=None,
+        consumed_paths=(),
+        cleanup_diagnostics=("could not record pending cleanup: disk full",),
+    )
+    monkeypatch.setattr(commands, "add", lambda *args, **kwargs: result)
+
+    assert cli.run(["--config", str(config), "add"]) == 2
+
+    captured = capsys.readouterr()
+    assert captured.out.startswith("No changes committed.")
+    assert "Added" not in captured.out
+    assert "disk full" in captured.err
+
+
+def test_add_dry_run_shows_only_new_keys_and_no_success_claim(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    config = _write_config(tmp_path)
+    result = replace(_detailed_add_result(tmp_path), commit=None, consumed_paths=())
+    monkeypatch.setattr(commands, "add", lambda *args, **kwargs: result)
+
+    assert cli.run(["--config", str(config), "add", "--dry-run"]) == 0
+
+    captured = capsys.readouterr()
+    assert captured.out == "Dry run: would add 1 entry.\n  new-étude-2024\n"
+    assert "existing-" not in captured.out
+
+
+def test_add_dry_run_pending_receipt_is_not_a_new_import_preview(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    config = _write_config(tmp_path)
+    result = AddResult(
+        ("previously-added",),
+        cleanup_diagnostics=("staging cleanup receipt is pending",),
+        retained_paths=(tmp_path / "staging" / "previous.bib",),
+    )
+    monkeypatch.setattr(commands, "add", lambda *args, **kwargs: result)
+
+    assert cli.run(["--config", str(config), "add", "--dry-run"]) == 2
+
+    captured = capsys.readouterr()
+    assert captured.out == "Dry run: staging cleanup pending; no import preview.\n"
+    assert "staging cleanup receipt is pending" in captured.err
+
+
+def test_add_cleanup_only_retry_does_not_claim_to_add_historical_keys(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    config = _write_config(tmp_path)
+    result = AddResult(
+        ("previously-added",), consumed_paths=(tmp_path / "staging" / "previous.bib",)
+    )
+    monkeypatch.setattr(commands, "add", lambda *args, **kwargs: result)
+
+    assert cli.run(["--config", str(config), "add"]) == 0
+
+    assert capsys.readouterr().out == "Staging cleanup completed; no new entries added.\n"
+
+
+@pytest.mark.parametrize("json_output", [False, True])
+def test_real_import_preserves_dry_run_and_consumption_in_both_output_modes(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], json_output: bool
+) -> None:
+    assert cli.run(["init", str(tmp_path)]) == 0
+    capsys.readouterr()
+    source = tmp_path / "staging" / "incoming.bib"
+    source.write_text(
+        "@article{x,author={Doe, Jane},date={2024},title={Work},doi={10.1000/work}}\n",
+        encoding="utf-8",
+    )
+    args = ["--config", str(tmp_path / "biblio.toml"), "add"]
+    if json_output:
+        args.append("--json")
+    bibliography = tmp_path / "bib" / "library.bib"
+    original = bibliography.read_bytes()
+
+    assert cli.run([*args, "--dry-run"]) == 0
+    preview = capsys.readouterr()
+    assert source.is_file()
+    assert bibliography.read_bytes() == original
+    assert cli.run(args) == 0
+    applied = capsys.readouterr()
+    assert not source.exists()
+    keys = json.loads((tmp_path / "data" / "add_order.json").read_text(encoding="utf-8"))
+    assert len(keys) == 1
+    if json_output:
+        assert json.loads(preview.out)["added_keys"] == keys
+        payload = json.loads(applied.out)
+        assert payload["added_keys"] == keys
+        assert payload["commit"]["outcome"] == "committed_verified"
+    else:
+        assert preview.out == f"Dry run: would add 1 entry.\n  {keys[0]}\n"
+        assert applied.out == f"Added 1 entry.\n  {keys[0]}\n"
+    assert preview.err == applied.err == ""

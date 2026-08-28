@@ -165,6 +165,10 @@ local TeX toolchain; ordinary tests must not require network access.
 
 ## Public CLI
 
+Commands print concise human-readable summaries by default. `--json`, accepted
+before or after the command, preserves the complete machine-readable result.
+Keep result models, existing stderr diagnostics, and exit statuses unchanged.
+
 Current commands are:
 
 ```text

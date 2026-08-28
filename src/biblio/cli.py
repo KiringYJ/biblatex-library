@@ -51,9 +51,72 @@ def workspace_paths(config: BiblioConfig) -> WorkspacePaths:
     return WorkspacePaths(config.bib_path, config.identifier_path, config.add_order_path)
 
 
-def _render(value: object) -> None:
+def _render(value: object, *, summary: str, json_output: bool) -> None:
+    if not json_output:
+        print(summary)
+        return
     payload = asdict(value) if is_dataclass(value) and not isinstance(value, type) else value
     print(json.dumps(payload, ensure_ascii=False, sort_keys=True, default=str))
+
+
+def _quantity(count: int, singular: str, plural: str) -> str:
+    return f"{count} {singular if count == 1 else plural}"
+
+
+def _mutation_summary(
+    commit: results.WorkspaceCommitResult | None,
+    *,
+    dry_run: bool,
+    completed: str,
+    preview: str,
+) -> str:
+    if dry_run:
+        return f"Dry run: {preview}"
+    if commit is None:
+        return "No changes committed."
+    if commit.outcome is results.CommitOutcome.NOT_COMMITTED:
+        summary = "Changes not committed."
+    elif commit.outcome is results.CommitOutcome.COMMITTED_UNVERIFIED:
+        summary = "Commit outcome unverified; run 'biblio recover --status'."
+    else:
+        summary = completed
+    if commit.cleanup_pending:
+        summary += " Workspace cleanup pending; run 'biblio recover'."
+    return summary
+
+
+def _add_summary(result: results.AddResult, *, dry_run: bool) -> str:
+    if dry_run and (result.cleanup_diagnostics or result.conflicted_paths):
+        return "Dry run: staging cleanup pending; no import preview."
+    entries = _quantity(len(result.added_keys), "entry", "entries")
+    summary = _mutation_summary(
+        result.commit,
+        dry_run=dry_run,
+        completed=f"Added {entries}.",
+        preview=f"would add {entries}.",
+    )
+    if result.commit is None and not result.changes.changed:
+        if dry_run:
+            summary = "Dry run: no new entries to add."
+        elif result.consumed_paths and not (
+            result.retained_paths or result.conflicted_paths or result.cleanup_diagnostics
+        ):
+            summary = "Staging cleanup completed; no new entries added."
+        else:
+            summary = "No new entries added."
+    if result.conflicted_paths:
+        summary += f" Staging conflicts: {len(result.conflicted_paths)}."
+    elif result.retained_paths and not dry_run:
+        retained = _quantity(len(result.retained_paths), "staging input", "staging inputs")
+        summary += f" Retained {retained}."
+    elif result.cleanup_diagnostics:
+        summary += " Staging cleanup incomplete."
+    if (dry_run and result.changes.changed) or (
+        result.commit is not None
+        and result.commit.outcome is results.CommitOutcome.COMMITTED_VERIFIED
+    ):
+        summary += "".join(f"\n  {key}" for key in result.added_keys)
+    return summary
 
 
 def _diagnose(message: str) -> None:
@@ -92,7 +155,12 @@ def cmd_init(args: argparse.Namespace) -> int:
     except (OSError, ValueError) as error:
         _diagnose(str(error))
         return 1
-    _render({"target": str(target.resolve()), "created": created})
+    files = _quantity(len(created), "file", "files")
+    _render(
+        {"target": str(target.resolve()), "created": created},
+        summary=f"Initialized workspace at {target.resolve()} ({files} written).",
+        json_output=args.json_output,
+    )
     return 0
 
 
@@ -103,7 +171,12 @@ def cmd_validate(args: argparse.Namespace) -> int:
     except (ConfigError, OSError, StorageError, ValueError) as error:
         _diagnose(str(error))
         return 1
-    _render(result)
+    summary = (
+        "Workspace is valid."
+        if result.valid
+        else f"Validation failed: {_quantity(len(result.issues), 'issue', 'issues')}."
+    )
+    _render(result, summary=summary, json_output=args.json_output)
     for issue in result.issues:
         _diagnose(issue)
     return 0 if result.valid else 1
@@ -116,7 +189,12 @@ def cmd_audit(args: argparse.Namespace) -> int:
     except (ConfigError, OSError, StorageError, ValueError) as error:
         _diagnose(str(error))
         return 1
-    _render(result)
+    summary = (
+        "No audit findings."
+        if result.clean
+        else f"Audit found {_quantity(len(result.findings), 'finding', 'findings')}."
+    )
+    _render(result, summary=summary, json_output=args.json_output)
     for finding in result.findings:
         keys = ",".join(finding.canonical_keys)
         fields = ",".join(finding.fields)
@@ -133,7 +211,11 @@ def cmd_template(args: argparse.Namespace) -> int:
     except (ConfigError, OSError, StorageError, ValueError) as error:
         _diagnose(str(error))
         return 1
-    _render(result)
+    created = _quantity(len(result.created_paths), "template", "templates")
+    skipped = _quantity(len(result.skipped_paths), "existing template", "existing templates")
+    summary = f"Created {created}; skipped {skipped}."
+    summary += "".join(f"\n  {path}" for path in result.created_paths)
+    _render(result, summary=summary, json_output=args.json_output)
     for diagnostic in result.normalization_diagnostics:
         _diagnose(diagnostic)
     return 0
@@ -148,12 +230,17 @@ def cmd_add(args: argparse.Namespace) -> int:
     except (ConfigError, OSError, StorageError, ValueError) as error:
         _diagnose(str(error))
         return 1
-    _render(result)
+    _render(
+        result, summary=_add_summary(result, dry_run=args.dry_run), json_output=args.json_output
+    )
     _render_commit_diagnostics(result.commit)
     for diagnostic in result.normalization_diagnostics:
         _diagnose(diagnostic)
     for diagnostic in result.cleanup_diagnostics:
         _diagnose(diagnostic)
+    if not args.json_output:
+        for path in result.conflicted_paths:
+            _diagnose(f"Staging conflict: {path}")
     commit_status = _commit_exit_code(result.commit)
     if commit_status != 0:
         return commit_status
@@ -173,7 +260,14 @@ def cmd_normalize(args: argparse.Namespace) -> int:
     except (ConfigError, OSError, StorageError, ValueError) as error:
         _diagnose(str(error))
         return 1
-    _render(result)
+    entries = _quantity(len(result.changes.changed_keys), "entry", "entries")
+    summary = _mutation_summary(
+        result.commit,
+        dry_run=args.dry_run,
+        completed=f"Normalized {entries}.",
+        preview=f"would normalize {entries}.",
+    )
+    _render(result, summary=summary, json_output=args.json_output)
     _render_commit_diagnostics(result.commit)
     for diagnostic in result.diagnostics:
         _diagnose(diagnostic)
@@ -187,7 +281,17 @@ def cmd_reconcile(args: argparse.Namespace) -> int:
     except (ConfigError, OSError, StorageError, ValueError) as error:
         _diagnose(str(error))
         return 1
-    _render(result)
+    identifiers = _quantity(len(result.additions), "identifier", "identifiers")
+    entries = _quantity(
+        len({addition.canonical_key for addition in result.additions}), "entry", "entries"
+    )
+    summary = _mutation_summary(
+        result.commit,
+        dry_run=args.dry_run,
+        completed=f"Added {identifiers} across {entries}.",
+        preview=f"would add {identifiers} across {entries}.",
+    )
+    _render(result, summary=summary, json_output=args.json_output)
     _render_commit_diagnostics(result.commit)
     return _commit_exit_code(result.commit)
 
@@ -201,7 +305,13 @@ def cmd_remove(args: argparse.Namespace) -> int:
     except (ConfigError, OSError, StorageError, ValueError) as error:
         _diagnose(str(error))
         return 1
-    _render(result)
+    summary = _mutation_summary(
+        result.commit,
+        dry_run=args.dry_run,
+        completed=f"Removed {result.canonical_key}.",
+        preview=f"would remove {result.canonical_key}.",
+    )
+    _render(result, summary=summary, json_output=args.json_output)
     _render_commit_diagnostics(result.commit)
     return _commit_exit_code(result.commit)
 
@@ -218,7 +328,13 @@ def cmd_promote(args: argparse.Namespace) -> int:
     except (ConfigError, OSError, StorageError, ValueError) as error:
         _diagnose(str(error))
         return 1
-    _render(result)
+    summary = _mutation_summary(
+        result.commit,
+        dry_run=args.dry_run,
+        completed=f"Promoted {result.old_key} -> {result.new_key}.",
+        preview=f"would promote {result.old_key} -> {result.new_key}.",
+    )
+    _render(result, summary=summary, json_output=args.json_output)
     _render_commit_diagnostics(result.commit)
     return _commit_exit_code(result.commit)
 
@@ -230,7 +346,15 @@ def cmd_recover(args: argparse.Namespace) -> int:
     except (ConfigError, OSError, StorageError, ValueError) as error:
         _diagnose(str(error))
         return 1
-    _render(result)
+    summary = {
+        "clean": "No recovery needed.",
+        "recovery_required": "Recovery required; run 'biblio recover'.",
+        "cleanup_pending": "Workspace cleanup pending; run 'biblio recover'.",
+        "invalid": "Recovery state is invalid.",
+        "not_committed": "Recovered original workspace; transaction was not committed.",
+        "committed_verified": "Recovered committed workspace.",
+    }.get(result.resolution, f"Recovery status: {result.resolution}.")
+    _render(result, summary=summary, json_output=args.json_output)
     for diagnostic in result.diagnostics:
         _diagnose(diagnostic)
     if args.dry_run:
@@ -248,6 +372,9 @@ def create_parser() -> argparse.ArgumentParser:
         description="Maintain one coordinated BibLaTeX workspace.",
     )
     parser.add_argument("-v", "--verbose", action="count", default=0)
+    parser.add_argument(
+        "--json", dest="json_output", action="store_true", help="Print the full result as JSON"
+    )
     parser.add_argument("--config", help="Explicit biblio.toml path")
     parser.add_argument("--bib", help="Override the bibliography path")
     parser.add_argument("--identifiers", help="Override the identifier collection path")
@@ -328,6 +455,26 @@ def create_parser() -> argparse.ArgumentParser:
     status_group.add_argument("--dry-run", action="store_true", help="Inspect without recovery")
     status_group.add_argument("--status", action="store_true", help="Alias for --dry-run")
     recover_parser.set_defaults(handler=cmd_recover)
+
+    for command_parser in (
+        init_parser,
+        validate_parser,
+        audit_parser,
+        template_parser,
+        add_parser,
+        normalize_parser,
+        reconcile_parser,
+        remove_parser,
+        promote_parser,
+        recover_parser,
+    ):
+        command_parser.add_argument(
+            "--json",
+            dest="json_output",
+            action="store_true",
+            default=argparse.SUPPRESS,
+            help="Print the full result as JSON",
+        )
 
     return parser
 

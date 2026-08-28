@@ -39,13 +39,7 @@ def normalize_eprint_fields(bibliography: Bibliography) -> EprintNormalizationRe
 
     for entry, fields in entries:
         entry_conflicts = [
-            (entry.key, source, target)
-            for source, target in _ALIASES
-            if source in fields
-            and target in fields
-            and not _alias_values_equal(
-                source, str(fields[source].value), str(fields[target].value)
-            )
+            (entry.key, source, target) for source, target in _conflicting_aliases(fields)
         ]
         if entry_conflicts:
             conflicts.extend(entry_conflicts)
@@ -92,6 +86,33 @@ def normalize_eprint_fields(bibliography: Bibliography) -> EprintNormalizationRe
         conflicts=tuple(conflicts),
         changes=changes,
         changed_entry_type=tuple(changed_entry_type),
+    )
+
+
+def explicit_arxiv_eprint(entry: Entry) -> str | None:
+    """Return the exact nonempty arXiv eprint only when its aliases are consistent."""
+    fields = _eprint_fields(entry)
+    if _conflicting_aliases(fields):
+        return None
+    eprint = fields.get("eprint")
+    types = [
+        str(fields[name].value).strip().casefold()
+        for name in ("eprinttype", "archiveprefix")
+        if name in fields
+    ]
+    if eprint is None or not types or any(value != "arxiv" for value in types):
+        return None
+    value = str(eprint.value)
+    return value if value.strip() else None
+
+
+def _conflicting_aliases(fields: dict[str, Field]) -> tuple[tuple[str, str], ...]:
+    return tuple(
+        (source, target)
+        for source, target in _ALIASES
+        if source in fields
+        and target in fields
+        and not _alias_values_equal(source, str(fields[source].value), str(fields[target].value))
     )
 
 

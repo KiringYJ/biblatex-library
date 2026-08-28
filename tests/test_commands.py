@@ -174,7 +174,7 @@ def test_add_directory_orders_weird_names_and_consumes_only_bib_files(tmp_path: 
     assert parse_add_order(paths.add_order.read_bytes()) == result.added_keys
 
 
-def test_add_stores_full_inventory_and_uses_arxiv_for_derived_doi(tmp_path: Path) -> None:
+def test_add_keeps_nonredundant_inventory_and_uses_arxiv_for_derived_doi(tmp_path: Path) -> None:
     paths = _workspace(tmp_path)
     staged = tmp_path / "opaque.bib"
     staged.write_text(
@@ -196,7 +196,6 @@ def test_add_stores_full_inventory_and_uses_arxiv_for_derived_doi(tmp_path: Path
     record = parse_identifier_collection(paths.identifiers.read_bytes())[committed.added_keys[0]]
     assert record.main_identifier == "arxiv"
     assert set(record.identifiers) == {
-        "doi",
         "isbn13",
         "arxiv",
         "url",
@@ -208,7 +207,121 @@ def test_add_stores_full_inventory_and_uses_arxiv_for_derived_doi(tmp_path: Path
         "hdl",
         "acmdl_doi",
     }
-    assert record.identifiers["doi"] == "10.48550/arxiv.2101.00001"
+    assert "doi" not in record.identifiers
+    entry = BibliographyCodec.parse_bytes(paths.bibliography.read_bytes()).resolve(
+        committed.added_keys[0]
+    )
+    assert "doi" not in entry.fields_dict
+    assert entry.fields_dict["eprint"].value == "2101.00001"
+    assert commands.validate(paths).valid
+
+
+@pytest.mark.parametrize("use_template", [False, True])
+def test_add_removes_redundant_arxiv_doi_and_url_from_bibliography_and_json(
+    tmp_path: Path, use_template: bool
+) -> None:
+    paths = _workspace(tmp_path)
+    staged = tmp_path / "collins.bib"
+    arxiv = "2509.01002"
+    doi = "10.48550/arxiv.2509.01002"
+    source = (
+        "@online{temporary,title={An Introduction to Conifold Transitions},"
+        "author={Collins, Tristan C.},date={2025},eprintclass={math.DG},"
+        f"eprint={{{arxiv}}},eprinttype={{arxiv}},doi={{{doi}}},"
+        f"url={{https://doi.org/{doi}}}}}\n"
+    )
+    staged.write_text(source, encoding="utf-8")
+    companion = staged.with_suffix(".json")
+    if use_template:
+        commands.template(staged)
+        template = parse_identifier_collection(companion.read_bytes())["temporary"]
+        assert template.main_identifier == "arxiv"
+        assert template.identifiers == {"arxiv": arxiv}
+    before = _workspace_bytes(paths)
+
+    preview = commands.add(paths, staged, dry_run=True)
+
+    key = _key("collins-2025", arxiv)
+    assert preview.added_keys == (key,)
+    assert [(delta.field, delta.before, delta.after) for delta in preview.changes.field_deltas] == [
+        ("url", f"https://doi.org/{doi}", None),
+        ("doi", doi, None),
+    ]
+    assert _workspace_bytes(paths) == before
+    assert staged.read_text(encoding="utf-8") == source
+    assert companion.exists() is use_template
+
+    committed = commands.add(paths, staged)
+
+    assert committed.added_keys == (key,)
+    entry = BibliographyCodec.parse_bytes(paths.bibliography.read_bytes()).resolve(key)
+    assert "doi" not in entry.fields_dict
+    assert "url" not in entry.fields_dict
+    assert entry.fields_dict["eprint"].value == arxiv
+    record = parse_identifier_collection(paths.identifiers.read_bytes())[key]
+    assert record.main_identifier == "arxiv"
+    assert record.identifiers == {"arxiv": arxiv}
+    assert commands.validate(paths).valid
+    assert not commands.normalize(paths, "all").changes.changed
+    assert not staged.exists()
+    assert not companion.exists()
+
+
+def test_reviewed_doi_selection_survives_arxiv_doi_cleanup(tmp_path: Path) -> None:
+    paths = _workspace(tmp_path)
+    staged = tmp_path / "reviewed.bib"
+    doi = "10.48550/arxiv.2509.01002"
+    _staged(staged, doi=doi, extra=",eprint={2509.01002},eprinttype={arxiv}")
+    commands.template(staged)
+    companion = staged.with_suffix(".json")
+    records = parse_identifier_collection(companion.read_bytes())
+    records["x"].identifiers["doi"] = doi
+    records["x"].main_identifier = "doi"
+    companion.write_bytes(serialize_identifier_collection(records))
+
+    result = commands.add(paths, staged)
+
+    key = _key("doe-2024", doi)
+    assert result.added_keys == (key,)
+    entry = BibliographyCodec.parse_bytes(paths.bibliography.read_bytes()).resolve(key)
+    assert "doi" not in entry.fields_dict
+    record = parse_identifier_collection(paths.identifiers.read_bytes())[key]
+    assert record == records["x"]
+    assert commands.validate(paths).valid
+
+
+def test_add_prunes_redundant_identifiers_from_an_existing_reviewed_template(
+    tmp_path: Path,
+) -> None:
+    paths = _workspace(tmp_path)
+    staged = tmp_path / "incomplete.bib"
+    _staged(
+        staged,
+        doi="10.48550/arxiv.2509.01002",
+        extra=",eprint={2509.01002},eprinttype={arxiv}",
+    )
+    commands.template(staged)
+    companion = staged.with_suffix(".json")
+    records = parse_identifier_collection(companion.read_bytes())
+    records["x"].identifiers["doi"] = "10.48550/arxiv.2509.01002"
+    records["x"].identifiers["url"] = "https://arxiv.org/abs/2509.01002"
+    companion.write_bytes(serialize_identifier_collection(records))
+    before = _workspace_bytes(paths)
+
+    preview = commands.add(paths, staged, dry_run=True)
+
+    assert preview.added_keys == (_key("doe-2024", "2509.01002"),)
+    assert _workspace_bytes(paths) == before
+    assert staged.exists()
+    assert companion.exists()
+    assert parse_identifier_collection(companion.read_bytes()) == records
+
+    result = commands.add(paths, staged)
+
+    record = parse_identifier_collection(paths.identifiers.read_bytes())[result.added_keys[0]]
+    assert record.identifiers == {"arxiv": "2509.01002"}
+    assert record.main_identifier == "arxiv"
+    assert commands.validate(paths).valid
 
 
 def test_add_spaced_arxiv_marker_uses_eprint_and_validate_rejects_wrong_json_main(
@@ -231,6 +344,8 @@ def test_add_spaced_arxiv_marker_uses_eprint_and_validate_rejects_wrong_json_mai
     committed = commands.add(paths, staged)
     records = parse_identifier_collection(paths.identifiers.read_bytes())
     record = records[committed.added_keys[0]]
+    assert "doi" not in record.identifiers
+    record.identifiers["doi"] = "10.48550/arxiv.2101.00001"
     record.main_identifier = "doi"
     paths.identifiers.write_bytes(serialize_identifier_collection(records))
 
@@ -408,7 +523,9 @@ def test_template_add_completes_doi_url_and_reviewer_cleanup(tmp_path: Path) -> 
     assert not commands.normalize(paths, "all").changes.changed
 
 
-def test_existing_doi_cleanup_preserves_legacy_identifier_bytes(tmp_path: Path) -> None:
+def test_existing_doi_cleanup_preserves_exact_legacy_doi_and_prunes_json_url(
+    tmp_path: Path,
+) -> None:
     doi = "10.1007/BF01458074"
     key = _key("doe-2020", doi)
     paths = _workspace(
@@ -431,7 +548,9 @@ def test_existing_doi_cleanup_preserves_legacy_identifier_bytes(tmp_path: Path) 
     assert entry.fields_dict["doi"].value == doi
     assert "url" not in entry.fields_dict
     assert entry.fields_dict["mrreviewer"].value == "Victor Mikhailovich Adukov"
-    assert paths.identifiers.read_bytes() == before[1]
+    record = parse_identifier_collection(paths.identifiers.read_bytes())[key]
+    assert record.identifiers == {"doi": doi}
+    assert record.main_identifier == "doi"
     assert paths.add_order.read_bytes() == before[2]
     assert commands.validate(paths).valid
 
@@ -1205,7 +1324,7 @@ def test_add_refuses_receipt_targeting_workspace_artifact(tmp_path: Path) -> Non
     assert "protected workspace artifact" in result.cleanup_diagnostics[0]
 
 
-def test_normalize_preserves_identifier_and_order_bytes(tmp_path: Path) -> None:
+def test_normalize_removes_redundant_json_url_and_preserves_order_bytes(tmp_path: Path) -> None:
     arxiv = "2101.00001"
     key = _key("doe-2020", arxiv)
     paths = _workspace(
@@ -1214,14 +1333,92 @@ def test_normalize_preserves_identifier_and_order_bytes(tmp_path: Path) -> None:
         f"eprint={{{arxiv}}},eprinttype={{arxiv}},"
         f"url={{https://arxiv.org/abs/{arxiv}}}}}\n",
     )
-    identifiers_before = paths.identifiers.read_bytes()
     order_before = paths.add_order.read_bytes()
 
     result = commands.normalize(paths, "trivial-url")
 
     assert result.commit is not None
-    assert paths.identifiers.read_bytes() == identifiers_before
+    record = parse_identifier_collection(paths.identifiers.read_bytes())[key]
+    assert record.identifiers == {"arxiv": arxiv}
     assert paths.add_order.read_bytes() == order_before
+    assert commands.validate(paths).valid
+
+
+@pytest.mark.parametrize("main_identifier", ["arxiv", "doi"])
+def test_arxiv_doi_cleanup_prunes_json_without_breaking_existing_keys(
+    tmp_path: Path, main_identifier: str
+) -> None:
+    arxiv = "2509.01002"
+    doi = "10.48550/arXiv.2509.01002"
+    key = _key("collins-2025", arxiv if main_identifier == "arxiv" else doi)
+    paths = _workspace(
+        tmp_path,
+        f"@online{{{key},title={{An Introduction to Conifold Transitions}},"
+        "author={Collins, Tristan C.},date={2025},eprintclass={math.DG},"
+        f"eprinttype={{arxiv}},eprint={{{arxiv}}},doi={{{doi}}}}}\n",
+    )
+    records = parse_identifier_collection(paths.identifiers.read_bytes())
+    records[key].main_identifier = main_identifier
+    paths.identifiers.write_bytes(serialize_identifier_collection(records))
+    before = _workspace_bytes(paths)
+
+    preview = commands.normalize(paths, "arxiv-doi", dry_run=True)
+
+    assert preview.changes.changed_keys == (key,)
+    assert _workspace_bytes(paths) == before
+
+    result = commands.normalize(paths, "all")
+
+    assert result.commit is not None
+    assert result.commit.outcome is CommitOutcome.COMMITTED_VERIFIED
+    assert result.changes == preview.changes
+    entry = BibliographyCodec.parse_bytes(paths.bibliography.read_bytes()).resolve(key)
+    assert "doi" not in entry.fields_dict
+    assert entry.fields_dict["eprint"].value == arxiv
+    record = parse_identifier_collection(paths.identifiers.read_bytes())[key]
+    if main_identifier == "arxiv":
+        assert record.identifiers == {"arxiv": arxiv}
+    else:
+        assert paths.identifiers.read_bytes() == before[1]
+        assert any("key-provenance" in diagnostic for diagnostic in result.diagnostics)
+    assert paths.add_order.read_bytes() == before[2]
+    assert commands.validate(paths).valid
+    assert not commands.normalize(paths, "all").changes.changed
+
+
+def test_normalize_cleans_json_only_redundancies_without_rewriting_bibliography(
+    tmp_path: Path,
+) -> None:
+    arxiv = "2509.01002"
+    key = _key("collins-2025", arxiv)
+    paths = _workspace(
+        tmp_path,
+        f"@online{{{key},title={{Conifold Transitions}},author={{Collins, Tristan C.}},"
+        f"date={{2025}},eprinttype={{arxiv}},eprint={{{arxiv}}}}}\n",
+    )
+    records = parse_identifier_collection(paths.identifiers.read_bytes())
+    records[key].identifiers.update(
+        doi="10.48550/arxiv.2509.01002", url="https://doi.org/10.48550/arxiv.2509.01002"
+    )
+    paths.identifiers.write_bytes(serialize_identifier_collection(records))
+    before = _workspace_bytes(paths)
+
+    preview = commands.normalize(paths, "all", dry_run=True)
+
+    assert preview.changes.changed_keys == (key,)
+    assert _workspace_bytes(paths) == before
+
+    result = commands.normalize(paths, "all")
+
+    assert result.commit is not None
+    assert result.commit.outcome is CommitOutcome.COMMITTED_VERIFIED
+    assert paths.bibliography.read_bytes() == before[0]
+    assert paths.add_order.read_bytes() == before[2]
+    assert parse_identifier_collection(paths.identifiers.read_bytes())[key].identifiers == {
+        "arxiv": arxiv
+    }
+    assert commands.validate(paths).valid
+    assert not commands.normalize(paths, "all").changes.changed
 
 
 def test_reconcile_dry_run_apply_and_noop_preserve_other_artifact_bytes(tmp_path: Path) -> None:

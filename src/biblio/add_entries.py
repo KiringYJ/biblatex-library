@@ -28,7 +28,8 @@ from .identifiers import (
     is_derived_arxiv_doi,
     legacy_doi_comparison_token,
 )
-from .normalize.pipeline import ALL, normalize_bibliography
+from .normalize.inventory import normalize_identifier_inventory
+from .normalize.pipeline import ALL, merge_changes, normalize_bibliography
 from .results import ChangeSet, NormalizeResult
 
 MAIN_IDENTIFIER_PRIORITY = (
@@ -249,11 +250,21 @@ def _canonicalized_normalized_entries(
     )
 
 
-def _automatic_identifier_records(entries: Sequence[Entry]) -> dict[str, IdentifierRecord]:
+def _automatic_identifier_records(
+    entries: Sequence[Entry], normalization: NormalizeResult
+) -> dict[str, IdentifierRecord]:
+    arxiv_preferred = {
+        delta.canonical_key
+        for delta in normalization.changes.field_deltas
+        if delta.field == "doi" and delta.before is not None and delta.after is None
+    }
     records: dict[str, IdentifierRecord] = {}
     for entry in entries:
         identifiers = identifiers_from_entry(entry)
-        main, _value = select_main_identifier(identifiers)
+        if entry.key in arxiv_preferred and "arxiv" in identifiers:
+            main = "arxiv"
+        else:
+            main, _value = select_main_identifier(identifiers)
         records[entry.key] = IdentifierRecord(main, identifiers)
     return records
 
@@ -303,10 +314,10 @@ def _validate_template_record(entry: Entry, record: IdentifierRecord) -> None:
 
 
 def _identifier_records(
-    entries: Sequence[Entry], template_data: bytes | None
+    entries: Sequence[Entry], template_data: bytes | None, normalization: NormalizeResult
 ) -> dict[str, IdentifierRecord]:
     if template_data is None:
-        return _automatic_identifier_records(entries)
+        return _automatic_identifier_records(entries, normalization)
     records = parse_identifier_collection(template_data)
     entry_keys = tuple(entry.key for entry in entries)
     if set(records) != set(entry_keys):
@@ -347,7 +358,7 @@ def prepare_identifier_template(path: Path, data: bytes) -> PreparedIdentifierTe
     normalized, _query_indexes, _fragment_indexes, normalization = (
         _canonicalized_normalized_entries(path, data)
     )
-    records = _automatic_identifier_records(normalized)
+    records = _automatic_identifier_records(normalized, normalization)
     return PreparedIdentifierTemplate(
         serialize_identifier_collection(records),
         normalization.diagnostics,
@@ -373,7 +384,18 @@ def prepare_staged_sources(
         )
         template = templates.get(path) if templates is not None else None
         records_by_key = _identifier_records(
-            normalized, template[1] if template is not None else None
+            normalized, template[1] if template is not None else None, normalization
+        )
+        inventory = normalize_identifier_inventory(
+            Bibliography(normalized, IdentityIndex(normalized)),
+            records_by_key,
+            remove_urls=True,
+            remove_arxiv_dois=True,
+        )
+        normalization = replace(
+            normalization,
+            changes=merge_changes([normalization.changes, inventory.changes]),
+            diagnostics=(*normalization.diagnostics, *inventory.diagnostics),
         )
         prepared = prepare_entries(normalized, records_by_key)
         records = tuple(records_by_key[entry.key] for entry in normalized)

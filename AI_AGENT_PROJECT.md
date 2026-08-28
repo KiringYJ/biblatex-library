@@ -23,7 +23,7 @@ A consumer workspace is one coordinated integrity set with bounded ownership:
 
 1. `library.bib` owns active bibliographic/rendering metadata, canonical
    citekeys, BibLaTeX `ids` aliases, and physical record order.
-2. `identifier_collection.json` owns the complete exact identifier inventory
+2. `identifier_collection.json` owns the exact identifier inventory
    and citekey-hash provenance. JSON-only identifiers are valid. Optional
    `identifier_alternates` and `key_history` extend the existing flat format
    without invalidating legacy records.
@@ -77,7 +77,8 @@ migration-away commands are retired.
 - Every canonical or historical key suffix hashes the exact UTF-8 identifier
   value recorded in JSON; comparison normalization never rewrites that value.
 - Every identifier projected into `.bib` has a kind-equivalent JSON value.
-  Additional JSON-only identifiers are preserved.
+  Additional JSON-only identifiers are preserved except proven redundant
+  DOI/URL values removed by their corresponding normalization actions.
 - Promotion makes the publisher DOI key canonical, retains prior keys as
   direct aliases with complete `key_history`, and preserves the order slot.
 - Hard removal deletes the active record from all three artifacts. Consumer
@@ -138,6 +139,13 @@ migration-away commands are retired.
 - DOI URL cleanup uses the existing ASCII-only DOI comparison semantics while
   preserving query/fragment and authority distinctions. Do not use exact DOI
   spelling or Unicode-wide case folding; keep stored identifier bytes unchanged.
+- ArXiv DOI cleanup removes only a DOI derived from the matching explicit,
+  alias-consistent eprint, including its version. Run it after URL cleanup.
+  Apply the same bounded DOI/URL redundancy rules to identifier JSON, including
+  JSON-only values and reviewed staging companions. Preserve exact canonical
+  and historical key inputs, surviving BibLaTeX projections, and primaries with
+  nonremoved alternates; report provenance/alternate blockers without rekeying
+  or promoting an alternate. Independent identifiers and add order are unchanged.
 - ISBN normalization validates the entire bare identifier list before mutation,
   converts ISBN-10 to contiguous ISBN-13 digits, and does not infer hyphenation.
   Existing exact identifier provenance and reviewed companion selections remain
@@ -193,14 +201,16 @@ biblio recover [--status|--dry-run]
 ```
 
 Current normalization actions are `year-to-date`, `eprint-fields`,
-`latex-accents`, `name-spacing`, `journal-fields`, `book-pagination`, `isbn`, and
-`trivial-url`, in that order. Text representation changes precede MR-pair comparison to keep
+`latex-accents`, `name-spacing`, `journal-fields`, `book-pagination`, `isbn`,
+`trivial-url`, and `arxiv-doi`, in that order. Text representation changes precede MR-pair comparison to keep
 `all` idempotent. The pipeline registry also supplies CLI choices through the
 commands service. Year conversion requires a bare ASCII four-digit year with
 no date/month; eprint aliases must not override conflicts, and only the explicit
 arXiv `@misc` import convention may change the entry type;
 DOI URL removal uses DOI-specific ASCII equivalence with component guards;
-arXiv URL removal still requires an exact identifier-derived link.
+arXiv URL removal requires an exact abstract link or a matching derived DOI
+resolver link. DOI/URL actions may also prune unreferenced JSON redundancies;
+other actions preserve identifier JSON bytes.
 
 `publisher-location` is retired and rejected. Audit may offer MR-pair,
 MR-book-extent, and name-spacing fixes only when the corresponding normalizer

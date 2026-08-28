@@ -7,6 +7,7 @@ from biblio.results import ChangeSet, NormalizeResult
 
 from .accents import normalize_latex_accents
 from .dates import rename_year_to_date_fields
+from .doi import normalize_arxiv_dois
 from .eprint import normalize_eprint_fields
 from .isbn import normalize_isbn_fields
 from .journal import normalize_journal_fields
@@ -22,6 +23,7 @@ JOURNAL_FIELDS = "journal-fields"
 BOOK_PAGINATION = "book-pagination"
 ISBN = "isbn"
 TRIVIAL_URL = "trivial-url"
+ARXIV_DOI = "arxiv-doi"
 ALL = "all"
 
 NORMALIZATION_ACTIONS = (
@@ -33,6 +35,7 @@ NORMALIZATION_ACTIONS = (
     BOOK_PAGINATION,
     ISBN,
     TRIVIAL_URL,
+    ARXIV_DOI,
 )
 
 
@@ -62,7 +65,7 @@ def normalize_bibliography(bibliography: Bibliography, action: str) -> Normalize
     return NormalizeResult(
         actions=actions,
         diagnostics=tuple(diagnostic for result in results for diagnostic in result.diagnostics),
-        changes=_merge_changes([result.changes for result in results]),
+        changes=merge_changes([result.changes for result in results]),
     )
 
 
@@ -97,6 +100,8 @@ def _run_action(bibliography: Bibliography, action: str) -> _ActionResult:
         return _ActionResult(report.changes, diagnostics)
     if action == TRIVIAL_URL:
         return _ActionResult(normalize_trivial_urls(bibliography).changes)
+    if action == ARXIV_DOI:
+        return _ActionResult(normalize_arxiv_dois(bibliography))
     if action == LATEX_ACCENTS:
         return _ActionResult(normalize_latex_accents(bibliography).changes)
     if action == NAME_SPACING:
@@ -124,7 +129,8 @@ def _run_action(bibliography: Bibliography, action: str) -> _ActionResult:
     raise ValueError(f"unknown normalization action '{action}'")
 
 
-def _merge_changes(changes: list[ChangeSet]) -> ChangeSet:
+def merge_changes(changes: list[ChangeSet]) -> ChangeSet:
+    """Combine independent normalization passes without repeating changed keys."""
     changed_keys: list[str] = []
     seen_keys: set[str] = set()
     field_deltas = []

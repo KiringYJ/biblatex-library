@@ -31,8 +31,9 @@ from .identifier_collection import (
     serialize_identifier_collection,
 )
 from .identifiers import canonicalize_new_doi
+from .normalize.inventory import normalize_identifier_inventory
+from .normalize.pipeline import ARXIV_DOI, TRIVIAL_URL, merge_changes, normalize_bibliography
 from .normalize.pipeline import NORMALIZATION_ACTIONS as NORMALIZATION_ACTIONS
-from .normalize.pipeline import normalize_bibliography
 from .reconcile import reconcile_identifier_inventory
 from .results import (
     AddResult,
@@ -1050,20 +1051,37 @@ def normalize(
     lock_backend: LockBackend | None = None,
     fault_hook: FaultHook = _noop_fault_hook,
 ) -> NormalizeResult:
-    """Normalize only bibliography presentation while preserving ledger bytes."""
+    """Normalize bibliography and redundant identifiers without changing keys or order."""
     with WorkspaceTransaction(
         paths, f"normalize:{action}", lock_backend=lock_backend, fault_hook=fault_hook
     ) as transaction:
         aggregate = _aggregate(transaction.snapshot)
         _require_valid(aggregate)
         result = normalize_bibliography(aggregate.bibliography, action)
+        bibliography_changed = result.changes.changed
+        inventory = normalize_identifier_inventory(
+            aggregate.bibliography,
+            aggregate.identifiers,
+            remove_urls=TRIVIAL_URL in result.actions,
+            remove_arxiv_dois=ARXIV_DOI in result.actions,
+        )
+        result = replace(
+            result,
+            changes=merge_changes([result.changes, inventory.changes]),
+            diagnostics=(*result.diagnostics, *inventory.diagnostics),
+        )
         _require_valid(aggregate)
         if dry_run or not result.changes.changed:
             return result
         commit = transaction.commit(
             _candidate(
                 aggregate,
-                identifiers=transaction.snapshot.identifiers.data,
+                bibliography=None
+                if bibliography_changed
+                else transaction.snapshot.bibliography.data,
+                identifiers=None
+                if inventory.changes.changed
+                else transaction.snapshot.identifiers.data,
                 add_order=transaction.snapshot.add_order.data,
             )
         )

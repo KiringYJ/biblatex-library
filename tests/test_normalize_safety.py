@@ -33,6 +33,7 @@ def test_only_bounded_representation_actions_are_registered() -> None:
         "book-pagination",
         "isbn",
         "trivial-url",
+        "arxiv-doi",
     )
 
 

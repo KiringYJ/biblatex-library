@@ -8,6 +8,9 @@ from biblio.bibliography import Bibliography
 from biblio.identifiers import legacy_doi_comparison_token
 from biblio.results import ChangeSet, FieldDelta
 
+from .doi import matches_arxiv_doi
+from .eprint import explicit_arxiv_eprint
+
 _ARXIV_ABSTRACT_PREFIXES = (
     "https://arxiv.org/abs/",
     "http://arxiv.org/abs/",
@@ -40,20 +43,10 @@ def normalize_trivial_urls(bibliography: Bibliography) -> UrlNormalizationReport
             continue
         url = str(url_field.value)
         doi = fields.get("doi")
-        redundant = doi is not None and _matches_doi_url(url, str(doi.value))
-        eprint = fields.get("eprint")
-        types = [
-            str(fields[name].value).casefold()
-            for name in ("eprinttype", "archiveprefix")
-            if name in fields
-        ]
-        if (
-            not redundant
-            and eprint is not None
-            and types
-            and all(value == "arxiv" for value in types)
-        ):
-            redundant = _matches_identifier_url(url, str(eprint.value), _ARXIV_ABSTRACT_PREFIXES)
+        redundant = doi is not None and matches_doi_url(url, str(doi.value))
+        eprint = explicit_arxiv_eprint(entry)
+        if not redundant and eprint is not None:
+            redundant = matches_arxiv_url(url, eprint)
         if redundant:
             entry.fields.remove(url_field)
             removed.append(entry.key)
@@ -62,7 +55,8 @@ def normalize_trivial_urls(bibliography: Bibliography) -> UrlNormalizationReport
     return UrlNormalizationReport(tuple(removed), ChangeSet(tuple(removed), tuple(deltas)))
 
 
-def _matches_doi_url(url: str, identifier: str) -> bool:
+def matches_doi_url(url: str, identifier: str) -> bool:
+    """Match a bare approved DOI resolver URL without losing URL components."""
     # The comparison helper intentionally discards resolver components; a
     # cleanup operation must first establish that there are none to lose.
     if not identifier or any(
@@ -75,6 +69,16 @@ def _matches_doi_url(url: str, identifier: str) -> bool:
         if urlsplit(url).scheme not in {"http", "https"}:
             return False
         return legacy_doi_comparison_token(url) == legacy_doi_comparison_token(identifier)
+    except ValueError:
+        return False
+
+
+def matches_arxiv_url(url: str, identifier: str) -> bool:
+    """Match an exact abstract URL or a bare resolver URL for the derived DOI."""
+    if _matches_identifier_url(url, identifier, _ARXIV_ABSTRACT_PREFIXES):
+        return True
+    try:
+        return urlsplit(url).scheme in {"http", "https"} and matches_arxiv_doi(url, identifier)
     except ValueError:
         return False
 

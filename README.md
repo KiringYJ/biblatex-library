@@ -214,7 +214,9 @@ preserved unless `--overwrite` is explicit.
 The default priority is `doi`, `isbn13`, `mrnumber`, `arxiv`, `zbmath`, `zbl`,
 `jfm`, `oclc`, `hdl`, `acmdl_doi`, then `url`. When a DOI is only the matching
 arXiv-issued `10.48550/arXiv...` form, the arXiv eprint remains the default main
-identifier. A distinct publisher DOI retains normal DOI priority.
+identifier. The redundant DOI and exact derived links are omitted from both
+the normalized BibLaTeX and generated identifier JSON. A distinct publisher
+DOI retains normal DOI priority.
 
 ### Add and consume staging files
 
@@ -269,6 +271,7 @@ stale or fabricated receipt.
 ```powershell
 biblio normalize --dry-run
 biblio normalize trivial-url
+biblio normalize arxiv-doi
 ```
 
 The default action is `all`. Only bounded representation changes are automatic:
@@ -282,7 +285,8 @@ The default action is `all`. Only bounded representation changes are automatic:
 | `journal-fields` | On MR-marked entries, treat a nonempty `journal` + `fjournal` pair as short title and full title respectively. Migrate both atomically to `shortjournal` + `journaltitle`; preserve the pair if either destination conflicts. |
 | `book-pagination` | On MR-marked `@book` entries, migrate a positive page count or canonical Roman-plus-Arabic extent from `pages` to `pagetotal` without changing its string. Require no `chapter`, only absent or `page` pagination units, and no conflicting total. Preserve ranges and other unsupported forms. |
 | `isbn` | Convert checksum-valid bare ISBN-10 values to contiguous ISBN-13 digits. Validate the entire comma-separated field before conversion or deduplication; preserve annotated, malformed, or invalid fields unchanged. Do not infer hyphenation. |
-| `trivial-url` | Remove a bare approved DOI resolver URL when its DOI matches under ASCII-only case equivalence. ArXiv abstract URLs still require an exact identifier match. Preserve PDF selection, query strings, fragments, ports/userinfo, non-ASCII DOI case differences, and distinct identifiers. |
+| `trivial-url` | Remove a bare approved DOI resolver URL matching a DOI or the explicit arXiv eprint's derived DOI, and exact arXiv abstract links. Apply the same cleanup to JSON URLs. Preserve PDF selection, query strings, fragments, ports/userinfo, non-ASCII DOI case differences, and distinct identifiers. |
+| `arxiv-doi` | Remove a DOI derived from the matching explicit arXiv eprint, including its exact version. Prune redundant JSON DOI values too. Preserve publisher DOIs, mismatches, conflicting eprint aliases, and unsupported content. |
 
 Field names are matched case-insensitively. Duplicate fields are rejected
 before any normalization. Unsupported year/ISBN values, conflicting eprint
@@ -297,7 +301,17 @@ DOI URL cleanup uses the same DOI comparison semantics as identifier handling,
 including after `add` canonicalizes an incoming DOI. It does not rewrite stored
 legacy DOI values or their exact identifier provenance. For example, an uppercase
 DOI URL is redundant with its lowercase ASCII DOI, but non-ASCII case folding
-is not permitted.
+is not permitted. URL cleanup runs before arXiv DOI cleanup so both redundant
+fields disappear in one default `all` pass.
+
+Redundant DOI/URL values are also pruned from identifier JSON, including
+JSON-only leftovers from earlier imports and non-main values in reviewed
+staging companions. Existing canonical keys and aliases are never renamed:
+an exact identifier needed by `main_identifier` or `key_history` is retained
+with a diagnostic. A redundant primary with distinct remaining alternates is
+also retained rather than silently promoting an alternate. Other identifiers
+and the add-order ledger remain unchanged. JSON removals appear in change
+details as `identifiers.<kind>` or `identifier_alternates.<kind>[<index>]`.
 
 MR reviewer cleanup is field-specific: `Victor\ Mikhailovich\ Adukov` becomes
 `Victor Mikhailovich Adukov` in `mrreviewer`, not in arbitrary text or math.

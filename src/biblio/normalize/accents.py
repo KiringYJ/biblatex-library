@@ -123,7 +123,9 @@ def normalize_latex_accents(bibliography: Bibliography) -> AccentNormalizationRe
             if entry_field.key.casefold() not in _TEXT_FIELDS:
                 continue
             before = str(entry_field.value)
-            after = _convert_value(before)
+            after = _convert_value(
+                before, reviewer_spaces=entry_field.key.casefold() == "mrreviewer"
+            )
             if after == before:
                 continue
             entry_field.value = after
@@ -134,11 +136,14 @@ def normalize_latex_accents(bibliography: Bibliography) -> AccentNormalizationRe
     return AccentNormalizationReport(converted, ChangeSet(tuple(converted), tuple(deltas)))
 
 
-def _convert_value(value: str) -> str:
-    """Replace complete supported commands while keeping all existing groups.
+def _convert_value(value: str, *, reviewer_spaces: bool = False) -> str:
+    """Replace complete supported commands while keeping independent groups.
 
-    Even accent-operand braces remain: ``\\c{c}`` becomes ``{ç}``. An unknown
-    command or unsupported argument grammar preserves the complete field.
+    Accent-argument delimiters are consumed: ``\\c{c}`` becomes ``ç``, while
+    ``{\\c{c}}`` becomes ``{ç}``. An unknown command or unsupported argument
+    grammar preserves the complete field.
+    The reviewer-only option converts actual control-space tokens, not escaped
+    backslashes, and retains command boundaries that would swallow a new space.
     """
     if "\\" not in value:
         return value
@@ -153,14 +158,17 @@ def _convert_value(value: str) -> str:
         if token.kind != "command":
             index += 1
             continue
+        if reviewer_spaces and token.value == " ":
+            replacements.append((token.start, token.end, " "))
+            index += 1
+            continue
         if token.value in _ACCENT_COMBINING:
             argument = _accent_argument(tokens, index + 1, token.value)
             if argument is None:
                 return value
-            next_index, base, grouped = argument
+            next_index, base = argument
             composed = unicodedata.normalize("NFC", base + _ACCENT_COMBINING[token.value])
-            replacement = "{" + composed + "}" if grouped else composed
-            replacements.append((token.start, tokens[next_index - 1].end, replacement))
+            replacements.append((token.start, tokens[next_index - 1].end, composed))
             index = next_index
             continue
         if token.value in _SPECIAL_LETTERS:
@@ -168,11 +176,11 @@ def _convert_value(value: str) -> str:
         elif token.value in _TEXT_WRAPPERS:
             if index + 1 == len(tokens) or tokens[index + 1].kind != "open":
                 return value
-            retained_commands.append(token.value)
+            retained_commands.append(value[token.start : token.end])
         elif token.value not in _LITERAL_COMMANDS:
             return value
         else:
-            retained_commands.append(token.value)
+            retained_commands.append(value[token.start : token.end])
         index += 1
 
     pieces: list[str] = []
@@ -182,11 +190,17 @@ def _convert_value(value: str) -> str:
         previous = end
     pieces.append(value[previous:])
     normalized = "".join(pieces)
-    # A removed command boundary must not extend a retained control word.
+    # Preserve complete retained command spans, including swallowed whitespace:
+    # neither a new letter nor a new space may extend a retained control word.
     output_tokens = scan_text(normalized)
     if (
         output_tokens is None
-        or [token.value for token in output_tokens if token.kind == "command"] != retained_commands
+        or [
+            normalized[token.start : token.end]
+            for token in output_tokens
+            if token.kind == "command"
+        ]
+        != retained_commands
     ):
         return value
     return normalized
@@ -194,7 +208,7 @@ def _convert_value(value: str) -> str:
 
 def _accent_argument(
     tokens: tuple[TextToken, ...], index: int, accent: str
-) -> tuple[int, str, bool] | None:
+) -> tuple[int, str] | None:
     while index < len(tokens) and tokens[index].kind == "space":
         if tokens[index].value not in " \t":
             return None
@@ -218,4 +232,4 @@ def _accent_argument(
         if index == len(tokens) or tokens[index].kind != "close":
             return None
         index += 1
-    return index, base, grouped
+    return index, base

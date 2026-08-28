@@ -25,6 +25,7 @@ def test_normalization_preserves_biber_name_and_list_structure(tmp_path: Path) -
         ("author", r"Fran{\c{c}}ois, Jean"),
         ("author", r"\AE{} John"),
         ("author", r"{\AE} John"),
+        ("author", r"Z\'{u}\~{n}iga, Elena"),
         ("publisher", r"\AE and Other Press"),
         ("publisher", r"{\AE} and Other Press"),
         ("title", r"\AE Test"),
@@ -67,6 +68,9 @@ def test_normalization_preserves_biber_name_and_list_structure(tmp_path: Path) -
             # must not; exact converted characters are covered by the unit tests.
             parts = r"\b(family|given|prefix|suffix)="
             assert re.findall(parts, before) == re.findall(parts, after), (before, after)
+            if _value == r"Z\'{u}\~{n}iga, Elena":
+                # These braces are only accent arguments, not protected groups.
+                assert before == after
         elif field == "publisher":
             # These fixtures have no literal 'and' inside publisher names.
             assert before.count(" and ") == after.count(" and "), (before, after)

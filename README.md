@@ -277,12 +277,12 @@ The default action is `all`. Only bounded representation changes are automatic:
 | --- | --- |
 | `year-to-date` | Rename an exact four-digit ASCII `year` when neither `date` nor `month` is present. Other year values remain for review. |
 | `eprint-fields` | Migrate the documented `archiveprefix`/`primaryclass` aliases and canonicalize the arXiv marker. Restore the arXiv import convention: `@misc` with an explicit arXiv type and nonempty `eprint` becomes `@online`. Preserve other entry types and conflicting metadata. |
-| `latex-accents` | Convert complete supported accent and letter commands in text/name fields, preserving groups and unrelated text. Leave opaque identifiers and unsupported TeX contexts unchanged. |
+| `latex-accents` | Convert complete supported accent and letter commands in text/name fields, preserving groups and unrelated text. In `mrreviewer` only, convert supported control-space tokens to ordinary spaces. Leave opaque identifiers and unsupported TeX contexts unchanged. |
 | `name-spacing` | Remove ordinary horizontal space before top-level name-part commas. Preserve braced/literal names, quoted parts, control spaces, and unsupported syntax; never reorder names. |
 | `journal-fields` | On MR-marked entries, treat a nonempty `journal` + `fjournal` pair as short title and full title respectively. Migrate both atomically to `shortjournal` + `journaltitle`; preserve the pair if either destination conflicts. |
 | `book-pagination` | On MR-marked `@book` entries, migrate a positive page count or canonical Roman-plus-Arabic extent from `pages` to `pagetotal` without changing its string. Require no `chapter`, only absent or `page` pagination units, and no conflicting total. Preserve ranges and other unsupported forms. |
 | `isbn` | Convert checksum-valid bare ISBN-10 values to contiguous ISBN-13 digits. Validate the entire comma-separated field before conversion or deduplication; preserve annotated, malformed, or invalid fields unchanged. Do not infer hyphenation. |
-| `trivial-url` | Remove an exact DOI resolver or arXiv abstract URL duplicated by explicit identifier fields. Preserve PDF selection, query strings, fragments, altered authorities, and other non-exact variants. |
+| `trivial-url` | Remove a bare approved DOI resolver URL when its DOI matches under ASCII-only case equivalence. ArXiv abstract URLs still require an exact identifier match. Preserve PDF selection, query strings, fragments, ports/userinfo, non-ASCII DOI case differences, and distinct identifiers. |
 
 Field names are matched case-insensitively. Duplicate fields are rejected
 before any normalization. Unsupported year/ISBN values, conflicting eprint
@@ -292,6 +292,18 @@ journal migration so compatible
 accent spellings do not defer migration until a second run. See the
 [BibLaTeX manual](https://mirrors.ctan.org/macros/latex/contrib/biblatex/doc/biblatex.pdf)
 for field aliases and date conventions.
+
+DOI URL cleanup uses the same DOI comparison semantics as identifier handling,
+including after `add` canonicalizes an incoming DOI. It does not rewrite stored
+legacy DOI values or their exact identifier provenance. For example, an uppercase
+DOI URL is redundant with its lowercase ASCII DOI, but non-ASCII case folding
+is not permitted.
+
+MR reviewer cleanup is field-specific: `Victor\ Mikhailovich\ Adukov` becomes
+`Victor Mikhailovich Adukov` in `mrreviewer`, not in arbitrary text or math.
+The lexer recognizes actual control-space tokens; escaped backslashes and
+unsupported contexts remain unchanged. A replacement that would turn a visible
+space into a swallowed control-word delimiter is also left unchanged.
 
 The `@misc` to `@online` conversion is an explicit arXiv import convention,
 not a rule for every record available on arXiv. Existing `@article`, `@book`,
@@ -308,8 +320,10 @@ Unmarked entries are never rewritten by these two actions. A lone `journal`
 or `fjournal` is also left unchanged, even if a modern field has equal text.
 Text normalization does not evaluate arbitrary TeX: unsupported commands,
 math, comments, verbatim, malformed syntax, and token-sensitive unbraced wrapper
-arguments remain untouched. Existing braces are retained, including accent
-operand braces: `\c{c}` becomes `{ç}`, while `\textbf{\"O}` becomes `\textbf{Ö}`.
+arguments remain untouched. A recognized accent command consumes its own
+argument braces: `Z\'{u}\~{n}iga` becomes `Zúñiga`. Independent outer groups and
+formatting arguments remain: `{\c{c}}` becomes `{ç}`, and
+`\textbf{\'{E}}` becomes `\textbf{É}`. No generic brace stripping is performed.
 
 `publisher-location` remains removed and rejected. Comma position does not
 establish a publisher's location; `publisher = {Springer, Cham}` is not split

@@ -14,19 +14,19 @@ from biblio.normalize.accents import _convert_value, normalize_latex_accents
     [
         (r"Jos\'e", "José"),
         (r"Mart{\'i}", "Mart{í}"),
-        (r"\c{c}", "{ç}"),
-        (r"Fran{\c{c}}ois", "Fran{{ç}}ois"),
+        (r"\c{c}", "ç"),
+        (r"Fran{\c{c}}ois", "Fran{ç}ois"),
         (r"\textbf{\"O}", r"\textbf{Ö}"),
-        (r"\textit{\'{E}}", r"\textit{{É}}"),
-        (r"{\'{E}}", "{{É}}"),
+        (r"\textit{\'{E}}", r"\textit{É}"),
+        (r"{\'{E}}", "{É}"),
         (r"\v S", "Š"),
-        (r"\H{o}", "{ő}"),
+        (r"\H{o}", "ő"),
         (r"\ae word", "æword"),
         (r"\ae{} word", "æ{} word"),
         (r"{\AE} and \oe{}", "{Æ} and œ{}"),
         (r"Macr\`\i", "Macrì"),
         (r"\'\j", "j́"),
-        (r"\'{\i}", "{í}"),
+        (r"\'{\i}", "í"),
         ("\\ae\t  word", "æword"),
         (r"\ae{}", "æ{}"),
         (r"\textbf {Jos\'e}", r"\textbf {José}"),
@@ -34,7 +34,9 @@ from biblio.normalize.accents import _convert_value, normalize_latex_accents
         (r"Victor\ Mikhailovich", r"Victor\ Mikhailovich"),
     ],
 )
-def test_supported_complete_commands_preserve_group_topology(before: str, after: str) -> None:
+def test_supported_commands_consume_arguments_but_preserve_outer_groups(
+    before: str, after: str
+) -> None:
     assert _convert_value(before) == after
     assert _convert_value(after) == after
 
@@ -138,10 +140,10 @@ def test_text_fields_case_insensitivity_and_exact_reports() -> None:
     )
     bibliography = Bibliography(library.blocks, IdentityIndex(library.entries))
     report = normalize_latex_accents(bibliography)
-    assert report.converted == {"one": ("AUTHOR", "TITLE", "publisher")}
-    assert report.total_fields == 3
+    assert report.converted == {"one": ("AUTHOR", "TITLE", "publisher", "mrreviewer")}
+    assert report.total_fields == 4
     assert report.changes.changed_keys == ("one",)
-    assert bibliography.resolve("one").fields_dict["mrreviewer"].value == r"Victor\ Mikhailovich"
+    assert bibliography.resolve("one").fields_dict["mrreviewer"].value == "Victor Mikhailovich"
     assert report.changes.field_deltas[0].before == r"Jos\'e Mart{\'i}"
     assert report.changes.field_deltas[0].after == "José Mart{í}"
     assert not normalize_latex_accents(bibliography).changes.changed
@@ -158,7 +160,7 @@ def test_deeply_nested_groups_do_not_recurse() -> None:
         (r"\LaTeX and \textbf{\"O} and \textit{É}", r"\LaTeX and \textbf{Ö} and \textit{É}"),
         (r"\LaTeX \ae", r"\LaTeX æ"),
         (r"\ae\oe", "æœ"),
-        (r"\ae\'{e}", "æ{é}"),
+        (r"\ae\'{e}", "æé"),
         (r"\{Jos\'e\}", r"\{José\}"),
         (r"\'e and \%", r"é and \%"),
         (r"Macr\`\i , Emanuele", "Macrì, Emanuele"),
@@ -208,29 +210,119 @@ def test_dotless_operands_across_every_supported_accent(
     # dotless bases from the conventional soft-dotted base for above accents.
     expected = unicodedata.normalize("NFC", (dotless if retains_dotless else letter) + mark)
     for source, result in [
-        (f"\\{accent}{{\\{letter}}}", "{" + expected + "}"),
+        (f"\\{accent}{{\\{letter}}}", expected),
         (f"\\{accent}\\{letter}", expected),
         (f"{{\\{accent}\\{letter}}}", "{" + expected + "}"),
     ]:
         assert _convert_value(source) == result
         assert _convert_value(result) == result
     # Explicit Unicode bases are not inferred or replaced, even above accents.
-    assert _convert_value(f"\\{accent}{{{dotless}}}") == (
-        "{" + unicodedata.normalize("NFC", dotless + mark) + "}"
+    assert _convert_value(f"\\{accent}{{{dotless}}}") == unicodedata.normalize(
+        "NFC", dotless + mark
     )
-    assert _convert_value(f"\\{accent}{{{letter}}}") == (
-        "{" + unicodedata.normalize("NFC", letter + mark) + "}"
-    )
+    assert _convert_value(f"\\{accent}{{{letter}}}") == unicodedata.normalize("NFC", letter + mark)
 
 
 def test_dot_above_keeps_the_explicit_dotless_base_and_one_combining_dot() -> None:
-    assert _convert_value(r"\.{\i}") == "{\u0131\u0307}"
-    assert _convert_value(r"\.{\j}") == "{\u0237\u0307}"
-    assert _convert_value(r"\.{\i}") != "{i\u0307}"
-    assert _convert_value(r"\.{\j}") != "{j\u0307}"
+    assert _convert_value(r"\.{\i}") == "\u0131\u0307"
+    assert _convert_value(r"\.{\j}") == "\u0237\u0307"
+    assert _convert_value(r"\.{\i}") != "i\u0307"
+    assert _convert_value(r"\.{\j}") != "j\u0307"
 
 
 def test_below_dot_does_not_add_the_dotted_base() -> None:
-    assert _convert_value(r"\d{\i}") == _convert_value(r"\d{ı}") == "{\u0131\u0323}"
-    assert _convert_value(r"\d{\j}") == _convert_value(r"\d{ȷ}") == "{\u0237\u0323}"
-    assert _convert_value(r"\d{i}") == "{ị}"
+    assert _convert_value(r"\d{\i}") == _convert_value(r"\d{ı}") == "\u0131\u0323"
+    assert _convert_value(r"\d{\j}") == _convert_value(r"\d{ȷ}") == "\u0237\u0323"
+    assert _convert_value(r"\d{i}") == "ị"
+
+
+@pytest.mark.parametrize(
+    "before, after",
+    [
+        (r"Z\'{u}\~{n}iga", "Zúñiga"),
+        (r"{Z\'{u}\~{n}iga}", "{Zúñiga}"),
+        (r"{{Z\'{u}\~{n}iga}}", "{{Zúñiga}}"),
+        (r"\textbf{Z\'{u}\~{n}iga}", r"\textbf{Zúñiga}"),
+        (r"\textbf{{Z\'{u}\~{n}iga}}", r"\textbf{{Zúñiga}}"),
+        (r"\textbf{\emph{Z\'{u}\~{n}iga}}", r"\textbf{\emph{Zúñiga}}"),
+        (r"{\'{U}} and \~{N}", "{Ú} and Ñ"),
+    ],
+)
+def test_accent_arguments_are_not_independent_protection_groups(before: str, after: str) -> None:
+    assert _convert_value(before) == after
+    assert _convert_value(after) == after
+
+
+@pytest.mark.parametrize("value", [r"\TeX\'{e}", r"\LaTeX\~{n}", r"\textbf\'{e}"])
+def test_consuming_accent_arguments_never_merges_retained_commands(value: str) -> None:
+    assert _convert_value(value) == value
+
+
+@pytest.mark.parametrize("field_name", ["mrreviewer", "MRREVIEWER", "MrReviewer"])
+@pytest.mark.parametrize(
+    "before, after",
+    [
+        (r"Victor\ Mikhailovich", "Victor Mikhailovich"),
+        (r"One\ Two\ Three", "One Two Three"),
+        (r"{Victor\ Mikhailovich}", "{Victor Mikhailovich}"),
+        (r"Jos\'e\ Mart{\'i}", "José Mart{í}"),
+        (r"\textbf{Jos\'e\ Reviewer}", r"\textbf{José Reviewer}"),
+        (r"\ae\ Reviewer", "æ Reviewer"),
+        (r"\TeX{}\ Reviewer", r"\TeX{} Reviewer"),
+    ],
+)
+def test_reviewer_control_spaces_are_tokenized_and_reported_once(
+    field_name: str, before: str, after: str
+) -> None:
+    library = bibtexparser.parse_string(f"@book{{one,{field_name}={{{before}}}}}")
+    bibliography = Bibliography(library.blocks, IdentityIndex(library.entries))
+    report = normalize_latex_accents(bibliography)
+    assert bibliography.resolve("one").fields_dict[field_name].value == after
+    assert report.converted == {"one": (field_name,)}
+    assert report.total_fields == 1
+    assert [(delta.field, delta.before, delta.after) for delta in report.changes.field_deltas] == [
+        (field_name, before, after)
+    ]
+    assert not normalize_latex_accents(bibliography).changes.changed
+
+
+@pytest.mark.parametrize(
+    "field_name", ["author", "title", "publisher", "doi", "url", "customfield"]
+)
+def test_control_space_cleanup_is_reviewer_specific(field_name: str) -> None:
+    before = r"Victor\ Mikhailovich"
+    library = bibtexparser.parse_string(f"@book{{one,{field_name}={{{before}}}}}")
+    bibliography = Bibliography(library.blocks, IdentityIndex(library.entries))
+    assert not normalize_latex_accents(bibliography).changes.changed
+    assert bibliography.resolve("one").fields_dict[field_name].value == before
+    assert _convert_value(before) == before
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        r"Victor\\ Mikhailovich",
+        r"Victor\\\ Mikhailovich",
+        r"Victor\ Mikhailovich\\ ",
+        r"\TeX\ Reviewer",
+        r"\TeX \ Reviewer",
+        r"\LaTeX\ Reviewer",
+        r"\LaTeX  \ Reviewer",
+        r"Jos\'e\ Reviewer and \unknown{One\ Two}",
+        r"\verb|One\ Two|",
+        r"\url{https://example.test/One\ Two}",
+        r"One\ Two $x$",
+        r"One\ Two \(x\)",
+        "One\\ Two % comment",
+        r"One\ Two {unclosed",
+        "One\\ Two \\",
+    ],
+)
+def test_reviewer_cleanup_preserves_opaque_and_swallowed_space_contexts(value: str) -> None:
+    # Use the in-memory field model so malformed source can reach the normalizer.
+    library = bibtexparser.parse_string("@book{one,mrreviewer={placeholder}}")
+    bibliography = Bibliography(library.blocks, IdentityIndex(library.entries))
+    bibliography.resolve("one").fields_dict["mrreviewer"].value = value
+    report = normalize_latex_accents(bibliography)
+    assert not report.changes.changed
+    assert bibliography.resolve("one").fields_dict["mrreviewer"].value == value

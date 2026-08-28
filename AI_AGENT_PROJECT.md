@@ -126,9 +126,18 @@ migration-away commands are retired.
   absent or `page` pagination units, and a supported positive count or canonical
   Roman-plus-Arabic extent. Preserve the exact extent string; do not sum parts
   or reinterpret ranges. A differing `pagetotal` blocks the change.
-- Name/TeX normalization uses a bounded source-preserving grammar. Retain groups,
-  quoted/literal names, and opaque identifiers; leave unsupported contexts
-  unchanged. Do not use macro-prefix replacement or generic brace stripping.
+- Name/TeX normalization uses a bounded source-preserving grammar. Consume the
+  parsed argument braces of recognized accent commands, but retain independent
+  groups, case protection, formatting arguments, quoted/literal names, and opaque
+  identifiers. Leave unsupported contexts unchanged. Do not use macro-prefix
+  replacement or generic brace stripping.
+- Preserve the field-specific MR reviewer convention: actual control-space
+  tokens in supported `mrreviewer` text become ordinary spaces. Do not apply
+  this globally or alter escaped backslashes, math, unknown syntax, or retained
+  control-word delimiter behavior. Test cleanup outcomes, not only idempotence.
+- DOI URL cleanup uses the existing ASCII-only DOI comparison semantics while
+  preserving query/fragment and authority distinctions. Do not use exact DOI
+  spelling or Unicode-wide case folding; keep stored identifier bytes unchanged.
 - ISBN normalization validates the entire bare identifier list before mutation,
   converts ISBN-10 to contiguous ISBN-13 digits, and does not infer hyphenation.
   Existing exact identifier provenance and reviewed companion selections remain
@@ -190,7 +199,8 @@ Current normalization actions are `year-to-date`, `eprint-fields`,
 commands service. Year conversion requires a bare ASCII four-digit year with
 no date/month; eprint aliases must not override conflicts, and only the explicit
 arXiv `@misc` import convention may change the entry type;
-URL removal requires an exact identifier-derived link, not URL equivalence.
+DOI URL removal uses DOI-specific ASCII equivalence with component guards;
+arXiv URL removal still requires an exact identifier-derived link.
 
 `publisher-location` is retired and rejected. Audit may offer MR-pair,
 MR-book-extent, and name-spacing fixes only when the corresponding normalizer

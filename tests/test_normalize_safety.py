@@ -68,7 +68,7 @@ def test_cli_rejects_retired_actions(action: str) -> None:
         r"@book{one,author={Doe\ , Jane}}",
         r"@book{one,author={{Research , Development}}}",
         r"@book{one,title={\LaTeX and \textit{É}}}",
-        r"@book{one,mrreviewer={Victor\ Mikhailovich}}",
+        r"@book{one,note={Victor\ Mikhailovich}}",
         "@misc{one,eprinttype={arxiv}}",
         "@article{one,eprinttype={arxiv},eprint={2602.21791}}",
         "@book{one,year={2020},month={12}}",

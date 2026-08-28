@@ -1,16 +1,13 @@
-"""Normalization helpers for exactly regenerable identifier URL fields."""
+"""Normalization helpers for redundant DOI and exactly matched arXiv URLs."""
 
+import unicodedata
 from dataclasses import dataclass, field
+from urllib.parse import urlsplit
 
 from biblio.bibliography import Bibliography
+from biblio.identifiers import legacy_doi_comparison_token
 from biblio.results import ChangeSet, FieldDelta
 
-_DOI_URL_PREFIXES = (
-    "https://doi.org/",
-    "http://doi.org/",
-    "https://dx.doi.org/",
-    "http://dx.doi.org/",
-)
 _ARXIV_ABSTRACT_PREFIXES = (
     "https://arxiv.org/abs/",
     "http://arxiv.org/abs/",
@@ -28,10 +25,10 @@ class UrlNormalizationReport:
 
 
 def normalize_trivial_urls(bibliography: Bibliography) -> UrlNormalizationReport:
-    """Remove exact DOI resolver or explicitly typed arXiv abstract links.
+    """Remove equivalent bare DOI resolver or exact typed arXiv abstract links.
 
-    Keep PDF selection and every unmatched URL component, spelling, or version.
-    Matching uses the exact identifier value, not identifier equivalence.
+    DOI comparison uses its defined ASCII case equivalence, without rewriting
+    stored identifiers. Keep extra URL components and exact arXiv versions.
     """
     removed: list[str] = []
     deltas: list[FieldDelta] = []
@@ -43,9 +40,7 @@ def normalize_trivial_urls(bibliography: Bibliography) -> UrlNormalizationReport
             continue
         url = str(url_field.value)
         doi = fields.get("doi")
-        redundant = doi is not None and _matches_identifier_url(
-            url, str(doi.value), _DOI_URL_PREFIXES
-        )
+        redundant = doi is not None and _matches_doi_url(url, str(doi.value))
         eprint = fields.get("eprint")
         types = [
             str(fields[name].value).casefold()
@@ -65,6 +60,23 @@ def normalize_trivial_urls(bibliography: Bibliography) -> UrlNormalizationReport
             deltas.append(FieldDelta(entry.key, "url", url, None))
 
     return UrlNormalizationReport(tuple(removed), ChangeSet(tuple(removed), tuple(deltas)))
+
+
+def _matches_doi_url(url: str, identifier: str) -> bool:
+    # The comparison helper intentionally discards resolver components; a
+    # cleanup operation must first establish that there are none to lose.
+    if not identifier or any(
+        character.isspace() or unicodedata.category(character) == "Cc" or character in "?#"
+        for value in (url, identifier)
+        for character in value
+    ):
+        return False
+    try:
+        if urlsplit(url).scheme not in {"http", "https"}:
+            return False
+        return legacy_doi_comparison_token(url) == legacy_doi_comparison_token(identifier)
+    except ValueError:
+        return False
 
 
 def _matches_identifier_url(url: str, identifier: str, prefixes: tuple[str, ...]) -> bool:

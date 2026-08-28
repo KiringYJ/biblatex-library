@@ -350,6 +350,122 @@ def test_arxiv_type_normalization_preserves_existing_identifier_provenance(tmp_p
     assert commands.validate(paths).valid
 
 
+def test_template_add_completes_doi_url_and_reviewer_cleanup(tmp_path: Path) -> None:
+    paths = _workspace(tmp_path)
+    staged = tmp_path / "mixed-cleanup.bib"
+    dois = ["10.1007/BF01458074", "10.1000/MIXEDCASE"] + [
+        f"10.1000/cleanup-{index}" for index in range(2, 8)
+    ]
+    reviewers = [r"Victor\ Mikhailovich\ Adukov"] + [
+        rf"Reviewer{index}\ Family{index}" for index in range(1, 8)
+    ]
+    sources: list[str] = []
+    for index, (doi, reviewer) in enumerate(zip(dois, reviewers, strict=True)):
+        url = f",url={{https://doi.org/{doi}}}" if index < 2 else ""
+        sources.append(
+            f"@article{{item{index},author={{Doe, Jane}},date={{2020}},"
+            r"title={Keep $x\ y$},"
+            f"doi={{{doi}}},mrreviewer={{{reviewer}}}{url}}}"
+        )
+    source = "\n".join(sources) + "\n"
+    staged.write_text(source, encoding="utf-8")
+    assert sum(value.count("\\ ") for value in reviewers) == 9
+
+    commands.template(staged)
+    companion = staged.with_suffix(".json")
+    template_bytes = companion.read_bytes()
+    preview = commands.add(paths, staged, dry_run=True)
+
+    assert staged.read_text(encoding="utf-8") == source
+    assert companion.read_bytes() == template_bytes
+    assert _workspace_bytes(paths) == (b"", b"{}\n", b"[]\n")
+    removed_urls = [
+        delta
+        for delta in preview.changes.field_deltas
+        if delta.field == "url" and delta.after is None
+    ]
+    reviewer_changes = [
+        delta for delta in preview.changes.field_deltas if delta.field == "mrreviewer"
+    ]
+    assert len(reviewer_changes) == 8
+    assert sum((delta.before or "").count("\\ ") for delta in reviewer_changes) == 9
+    assert all(delta.after is not None and "\\ " not in delta.after for delta in reviewer_changes)
+
+    result = commands.add(paths, staged)
+
+    assert result.added_keys == preview.added_keys
+    assert len(removed_urls) == 2
+    bibliography = BibliographyCodec.parse_bytes(paths.bibliography.read_bytes())
+    entries = tuple(bibliography)
+    assert len(entries) == 8
+    assert all("url" not in entry.fields_dict for entry in entries)
+    assert sum(str(entry.fields_dict["mrreviewer"].value).count("\\ ") for entry in entries) == 0
+    for entry, original_doi, original_reviewer in zip(entries, dois, reviewers, strict=True):
+        assert entry.fields_dict["doi"].value == original_doi.lower()
+        assert entry.fields_dict["mrreviewer"].value == original_reviewer.replace("\\ ", " ")
+        assert entry.fields_dict["title"].value == r"Keep $x\ y$"
+    assert commands.validate(paths).valid
+    assert not commands.normalize(paths, "all").changes.changed
+
+
+def test_existing_doi_cleanup_preserves_legacy_identifier_bytes(tmp_path: Path) -> None:
+    doi = "10.1007/BF01458074"
+    key = _key("doe-2020", doi)
+    paths = _workspace(
+        tmp_path,
+        f"@article{{{key},author={{Doe, Jane}},date={{2020}},title={{Work}},"
+        f"doi={{{doi}}},url={{https://doi.org/{doi.lower()}}},"
+        r"mrreviewer={Victor\ Mikhailovich\ Adukov}}" + "\n",
+    )
+    before = _workspace_bytes(paths)
+
+    preview = commands.normalize(paths, "all", dry_run=True)
+
+    assert preview.changes.changed_keys == (key,)
+    assert _workspace_bytes(paths) == before
+
+    result = commands.normalize(paths, "all")
+
+    assert result.commit is not None
+    entry = BibliographyCodec.parse_bytes(paths.bibliography.read_bytes()).resolve(key)
+    assert entry.fields_dict["doi"].value == doi
+    assert "url" not in entry.fields_dict
+    assert entry.fields_dict["mrreviewer"].value == "Victor Mikhailovich Adukov"
+    assert paths.identifiers.read_bytes() == before[1]
+    assert paths.add_order.read_bytes() == before[2]
+    assert commands.validate(paths).valid
+
+
+def test_add_consumes_accent_arguments_without_removing_formatting_groups(tmp_path: Path) -> None:
+    paths = _workspace(tmp_path)
+    staged = tmp_path / "accent-arguments.bib"
+    source = (
+        r"@article{temporary,author={Z\'{u}\~{n}iga, Elena},date={2020},"
+        r"title={\textbf{Z\'{u}\~{n}iga}},mrreviewer={Z\'{u}\~{n}iga\ Reviewer},"
+        "doi={10.1007/BF01458074},url={https://doi.org/10.1007/BF01458074}}\n"
+    )
+    staged.write_text(source, encoding="utf-8")
+
+    preview = commands.add(paths, staged, dry_run=True)
+
+    key = _key("zuniga-2020", "10.1007/bf01458074")
+    assert preview.added_keys == (key,)
+    assert staged.read_text(encoding="utf-8") == source
+    assert _workspace_bytes(paths) == (b"", b"{}\n", b"[]\n")
+
+    added = commands.add(paths, staged)
+
+    assert added.added_keys == (key,)
+    entry = BibliographyCodec.parse_bytes(paths.bibliography.read_bytes()).resolve(key)
+    assert entry.fields_dict["author"].value == "Zúñiga, Elena"
+    assert entry.fields_dict["title"].value == r"\textbf{Zúñiga}"
+    assert entry.fields_dict["mrreviewer"].value == "Zúñiga Reviewer"
+    assert entry.fields_dict["doi"].value == "10.1007/bf01458074"
+    assert "url" not in entry.fields_dict
+    assert commands.validate(paths).valid
+    assert not commands.normalize(paths, "all").changes.changed
+
+
 def test_template_and_add_preserve_reviewed_isbn_provenance(tmp_path: Path) -> None:
     paths = _workspace(tmp_path)
     staged = tmp_path / "book.bib"

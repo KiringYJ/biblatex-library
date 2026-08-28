@@ -7,12 +7,14 @@ from bibtexparser.model import Entry
 
 from .bibliography import Bibliography
 from .normalize.journal import LEGACY_JOURNAL_FIELD_MAP
+from .normalize.mr import MR_FIELDS, has_mr_metadata
 from .normalize.names import NAME_FIELDS, normalize_name_value
-from .normalize.pagination import is_unambiguous_book_extent
+from .normalize.pagination import is_mr_book_extent
 from .results import AuditFinding, AuditResult
 
 _ISSN = re.compile(r"^[0-9]{4}-[0-9]{3}[0-9Xx]$")
 _YEAR_LIKE_EDITION = re.compile(r"^[12][0-9]{3}$")
+_SPACE_BEFORE_COMMA = re.compile(r"[ \t]+,")
 _KNOWN_INVALID_FIELD_PLACEMENTS = {
     "online": ("pagetotal", "type"),
     "unpublished": ("institution", "volume"),
@@ -44,30 +46,33 @@ def _field_values(entry: Entry) -> dict[str, str]:
 
 def _journal_field_findings(entry: Entry, fields: dict[str, str]) -> tuple[AuditFinding, ...]:
     findings: list[AuditFinding] = []
-    for source, target in LEGACY_JOURNAL_FIELD_MAP:
+    participating = MR_FIELDS | {name for pair in LEGACY_JOURNAL_FIELD_MAP for name in pair}
+    names = [item.key.casefold() for item in entry.fields if item.key.casefold() in participating]
+    paired = (
+        has_mr_metadata(entry)
+        and len(names) == len(set(names))
+        and all(fields.get(source, "").strip() for source, _ in LEGACY_JOURNAL_FIELD_MAP)
+    )
+    targets = dict(LEGACY_JOURNAL_FIELD_MAP) if paired else {"journal": "journaltitle"}
+    conflicts = {
+        source
+        for source, target in targets.items()
+        if source in fields and target in fields and fields[source] != fields[target]
+    }
+    can_migrate = paired and not conflicts
+    for source in ("journal", "fjournal"):
         value = fields.get(source)
         if value is None:
             continue
-        target_value = fields.get(target)
-        if source == "journal" and "fjournal" not in fields and "shortjournal" not in fields:
-            findings.append(
-                AuditFinding(
-                    code="ambiguous-journal-field",
-                    canonical_keys=(entry.key,),
-                    fields=(source,),
-                    values=(value,),
-                    message="journal alone may contain a full title or an abbreviation",
-                )
-            )
-            continue
-        if target_value is not None and target_value != value:
+        if source in conflicts:
+            target = targets[source]
             findings.append(
                 AuditFinding(
                     code="conflicting-journal-field",
                     canonical_keys=(entry.key,),
                     fields=(source, target),
-                    values=(value, target_value),
-                    message=f"{source} and {target} contain different values",
+                    values=(value, fields[target]),
+                    message=f"{source} and its convention target {target} contain different values",
                 )
             )
             continue
@@ -77,8 +82,12 @@ def _journal_field_findings(entry: Entry, fields: dict[str, str]) -> tuple[Audit
                 canonical_keys=(entry.key,),
                 fields=(source,),
                 values=(value,),
-                fix_action="journal-fields",
-                message=f"{source} should be migrated to {target}",
+                fix_action="journal-fields" if can_migrate else None,
+                message=(
+                    f"MR pair permits exact migration of {source} to {targets[source]}"
+                    if can_migrate
+                    else f"{source} requires MR metadata and a complete nonconflicting pair"
+                ),
             )
         )
     return tuple(findings)
@@ -141,34 +150,27 @@ def _book_pagination_findings(entry: Entry, fields: dict[str, str]) -> tuple[Aud
         return ()
     pages = fields["pages"]
     pagetotal = fields.get("pagetotal")
-    if pagetotal is not None and pagetotal != pages:
-        return (
-            AuditFinding(
-                code="book-pagination-conflict",
-                canonical_keys=(entry.key,),
-                fields=("pages", "pagetotal"),
-                values=(pages, pagetotal),
-                message="book pages and pagetotal contain different values",
-            ),
-        )
-    if not is_unambiguous_book_extent(pages):
-        return (
-            AuditFinding(
-                code="book-pages-review",
-                canonical_keys=(entry.key,),
-                fields=("pages",),
-                values=(pages,),
-                message="book pages is not an unambiguous total extent",
-            ),
-        )
+    eligible = is_mr_book_extent(entry)
+    conflict = eligible and pagetotal is not None and pagetotal != pages
+    can_migrate = eligible and not conflict
     return (
         AuditFinding(
-            code="book-pages-total",
+            code=(
+                "book-pagination-conflict"
+                if conflict
+                else "book-pages-total"
+                if can_migrate
+                else "book-pages-review"
+            ),
             canonical_keys=(entry.key,),
-            fields=("pages",),
-            values=(pages,),
-            fix_action="book-pagination",
-            message="pages on a whole book should be stored as pagetotal",
+            fields=("pages",) if pagetotal is None else ("pages", "pagetotal"),
+            values=(pages,) if pagetotal is None else (pages, pagetotal),
+            fix_action="book-pagination" if can_migrate else None,
+            message=(
+                "marked MR book extent can be migrated exactly to pagetotal"
+                if can_migrate
+                else "book pages requires MR metadata, whole-book extent syntax, and no conflict"
+            ),
         ),
     )
 
@@ -195,11 +197,11 @@ def _name_spacing_findings(entry: Entry, fields: dict[str, str]) -> tuple[AuditF
             canonical_keys=(entry.key,),
             fields=(field_name,),
             values=(value,),
-            fix_action="name-spacing",
-            message=f"{field_name} has whitespace before a name-part comma",
+            fix_action="name-spacing" if normalize_name_value(value) != value else None,
+            message=f"{field_name} has whitespace before a comma; review name and TeX syntax",
         )
         for field_name, value in fields.items()
-        if field_name in NAME_FIELDS and normalize_name_value(value) != value
+        if field_name in NAME_FIELDS and _SPACE_BEFORE_COMMA.search(value) is not None
     )
 
 
@@ -222,8 +224,8 @@ def _journal_variant_findings(bibliography: Bibliography) -> tuple[AuditFinding,
     serial_entries: dict[str, list[tuple[str, str | None, str | None]]] = {}
     for entry in bibliography:
         fields = _field_values(entry)
-        full = fields.get("journaltitle", fields.get("fjournal"))
-        short = fields.get("shortjournal", fields.get("journal"))
+        full = fields.get("journaltitle")
+        short = fields.get("shortjournal")
         identifiers = _valid_serial_identifiers(fields)
         for identifier in identifiers:
             serial_entries.setdefault(identifier, []).append((entry.key, full, short))
@@ -232,10 +234,10 @@ def _journal_variant_findings(bibliography: Bibliography) -> tuple[AuditFinding,
     seen: set[tuple[str, tuple[str, ...], tuple[str, ...]]] = set()
     for identifier, records in serial_entries.items():
         for code, field_names, position, label in (
-            ("journal-title-variant", ("journaltitle", "fjournal"), 1, "journal titles"),
+            ("journal-title-variant", ("journaltitle",), 1, "journal titles"),
             (
                 "journal-abbreviation-variant",
-                ("shortjournal", "journal"),
+                ("shortjournal",),
                 2,
                 "journal abbreviations",
             ),

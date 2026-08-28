@@ -245,14 +245,14 @@ def test_add_normalizes_incoming_entries_before_key_derivation_and_validates_can
     paths = _workspace(tmp_path)
     staged = tmp_path / "book.bib"
     staged.write_text(
-        "@book{temporary,author={Doe , Jane},year={2020},title={Book},"
-        "isbn={0-387-97926-3},pages={100}}\n",
+        r"@book{temporary,author={Doe , Jane},year={2020},title={\LaTeX Book},"
+        "isbn={0-387-97926-3},pages={100},publisher={Springer, Cham}}\n",
         encoding="utf-8",
     )
 
     preview = commands.add(paths, staged, dry_run=True)
 
-    normalized_isbn = "978-0-387-97926-7"
+    normalized_isbn = "9780387979267"
     expected_key = _key("doe-2020", normalized_isbn)
     assert preview.added_keys == (expected_key,)
     assert preview.normalization_actions == NORMALIZATION_ACTIONS
@@ -260,8 +260,6 @@ def test_add_normalizes_incoming_entries_before_key_derivation_and_validates_can
         "author",
         "date",
         "isbn",
-        "pages",
-        "pagetotal",
         "year",
     }
     assert all(delta.canonical_key == expected_key for delta in preview.changes.field_deltas)
@@ -273,15 +271,156 @@ def test_add_normalizes_incoming_entries_before_key_derivation_and_validates_can
     assert committed.added_keys == (expected_key,)
     entry = BibliographyCodec.parse_bytes(paths.bibliography.read_bytes()).resolve(expected_key)
     assert str(entry.fields_dict["author"].value) == "Doe, Jane"
+    assert str(entry.fields_dict["title"].value) == r"\LaTeX Book"
+    assert str(entry.fields_dict["publisher"].value) == "Springer, Cham"
     assert str(entry.fields_dict["date"].value) == "2020"
     assert str(entry.fields_dict["isbn"].value) == normalized_isbn
-    assert str(entry.fields_dict["pagetotal"].value) == "100"
+    assert str(entry.fields_dict["pages"].value) == "100"
     assert "year" not in entry.fields_dict
-    assert "pages" not in entry.fields_dict
+    assert "pagetotal" not in entry.fields_dict
+    assert "location" not in entry.fields_dict
     record = parse_identifier_collection(paths.identifiers.read_bytes())[expected_key]
     assert record.main_identifier == "isbn13"
     assert record.identifiers == {"isbn13": normalized_isbn}
     assert commands.validate(paths).valid
+
+
+def test_template_and_add_preserve_reviewed_isbn_provenance(tmp_path: Path) -> None:
+    paths = _workspace(tmp_path)
+    staged = tmp_path / "book.bib"
+    source = (
+        r"@book{temporary,author={Doe , Jane},year={2020},title={\LaTeX Book},"
+        "isbn={0-387-97926-3},pages={100},publisher={Springer, Cham}}\n"
+    )
+    staged.write_text(source, encoding="utf-8")
+
+    generated = commands.template(staged)
+
+    companion = staged.with_suffix(".json")
+    assert generated.created_paths == (companion,)
+    assert staged.read_text(encoding="utf-8") == source
+    records = parse_identifier_collection(companion.read_bytes())
+    assert records["temporary"].identifiers["isbn13"] == "9780387979267"
+    reviewed_isbn = "978-0-387-97926-7"
+    records["temporary"].identifiers["isbn13"] = reviewed_isbn
+    reviewed_bytes = serialize_identifier_collection(records)
+    companion.write_bytes(reviewed_bytes)
+
+    preview = commands.add(paths, staged, dry_run=True)
+
+    expected_key = _key("doe-2020", reviewed_isbn)
+    assert preview.added_keys == (expected_key,)
+    assert companion.read_bytes() == reviewed_bytes
+    assert staged.read_text(encoding="utf-8") == source
+
+    committed = commands.add(paths, staged)
+
+    assert committed.added_keys == preview.added_keys
+    entry = BibliographyCodec.parse_bytes(paths.bibliography.read_bytes()).resolve(expected_key)
+    assert entry.fields_dict["isbn"].value == "9780387979267"
+    assert entry.fields_dict["author"].value == "Doe, Jane"
+    assert entry.fields_dict["title"].value == r"\LaTeX Book"
+    assert entry.fields_dict["publisher"].value == "Springer, Cham"
+    assert entry.fields_dict["pages"].value == "100"
+    stored_record = parse_identifier_collection(paths.identifiers.read_bytes())[expected_key]
+    assert stored_record.identifiers["isbn13"] == reviewed_isbn
+    assert commands.validate(paths).valid
+
+
+def test_add_normalizes_mr_pair_and_text_without_touching_identifiers(tmp_path: Path) -> None:
+    paths = _workspace(tmp_path)
+    staged = tmp_path / "mr.bib"
+    source = (
+        r"""@article{temporary,
+  author = {Macr\`\i , Emanuele},
+  year = {2020},
+  title = {On \textbf{\"O} and \LaTeX},
+  journal = {J. Tests},
+  fjournal = {Journal of Tests},
+  mrclass = {53C},
+  doi = {10.1000/mr-example}
+}"""
+        "\n"
+    )
+    staged.write_text(source, encoding="utf-8")
+    commands.template(staged)
+    companion = staged.with_suffix(".json")
+    reviewed_bytes = companion.read_bytes()
+
+    preview = commands.add(paths, staged, dry_run=True)
+
+    expected_key = _key("macri-2020", "10.1000/mr-example")
+    assert preview.added_keys == (expected_key,)
+    assert staged.read_text(encoding="utf-8") == source
+    assert companion.read_bytes() == reviewed_bytes
+    assert _workspace_bytes(paths) == (b"", b"{}\n", b"[]\n")
+
+    result = commands.add(paths, staged)
+
+    assert result.added_keys == (expected_key,)
+    entry = BibliographyCodec.parse_bytes(paths.bibliography.read_bytes()).resolve(expected_key)
+    assert entry.fields_dict["author"].value == "Macrì, Emanuele"
+    assert entry.fields_dict["title"].value == r"On \textbf{Ö} and \LaTeX"
+    assert entry.fields_dict["shortjournal"].value == "J. Tests"
+    assert entry.fields_dict["journaltitle"].value == "Journal of Tests"
+    assert entry.fields_dict["doi"].value == "10.1000/mr-example"
+    assert "journal" not in entry.fields_dict and "fjournal" not in entry.fields_dict
+    assert commands.validate(paths).valid
+    assert not commands.normalize(paths, "all").changes.changed
+
+
+def test_add_mr_gates_use_bib_fields_not_json_only_identifiers(tmp_path: Path) -> None:
+    paths = _workspace(tmp_path)
+    staged = tmp_path / "mixed.bib"
+    sources = (
+        ("markedbook", "book", "pages={xiv+123},mrclass={53C}"),
+        ("plainbook", "book", "pages={xiv+123}"),
+        ("markedjournal", "article", "journal={Short},fjournal={Full},mrreviewer={Reviewer}"),
+        ("plainjournal", "article", "journal={Short},fjournal={Full}"),
+    )
+    source = (
+        "\n".join(
+            f"@{kind}{{{key},author={{Doe, Jane}},title={{Work}},date={{2020}},"
+            f"doi={{10.1000/{key}}},{fields}}}"
+            for key, kind, fields in sources
+        )
+        + "\n"
+    )
+    staged.write_text(source, encoding="utf-8")
+    commands.template(staged)
+    companion = staged.with_suffix(".json")
+    records = parse_identifier_collection(companion.read_bytes())
+    for key in ("plainbook", "plainjournal"):
+        records[key].identifiers["mrnumber"] = "MR" + key
+    reviewed_bytes = serialize_identifier_collection(records)
+    companion.write_bytes(reviewed_bytes)
+
+    preview = commands.add(paths, staged, dry_run=True)
+
+    keys = {key: _key("doe-2020", f"10.1000/{key}") for key, _kind, _fields in sources}
+    assert preview.added_keys == tuple(keys.values())
+    assert staged.read_text(encoding="utf-8") == source
+    assert companion.read_bytes() == reviewed_bytes
+    assert _workspace_bytes(paths) == (b"", b"{}\n", b"[]\n")
+
+    result = commands.add(paths, staged)
+
+    assert result.added_keys == preview.added_keys
+    bibliography = BibliographyCodec.parse_bytes(paths.bibliography.read_bytes())
+    assert bibliography.resolve(keys["markedbook"]).fields_dict["pagetotal"].value == "xiv+123"
+    assert "pages" not in bibliography.resolve(keys["markedbook"]).fields_dict
+    assert bibliography.resolve(keys["plainbook"]).fields_dict["pages"].value == "xiv+123"
+    assert "pagetotal" not in bibliography.resolve(keys["plainbook"]).fields_dict
+    assert bibliography.resolve(keys["markedjournal"]).fields_dict["shortjournal"].value == "Short"
+    assert bibliography.resolve(keys["markedjournal"]).fields_dict["journaltitle"].value == "Full"
+    assert bibliography.resolve(keys["plainjournal"]).fields_dict["journal"].value == "Short"
+    assert bibliography.resolve(keys["plainjournal"]).fields_dict["fjournal"].value == "Full"
+    stored = parse_identifier_collection(paths.identifiers.read_bytes())
+    for key in ("plainbook", "plainjournal"):
+        assert stored[keys[key]].identifiers["mrnumber"] == "MR" + key
+        assert "mrnumber" not in bibliography.resolve(keys[key]).fields_dict
+    assert commands.validate(paths).valid
+    assert not commands.normalize(paths, "all").changes.changed
 
 
 def test_template_reviews_each_entry_and_add_honors_selected_main_identifiers(

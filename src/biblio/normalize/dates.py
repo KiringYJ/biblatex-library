@@ -1,5 +1,7 @@
 """Pure normalization helpers for BibLaTeX date fields."""
 
+import re
+
 from bibtexparser.model import Entry, Field
 
 from biblio.bibliography import Bibliography
@@ -7,7 +9,7 @@ from biblio.results import ChangeSet, FieldDelta
 
 
 def rename_year_to_date_fields(bibliography: Bibliography) -> ChangeSet:
-    """Rename ``year`` to ``date`` when an entry has no ``date`` field."""
+    """Rename an exact four-digit ``year`` only without ``date`` or ``month``."""
     changed_keys: list[str] = []
     deltas: list[FieldDelta] = []
 
@@ -28,16 +30,16 @@ def rename_year_to_date_fields(bibliography: Bibliography) -> ChangeSet:
 
 def _rename_year_field(entry: Entry) -> str | None:
     """Rename one entry's ``year`` field and return its exact value."""
-    fields = entry.fields_dict
-    if "date" in fields or "year" not in fields:
+    fields = {field.key.casefold(): field for field in entry.fields}
+    if "date" in fields or "month" in fields or "year" not in fields:
         return None
 
     year_field = fields["year"]
     year_value = str(year_field.value)
+    if re.fullmatch(r"[0-9]{4}", year_value) is None:
+        return None
     for index, field in enumerate(entry.fields):
         if field is year_field:
             entry.fields[index] = Field("date", year_field.value)
-            break
-    else:  # pragma: no cover - defensive against an inconsistent parser model
-        entry.fields.append(Field("date", year_field.value))
-    return year_value
+            return year_value
+    return None

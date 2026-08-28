@@ -287,6 +287,22 @@ def test_normalize_defaults_to_all(tmp_path: Path, monkeypatch: pytest.MonkeyPat
     assert actions == ["all"]
 
 
+def test_normalize_choices_follow_the_service_action_registry(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    parser = cli.create_parser()
+    for action in commands.NORMALIZATION_ACTIONS:
+        assert parser.parse_args(["normalize", action]).action == action
+
+    with pytest.raises(SystemExit) as raised:
+        parser.parse_args(["normalize", "--help"])
+
+    assert raised.value.code == 0
+    assert "{" + ",".join(("all", *commands.NORMALIZATION_ACTIONS)) + "}" in (
+        capsys.readouterr().out
+    )
+
+
 def test_reconcile_passes_full_workspace_and_dry_run(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):

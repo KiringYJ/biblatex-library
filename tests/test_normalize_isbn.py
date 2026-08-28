@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import bibtexparser
+import pytest
 
 from biblio.bibliography import Bibliography, IdentityIndex
 from biblio.normalize.isbn import (
@@ -94,10 +95,10 @@ class TestConvertIsbn10ToIsbn13:
         assert len(digits) == 13
         assert is_valid_isbn13(digits)
 
-    def test_convert_with_hyphens_preserves_structure(self) -> None:
+    def test_convert_with_hyphens_returns_contiguous_digits(self) -> None:
         result = convert_isbn10_to_isbn13("0-387-97926-3")
         assert result is not None
-        assert result.startswith("978-")
+        assert result == "9780387979267"
         digits = extract_isbn_digits(result)
         assert len(digits) == 13
         assert is_valid_isbn13(digits)
@@ -120,7 +121,7 @@ class TestNormalizeIsbnField:
     def test_single_isbn10(self) -> None:
         normalized, conversions = normalize_isbn_field("0-387-97926-3")
         assert len(conversions) == 1
-        assert "978-" in normalized
+        assert normalized == "9780387979267"
 
     def test_single_isbn13_unchanged(self) -> None:
         normalized, conversions = normalize_isbn_field("978-0-8218-5193-7")
@@ -132,12 +133,12 @@ class TestNormalizeIsbnField:
         normalized, conversions = normalize_isbn_field("0-8218-1045-6, 978-0-8218-1045-3")
         assert len(conversions) == 1  # Only the ISBN-10 should be converted
         # Since both resolve to the same ISBN-13, result should be deduplicated
-        assert normalized.count("978-0-8218-1045-3") == 1
+        assert normalized == "9780821810453"
 
     def test_deduplication_isbn10_matches_existing_isbn13(self) -> None:
         # ISBN-10 converts to same value as the existing ISBN-13
         normalized, conversions = normalize_isbn_field("0-8218-1045-6, 978-0-8218-1045-3")
-        assert "deduplicated" in conversions[0] or "978-0-8218-1045-3" in conversions[0]
+        assert "deduplicated" in conversions[0] or "9780821810453" in conversions[0]
         # Only one ISBN in the result
         assert "," not in normalized
 
@@ -164,7 +165,7 @@ class TestNormalizeIsbnFields:
         assert tuple(report.converted) == ("converted",)
         assert report.already_isbn13 == ("existing",)
         assert report.invalid == {"invalid": "not-an-isbn"}
-        assert "978-" in str(bibliography.resolve("converted").fields_dict["isbn"].value)
+        assert bibliography.resolve("converted").fields_dict["isbn"].value == "9780387979267"
         assert report.changes.changed_keys == ("converted",)
 
     def test_reports_noop_for_canonical_values(self) -> None:
@@ -173,3 +174,59 @@ class TestNormalizeIsbnFields:
         report = normalize_isbn_fields(bibliography)
 
         assert report.changes.changed is False
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "ISBN 0-387-97926-3",
+        "0-387-97926-3 (hardback)",
+        "0-387-97926-3, invalid",
+        "0-387-97926-3,",
+        ",0-387-97926-3",
+        "0-387-97926-3, 9780387979268",
+        "0--387-97926-3",
+        "０３８７９７９２６３",
+        "4006381333931",
+        "",
+        "  ",
+    ],
+)
+def test_invalid_or_annotated_field_is_preserved_whole(value: str) -> None:
+    assert normalize_isbn_field(value) == (value, [])
+    bibliography = _bibliography(f"@book{{one,ISBN={{{value}}}}}")
+    report = normalize_isbn_fields(bibliography)
+    assert report.invalid == {"one": value}
+    assert not report.changes.changed
+    assert bibliography.resolve("one").fields_dict["ISBN"].value == value
+
+
+def test_multiple_valid_isbn13_values_are_not_invalid() -> None:
+    value = "9780387979267, 9780821851937"
+    report = normalize_isbn_fields(_bibliography(f"@book{{one,isbn={{{value}}}}}"))
+    assert report.already_isbn13 == ("one",)
+    assert not report.invalid
+    assert not report.changes.changed
+
+
+def test_conversion_does_not_reconstruct_registration_groups() -> None:
+    assert convert_isbn10_to_isbn13("0 387 97926 3") == "9780387979267"
+    assert convert_isbn10_to_isbn13("ISBN 0-387-97926-3") is None
+    assert convert_isbn10_to_isbn13("0--387-97926-3") is None
+
+
+def test_delta_retains_exact_original_spacing() -> None:
+    original = " 0-387-97926-3 "
+    bibliography = _bibliography(f"@book{{one,isbn={{{original}}}}}")
+    report = normalize_isbn_fields(bibliography)
+    assert report.changes.field_deltas[0].before == original
+    assert report.changes.field_deltas[0].after == "9780387979267"
+
+
+def test_valid_isbn13_duplicates_are_reported_as_a_change() -> None:
+    bibliography = _bibliography("@book{one,isbn={9780387979267, 978-0-387-97926-7}}")
+    report = normalize_isbn_fields(bibliography)
+    assert report.changes.changed_keys == ("one",)
+    assert report.converted["one"][0].startswith("deduplicated:")
+    assert not report.invalid
+    assert bibliography.resolve("one").fields_dict["isbn"].value == "9780387979267"

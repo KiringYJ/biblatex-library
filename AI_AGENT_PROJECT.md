@@ -102,9 +102,32 @@ migration-away commands are retired.
   Consume bibliography and companion inputs only after a verified workspace
   commit, using digest-bound cleanup receipts; dry-run and failure preserve
   inputs.
-- `add` runs all deterministic normalization actions against incoming entries
+- `add` runs all supported normalization actions against incoming entries
   before canonical key derivation, leaves existing entries untouched, and
   validates the complete normalized workspace candidate before committing.
+- Normalization must not infer bibliographic roles or rewrite unparsed TeX/name
+  syntax. Match field names case-insensitively and reject duplicates before
+  mutation. Preserve unsupported values and conflicting aliases for review.
+- Both journal-field and book-pagination migration require a nonempty
+  `mrnumber`, `mrclass`, or `mrreviewer` field in the entry, using the shared
+  `normalize/mr.py` predicate. Do not infer this from similar names, URLs,
+  citekeys, the journal pair alone, or JSON-only metadata. This is the accepted
+  local import convention, not proof of export provenance.
+- On marked records, a nonempty `journal` + `fjournal` pair means abbreviated
+  and full journal names respectively. Migrate the pair atomically to
+  `shortjournal` + `journaltitle`, preserving exact values and both sources on
+  any target conflict. Lone legacy fields remain review-only.
+- Book-pagination migration additionally requires `@book`, no `chapter`,
+  absent or `page` pagination units, and a supported positive count or canonical
+  Roman-plus-Arabic extent. Preserve the exact extent string; do not sum parts
+  or reinterpret ranges. A differing `pagetotal` blocks the change.
+- Name/TeX normalization uses a bounded source-preserving grammar. Retain groups,
+  quoted/literal names, and opaque identifiers; leave unsupported contexts
+  unchanged. Do not use macro-prefix replacement or generic brace stripping.
+- ISBN normalization validates the entire bare identifier list before mutation,
+  converts ISBN-10 to contiguous ISBN-13 digits, and does not infer hyphenation.
+  Existing exact identifier provenance and reviewed companion selections remain
+  authoritative; do not change legacy identifier-comparison rules as a cleanup.
 - All text I/O is UTF-8. JSON serialization uses `ensure_ascii=False`.
 - Use `bibtexparser` v2 for parsing/serialization and check failed blocks.
 
@@ -151,9 +174,17 @@ biblio promote KEY PUBLISHED.bib [--dry-run]
 biblio recover [--status|--dry-run]
 ```
 
-Current normalization actions are `year-to-date`, `publisher-location`,
-`eprint-fields`, `journal-fields`, `book-pagination`, `name-spacing`,
-`latex-accents`, `isbn`, and `trivial-url`.
+Current normalization actions are `year-to-date`, `eprint-fields`,
+`latex-accents`, `name-spacing`, `journal-fields`, `book-pagination`, `isbn`, and
+`trivial-url`, in that order. Text representation changes precede MR-pair comparison to keep
+`all` idempotent. The pipeline registry also supplies CLI choices through the
+commands service. Year conversion requires a bare ASCII four-digit year with
+no date/month; eprint aliases must not override conflicts or change entry type;
+URL removal requires an exact identifier-derived link, not URL equivalence.
+
+`publisher-location` is retired and rejected. Audit may offer MR-pair,
+MR-book-extent, and name-spacing fixes only when the corresponding normalizer
+preconditions pass. Unmarked, scoped, or ambiguous inputs remain review-only.
 
 Preferred Conventional Commit scopes are `domain`, `storage`, `cli`, `config`,
 `normalize`, `validate`, `lifecycle`, `init`, `schema`, `tests`, `tooling`, and

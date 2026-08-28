@@ -14,19 +14,6 @@ from . import commands, results
 from .config import BiblioConfig, ConfigError
 from .storage import StorageError, WorkspacePaths
 
-_NORMALIZATION_ACTIONS = (
-    "all",
-    "year-to-date",
-    "publisher-location",
-    "eprint-fields",
-    "journal-fields",
-    "book-pagination",
-    "name-spacing",
-    "latex-accents",
-    "isbn",
-    "trivial-url",
-)
-
 
 def setup_logging(verbosity: int = 0) -> None:
     """Configure CLI diagnostics."""
@@ -308,7 +295,7 @@ def create_parser() -> argparse.ArgumentParser:
 
     normalize_parser = subparsers.add_parser("normalize", help="Normalize bibliography fields")
     normalize_parser.add_argument(
-        "action", nargs="?", default="all", choices=_NORMALIZATION_ACTIONS
+        "action", nargs="?", default="all", choices=("all", *commands.NORMALIZATION_ACTIONS)
     )
     normalize_parser.add_argument("--dry-run", action="store_true")
     normalize_parser.set_defaults(handler=cmd_normalize)

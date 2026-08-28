@@ -155,25 +155,27 @@ biblio audit
 ```
 
 `audit` is read-only and uses only the parsed bibliography. It does not query
-publishers, catalogues, identifier registries, or the network. Findings name an
-exact `fix_action` only when `normalize` can preserve the stored value without
-choosing new authority data.
+publishers, catalogues, identifier registries, or the network. A finding supplies
+`fix_action` only when the corresponding normalizer can apply its stated input
+contract. Other observations remain review-only: detecting a suspicious value
+does not establish a meaning-preserving replacement.
 
 The audit currently detects:
 
-- legacy `journal`/`fjournal` fields, conflicting modern targets, and a lone
-  `journal` whose full-versus-short role is ambiguous;
+- MR-marked `journal`/`fjournal` pairs, unmarked/incomplete pairs, and conflicting
+  destination values; lone `journal` values retain the standard alias check;
 - nonstandard `eissn`, comma-packed `issn`, and invalid ISSN check digits;
-- unambiguous whole-book extents stored in `pages`, ambiguous page ranges, and
-  conflicts with `pagetotal`;
+- marked MR book extents, conflicting totals, and unmarked or scoped `pages`
+  values that remain review-only;
 - four confirmed invalid field/type pairs on `@online` and `@unpublished`;
 - year-like `edition` values and whitespace before commas in name fields;
-- multiple journal names or abbreviations attached to one exact ISSN; and
+- multiple explicit `journaltitle` or `shortjournal` values attached to one
+  exact ISSN, without assigning roles to legacy fields; and
 - series values that differ only by letter case.
 
-An audit finding without `fix_action` is intentionally review-only. The engine
-can prove the local inconsistency but cannot choose, for example, a print versus
-electronic ISSN or an authoritative journal spelling without source evidence.
+Findings describe observable patterns, not necessarily bibliographic errors.
+The engine cannot choose, for example, a print versus electronic ISSN or an
+authoritative journal spelling without source evidence.
 
 ### Generate reviewable staging templates
 
@@ -215,7 +217,7 @@ deterministic filename order. A positional `STAGING` value may identify one
 present, `add` validates and honors every reviewed per-entry selection; without
 one, it uses the documented deterministic identifier priority.
 
-`add` applies every deterministic normalization action to the incoming entries
+`add` applies every supported normalization action to the incoming entries
 before deriving citekeys and identifier records. It does not normalize existing
 library entries as a side effect of an import. The command validates the current
 workspace before intake and the complete normalized three-artifact candidate
@@ -243,17 +245,49 @@ biblio normalize --dry-run
 biblio normalize trivial-url
 ```
 
-The default action is `all`. Individual actions are:
+The default action is `all`. Only bounded representation changes are automatic:
 
-- `year-to-date`
-- `publisher-location`
-- `eprint-fields`
-- `journal-fields`
-- `book-pagination`
-- `name-spacing`
-- `latex-accents`
-- `isbn`
-- `trivial-url`
+| Action | Supported transformation |
+| --- | --- |
+| `year-to-date` | Rename an exact four-digit ASCII `year` when neither `date` nor `month` is present. Other year values remain for review. |
+| `eprint-fields` | Migrate the documented `archiveprefix`/`primaryclass` aliases and canonicalize the arXiv marker. Preserve conflicting values and the declared entry type. |
+| `latex-accents` | Convert complete supported accent and letter commands in text/name fields, preserving groups and unrelated text. Leave opaque identifiers and unsupported TeX contexts unchanged. |
+| `name-spacing` | Remove ordinary horizontal space before top-level name-part commas. Preserve braced/literal names, quoted parts, control spaces, and unsupported syntax; never reorder names. |
+| `journal-fields` | On MR-marked entries, treat a nonempty `journal` + `fjournal` pair as short title and full title respectively. Migrate both atomically to `shortjournal` + `journaltitle`; preserve the pair if either destination conflicts. |
+| `book-pagination` | On MR-marked `@book` entries, migrate a positive page count or canonical Roman-plus-Arabic extent from `pages` to `pagetotal` without changing its string. Require no `chapter`, only absent or `page` pagination units, and no conflicting total. Preserve ranges and other unsupported forms. |
+| `isbn` | Convert checksum-valid bare ISBN-10 values to contiguous ISBN-13 digits. Validate the entire comma-separated field before conversion or deduplication; preserve annotated, malformed, or invalid fields unchanged. Do not infer hyphenation. |
+| `trivial-url` | Remove an exact DOI resolver or arXiv abstract URL duplicated by explicit identifier fields. Preserve PDF selection, query strings, fragments, altered authorities, and other non-exact variants. |
+
+Field names are matched case-insensitively. Duplicate fields are rejected
+before any normalization. Unsupported year/ISBN values, conflicting eprint
+aliases, unmarked/incomplete/conflicting journal pairs, and unsupported book
+extents produce diagnostics without guessing a repair. The text passes precede
+journal migration so compatible
+accent spellings do not defer migration until a second run. See the
+[BibLaTeX manual](https://mirrors.ctan.org/macros/latex/contrib/biblatex/doc/biblatex.pdf)
+for field aliases and date conventions.
+
+Both MR-specific rules require at least one nonempty `mrnumber`, `mrclass`, or
+`mrreviewer` field in the BibLaTeX entry itself. The pair alone, URLs, citekeys,
+similar field names, and JSON-only MR identifiers do not qualify. This is the
+accepted local MR-import convention, not independent verification of origin.
+Unmarked entries are never rewritten by these two actions. A lone `journal`
+or `fjournal` is also left unchanged, even if a modern field has equal text.
+Text normalization does not evaluate arbitrary TeX: unsupported commands,
+math, comments, verbatim, malformed syntax, and token-sensitive unbraced wrapper
+arguments remain untouched. Existing braces are retained, including accent
+operand braces: `\c{c}` becomes `{ç}`, while `\textbf{\"O}` becomes `\textbf{Ö}`.
+
+`publisher-location` remains removed and rejected. Comma position does not
+establish a publisher's location; `publisher = {Springer, Cham}` is not split
+automatically. Numeric `pages` alone does not enable book-pagination migration:
+the MR metadata and whole-book extent checks above are also required.
+
+ISBN-10 conversion now emits digits without reconstructing hyphen groups.
+This changes automatically selected ISBN-based citekeys for new imports.
+Existing citekeys and exact identifier-ledger values remain unchanged;
+already-reviewed companions retain their selected exact identifiers when
+equivalent to the normalized ISBN.
 
 Normalization changes presentation metadata in `library.bib` while loading
 and validating the complete workspace. It preserves identifier-ledger and

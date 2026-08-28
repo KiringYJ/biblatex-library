@@ -31,6 +31,7 @@ from .identifier_collection import (
     serialize_identifier_collection,
 )
 from .identifiers import canonicalize_new_doi
+from .normalize.pipeline import NORMALIZATION_ACTIONS as NORMALIZATION_ACTIONS
 from .normalize.pipeline import normalize_bibliography
 from .reconcile import reconcile_identifier_inventory
 from .results import (

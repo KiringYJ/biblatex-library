@@ -45,13 +45,14 @@ def test_all_actions_share_one_aggregate_and_preserve_physical_order() -> None:
         == original_nonentry_blocks
     )
     first = bibliography.resolve("first")
-    assert first.entry_type == "online"
+    assert first.entry_type == "misc"
     assert first.fields_dict["date"].value == "2020"
     assert first.fields_dict["title"].value == "José"
     assert "url" not in first.fields_dict
     second = bibliography.resolve("second")
-    assert second.fields_dict["location"].value == "Berlin"
-    assert "978-" in str(second.fields_dict["isbn"].value)
+    assert second.fields_dict["publisher"].value == "Springer, Berlin"
+    assert "location" not in second.fields_dict
+    assert second.fields_dict["isbn"].value == "9780387979267"
 
 
 def test_second_all_run_is_an_explicit_noop() -> None:
@@ -84,46 +85,38 @@ def test_unknown_action_fails_without_mutation() -> None:
 
 def test_no_change_manual_review_and_invalid_isbn_diagnostics_survive() -> None:
     bibliography = _bibliography(
-        "@book{publisher, publisher={Acme, Inc.}}\n@book{isbn, isbn={not-an-isbn}}\n"
+        "@book{date, year={forthcoming}}\n@book{isbn, isbn={not-an-isbn}}\n"
     )
 
     result = normalize_bibliography(bibliography, "all")
 
     assert not result.changes.changed
     assert result.diagnostics == (
-        "publisher-location:manual-review:publisher",
+        "year-to-date:manual-review:date",
         "isbn:invalid:isbn:not-an-isbn",
     )
 
 
-def test_new_field_normalizers_report_conflicts_without_overwriting() -> None:
+def test_eprint_conflicts_are_reported_without_overwriting() -> None:
     bibliography = _bibliography(
-        "@article{journal,journal={Legacy},shortjournal={Current}}\n"
-        "@book{book,pages={100},pagetotal={200}}\n"
+        "@misc{type,archiveprefix={arXiv},eprinttype={HAL}}\n"
+        "@misc{class,eprinttype={arxiv},primaryclass={math.AG},eprintclass={cs.LO}}\n"
     )
 
     result = normalize_bibliography(bibliography, "all")
 
     assert result.changes.changed is False
     assert result.diagnostics == (
-        "journal-fields:manual-review:journal:journal->shortjournal:conflict",
-        "book-pagination:manual-review:book:conflict",
+        "eprint-fields:manual-review:type:archiveprefix->eprinttype:conflict",
+        "eprint-fields:manual-review:class:primaryclass->eprintclass:conflict",
     )
 
 
-def test_new_field_normalizers_are_individually_selectable() -> None:
-    bibliography = _bibliography(
-        "@article{journal,journal={J. Test},fjournal={Journal of Tests},"
-        "author={Macrì , Emanuele}}\n@book{book,pages={100}}\n"
-    )
+@pytest.mark.parametrize("action", NORMALIZATION_ACTIONS)
+def test_retained_actions_are_individually_selectable(action: str) -> None:
+    bibliography = _bibliography("@book{one,title={Plain}}")
 
-    journal = normalize_bibliography(bibliography, "journal-fields")
-    pagination = normalize_bibliography(bibliography, "book-pagination")
-    names = normalize_bibliography(bibliography, "name-spacing")
+    result = normalize_bibliography(bibliography, action)
 
-    assert journal.actions == ("journal-fields",)
-    assert pagination.actions == ("book-pagination",)
-    assert names.actions == ("name-spacing",)
-    assert bibliography.resolve("journal").fields_dict["shortjournal"].value == "J. Test"
-    assert bibliography.resolve("book").fields_dict["pagetotal"].value == "100"
-    assert bibliography.resolve("journal").fields_dict["author"].value == "Macrì, Emanuele"
+    assert result.actions == (action,)
+    assert not result.changes.changed

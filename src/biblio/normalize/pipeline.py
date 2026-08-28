@@ -12,28 +12,25 @@ from .isbn import normalize_isbn_fields
 from .journal import normalize_journal_fields
 from .names import normalize_name_spacing
 from .pagination import normalize_book_pagination
-from .publisher import normalize_publisher_location
 from .url import normalize_trivial_urls
 
 YEAR_TO_DATE = "year-to-date"
-PUBLISHER_LOCATION = "publisher-location"
 EPRINT_FIELDS = "eprint-fields"
+LATEX_ACCENTS = "latex-accents"
+NAME_SPACING = "name-spacing"
 JOURNAL_FIELDS = "journal-fields"
 BOOK_PAGINATION = "book-pagination"
-NAME_SPACING = "name-spacing"
-LATEX_ACCENTS = "latex-accents"
 ISBN = "isbn"
 TRIVIAL_URL = "trivial-url"
 ALL = "all"
 
 NORMALIZATION_ACTIONS = (
     YEAR_TO_DATE,
-    PUBLISHER_LOCATION,
     EPRINT_FIELDS,
+    LATEX_ACCENTS,
+    NAME_SPACING,
     JOURNAL_FIELDS,
     BOOK_PAGINATION,
-    NAME_SPACING,
-    LATEX_ACCENTS,
     ISBN,
     TRIVIAL_URL,
 )
@@ -52,6 +49,14 @@ def normalize_bibliography(bibliography: Bibliography, action: str) -> Normalize
     policy: an unchanged ``ChangeSet`` is the explicit no-op signal.
     """
     actions = NORMALIZATION_ACTIONS if action == ALL else (_validate_action(action),)
+    bibliography.validate()
+    for entry in bibliography:
+        names: set[str] = set()
+        for entry_field in entry.fields:
+            name = entry_field.key.casefold()
+            if name in names:
+                raise ValueError(f"entry '{entry.key}' has duplicate '{name}' fields")
+            names.add(name)
     results = tuple(_run_action(bibliography, selected) for selected in actions)
     bibliography.validate()
     return NormalizeResult(
@@ -70,40 +75,20 @@ def _validate_action(action: str) -> str:
 
 def _run_action(bibliography: Bibliography, action: str) -> _ActionResult:
     if action == YEAR_TO_DATE:
-        return _ActionResult(rename_year_to_date_fields(bibliography))
-    if action == PUBLISHER_LOCATION:
-        report = normalize_publisher_location(bibliography)
-        fixed = frozenset(report.fixed)
+        changes = rename_year_to_date_fields(bibliography)
         diagnostics = tuple(
-            f"{action}:manual-review:{key}" for key in report.flagged if key not in fixed
+            f"{action}:manual-review:{entry.key}"
+            for entry in bibliography
+            if any(entry_field.key.casefold() == "year" for entry_field in entry.fields)
         )
-        return _ActionResult(report.changes, diagnostics)
+        return _ActionResult(changes, diagnostics)
     if action == EPRINT_FIELDS:
-        return _ActionResult(normalize_eprint_fields(bibliography).changes)
-    if action == JOURNAL_FIELDS:
-        report = normalize_journal_fields(bibliography)
-        diagnostics = (
-            *(
-                f"{action}:manual-review:{key}:{source}->{target}:conflict"
-                for key, source, target in report.conflicts
-            ),
-            *(
-                f"{action}:manual-review:{key}:{source}->{target}:ambiguous"
-                for key, source, target in report.ambiguous
-            ),
+        report = normalize_eprint_fields(bibliography)
+        diagnostics = tuple(
+            f"{action}:manual-review:{key}:{source}->{target}:conflict"
+            for key, source, target in report.conflicts
         )
         return _ActionResult(report.changes, diagnostics)
-    if action == BOOK_PAGINATION:
-        report = normalize_book_pagination(bibliography)
-        diagnostics = (
-            *(f"{action}:manual-review:{key}:conflict" for key in report.conflicts),
-            *(f"{action}:manual-review:{key}:ambiguous" for key in report.ambiguous),
-        )
-        return _ActionResult(report.changes, diagnostics)
-    if action == NAME_SPACING:
-        return _ActionResult(normalize_name_spacing(bibliography))
-    if action == LATEX_ACCENTS:
-        return _ActionResult(normalize_latex_accents(bibliography).changes)
     if action == ISBN:
         report = normalize_isbn_fields(bibliography)
         diagnostics = tuple(
@@ -112,6 +97,30 @@ def _run_action(bibliography: Bibliography, action: str) -> _ActionResult:
         return _ActionResult(report.changes, diagnostics)
     if action == TRIVIAL_URL:
         return _ActionResult(normalize_trivial_urls(bibliography).changes)
+    if action == LATEX_ACCENTS:
+        return _ActionResult(normalize_latex_accents(bibliography).changes)
+    if action == NAME_SPACING:
+        return _ActionResult(normalize_name_spacing(bibliography))
+    if action == JOURNAL_FIELDS:
+        report = normalize_journal_fields(bibliography)
+        diagnostics = (
+            *(
+                f"{action}:manual-review:{key}:{source}->{target}:conflict"
+                for key, source, target in report.conflicts
+            ),
+            *(
+                f"{action}:manual-review:{key}:{source}->{target}:unverified-mr-pair"
+                for key, source, target in report.ambiguous
+            ),
+        )
+        return _ActionResult(report.changes, diagnostics)
+    if action == BOOK_PAGINATION:
+        report = normalize_book_pagination(bibliography)
+        diagnostics = (
+            *(f"{action}:manual-review:{key}:conflict" for key in report.conflicts),
+            *(f"{action}:manual-review:{key}:unverified-mr-extent" for key in report.ambiguous),
+        )
+        return _ActionResult(report.changes, diagnostics)
     raise ValueError(f"unknown normalization action '{action}'")
 
 

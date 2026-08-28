@@ -1,4 +1,4 @@
-"""Lossless migration of legacy journal field names."""
+"""Lossless migration of the explicitly accepted MR journal-pair convention."""
 
 from dataclasses import dataclass, field
 
@@ -7,15 +7,20 @@ from bibtexparser.model import Entry, Field
 from biblio.bibliography import Bibliography
 from biblio.results import ChangeSet, FieldDelta
 
+from .mr import MR_FIELDS, has_mr_metadata
+
 LEGACY_JOURNAL_FIELD_MAP = (
     ("journal", "shortjournal"),
     ("fjournal", "journaltitle"),
+)
+_PARTICIPATING_FIELDS = MR_FIELDS | frozenset(
+    name for pair in LEGACY_JOURNAL_FIELD_MAP for name in pair
 )
 
 
 @dataclass(frozen=True, slots=True)
 class JournalNormalizationReport:
-    """Journal-field changes plus value conflicts requiring review."""
+    """Journal-pair changes plus incomplete pairs and conflicts requiring review."""
 
     conflicts: tuple[tuple[str, str, str], ...] = ()
     ambiguous: tuple[tuple[str, str, str], ...] = ()
@@ -23,28 +28,49 @@ class JournalNormalizationReport:
 
 
 def normalize_journal_fields(bibliography: Bibliography) -> JournalNormalizationReport:
-    """Rename legacy journal fields unless a target has a different value."""
+    """Migrate only an explicitly MR-marked nonempty pair without target conflicts.
+
+    The accepted input convention supplies both ``journal`` (abbreviated title)
+    and ``fjournal`` (full title), plus a nonempty local MR metadata marker.
+    A lone field or unmarked pair does not establish that local convention.
+    Check the whole pair before changing either source, and retain exact values.
+    """
     changed_keys: list[str] = []
     conflicts: list[tuple[str, str, str]] = []
     ambiguous: list[tuple[str, str, str]] = []
     deltas: list[FieldDelta] = []
+    entries = [(entry, _participating_fields(entry)) for entry in bibliography]
 
-    for entry in bibliography:
-        entry_changed = False
-        for source, target in LEGACY_JOURNAL_FIELD_MAP:
-            if source == "journal" and _journal_is_ambiguous(entry):
-                ambiguous.append((entry.key, source, target))
-                continue
-            outcome = _migrate_field(entry, source, target)
-            if outcome is None:
-                continue
-            if outcome == ():
-                conflicts.append((entry.key, source, target))
-                continue
-            entry_changed = True
-            deltas.extend(outcome)
-        if entry_changed:
-            changed_keys.append(entry.key)
+    for entry, fields in entries:
+        sources = [
+            (source, target) for source, target in LEGACY_JOURNAL_FIELD_MAP if source in fields
+        ]
+        if (
+            not has_mr_metadata(entry)
+            or len(sources) != 2
+            or any(not str(fields[source].value).strip() for source, _ in sources)
+        ):
+            ambiguous.extend((entry.key, source, target) for source, target in sources)
+            continue
+        entry_conflicts = [
+            (entry.key, source, target)
+            for source, target in sources
+            if target in fields and str(fields[source].value) != str(fields[target].value)
+        ]
+        if entry_conflicts:
+            conflicts.extend(entry_conflicts)
+            continue
+
+        for source, target in sources:
+            source_field = fields[source]
+            source_value = str(source_field.value)
+            deltas.append(FieldDelta(entry.key, source, source_value, None))
+            if target in fields:
+                entry.fields.remove(source_field)
+            else:
+                entry.fields[entry.fields.index(source_field)] = Field(target, source_field.value)
+                deltas.append(FieldDelta(entry.key, target, None, source_value))
+        changed_keys.append(entry.key)
 
     return JournalNormalizationReport(
         conflicts=tuple(conflicts),
@@ -53,30 +79,13 @@ def normalize_journal_fields(bibliography: Bibliography) -> JournalNormalization
     )
 
 
-def _journal_is_ambiguous(entry: Entry) -> bool:
-    fields = entry.fields_dict
-    return "journal" in fields and "fjournal" not in fields and "shortjournal" not in fields
-
-
-def _migrate_field(entry: Entry, source: str, target: str) -> tuple[FieldDelta, ...] | None:
-    fields = entry.fields_dict
-    source_field = fields.get(source)
-    if source_field is None:
-        return None
-
-    source_value = str(source_field.value)
-    target_field = fields.get(target)
-    if target_field is not None and str(target_field.value) != source_value:
-        return ()
-
-    if target_field is None:
-        replacement = Field(target, source_field.value)
-        position = entry.fields.index(source_field)
-        entry.fields[position] = replacement
-        return (
-            FieldDelta(entry.key, source, source_value, None),
-            FieldDelta(entry.key, target, None, source_value),
-        )
-
-    entry.fields.remove(source_field)
-    return (FieldDelta(entry.key, source, source_value, None),)
+def _participating_fields(entry: Entry) -> dict[str, Field]:
+    fields: dict[str, Field] = {}
+    for entry_field in entry.fields:
+        name = entry_field.key.casefold()
+        if name not in _PARTICIPATING_FIELDS:
+            continue
+        if name in fields:
+            raise ValueError(f"entry '{entry.key}' has duplicate '{name}' fields")
+        fields[name] = entry_field
+    return fields

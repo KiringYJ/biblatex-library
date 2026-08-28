@@ -50,7 +50,7 @@ def test_isbn10_normalization_apply_preserves_exact_json_and_hash_provenance(
 
     assert result.commit is not None
     bibliography = BibliographyCodec.parse_bytes(paths.bibliography.read_bytes())
-    assert bibliography.resolve(key).fields_dict["isbn"].value == "978-0-387-97926-7"
+    assert bibliography.resolve(key).fields_dict["isbn"].value == "9780387979267"
     assert paths.identifiers.read_bytes() == identifier_bytes
     assert paths.add_order.read_bytes() == order_bytes
     assert commands.validate(paths).valid

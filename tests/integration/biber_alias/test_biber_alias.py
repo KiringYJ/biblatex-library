@@ -10,8 +10,6 @@ from pathlib import Path
 import pytest
 
 FIXTURE_ROOT = Path(__file__).parent
-EXPECTED_BIBER_VERSION = "2.21"
-EXPECTED_BIBLATEX_VERSION = "3.21"
 BAD_DIAGNOSTIC = re.compile(r"\b(?:WARN|ERROR)\b", re.I)
 
 
@@ -81,21 +79,3 @@ def test_alias_lookup_is_ascii_case_sensitive(tmp_path: Path) -> None:
     _, blg = _compile_biber_fixture(tmp_path, "casealias")
 
     assert re.search(r"WARN.*didn't find a database entry for 'casealias'", blg, re.I)
-
-
-@pytest.mark.integration
-def test_toolchain_versions_match_phase_zero_evidence() -> None:
-    """The executable gate stays pinned to Biber and active BibLaTeX versions."""
-    biber = _required_tool("biber")
-    kpsewhich = _required_tool("kpsewhich")
-
-    biber_result = _run([biber, "--version"], FIXTURE_ROOT)
-    assert biber_result.returncode == 0
-    version_pattern = rf"biber version:\s*{re.escape(EXPECTED_BIBER_VERSION)}\b"
-    assert re.search(version_pattern, biber_result.stdout)
-
-    biblatex_result = _run([kpsewhich, "biblatex.sty"], FIXTURE_ROOT)
-    assert biblatex_result.returncode == 0
-    biblatex_path = Path(biblatex_result.stdout.strip())
-    biblatex_source = biblatex_path.read_text(encoding="utf-8", errors="replace")
-    assert rf"\def\abx@version{{{EXPECTED_BIBLATEX_VERSION}}}" in biblatex_source

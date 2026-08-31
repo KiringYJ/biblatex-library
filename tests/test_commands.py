@@ -889,6 +889,34 @@ def test_add_changed_template_after_commit_retains_the_staging_pair(
     assert (tmp_path / commands._RECEIPT_NAME).exists()
 
 
+def test_add_cleanup_treats_crlf_and_lf_inside_fields_as_equivalent(tmp_path: Path) -> None:
+    paths = _workspace(tmp_path)
+    staged = tmp_path / "multiline-names.bib"
+    staged.write_bytes(
+        b"@article{x,\r\n"
+        b"  author={Doe, Jane and\r\n    Roe, Richard},\r\n"
+        b"  editor={Smith, Alex and\r\n    Jones, Taylor},\r\n"
+        b"  date={2024},\r\n"
+        b"  title={Work},\r\n"
+        b"  doi={10.1000/work}\r\n"
+        b"}\r\n"
+    )
+    commands.template(staged)
+    template_path = staged.with_suffix(".json")
+
+    result = commands.add(paths, staged)
+
+    assert result.commit is not None
+    assert result.commit.outcome is CommitOutcome.COMMITTED_VERIFIED
+    assert result.conflicted_paths == ()
+    assert result.cleanup_diagnostics == ()
+    assert result.consumed_paths == (staged.resolve(), template_path.resolve())
+    assert not staged.exists()
+    assert not template_path.exists()
+    assert not (tmp_path / commands._RECEIPT_NAME).exists()
+    assert commands.validate(paths).valid
+
+
 def test_add_storage_failure_preserves_staging_input(tmp_path: Path) -> None:
     paths = _workspace(tmp_path)
     staged = tmp_path / "opaque.bib"

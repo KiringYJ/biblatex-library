@@ -234,6 +234,23 @@ def _added_entry_manifest(entry: Entry) -> _EntryManifest:
     return _entry_manifest(entry, IdentifierRecord(main, inventory))
 
 
+def _normalize_manifest_field_line_endings(manifest: _EntryManifest) -> _EntryManifest:
+    normalized_fields = tuple(
+        (key, value.replace("\r\n", "\n").replace("\r", "\n")) for key, value in manifest.fields
+    )
+    if normalized_fields == manifest.fields:
+        return manifest
+    return replace(manifest, fields=normalized_fields)
+
+
+def _entry_manifests_equivalent(
+    left: tuple[_EntryManifest, ...], right: tuple[_EntryManifest, ...]
+) -> bool:
+    return tuple(_normalize_manifest_field_line_endings(item) for item in left) == tuple(
+        _normalize_manifest_field_line_endings(item) for item in right
+    )
+
+
 def _snapshot_vector(snapshot: WorkspaceSnapshot) -> WorkspaceDigestVector:
     return WorkspaceDigestVector(
         snapshot.bibliography.sha256,
@@ -637,7 +654,7 @@ def _prove_receipt_item(
         )
         for manifest in item.entries
     )
-    if committed != item.entries:
+    if not _entry_manifests_equivalent(committed, item.entries):
         return f"committed entry content differs from staging receipt: {path}"
     template_path = path.parent / item.template_name if item.template_name is not None else None
     try:
@@ -670,7 +687,9 @@ def _prove_receipt_item(
             )
         except (OSError, ValueError) as error:
             return f"could not prove staging file '{path}': {error}"
-        if prepared.files[0].keys != item.keys or source_manifests != item.entries:
+        if prepared.files[0].keys != item.keys or not _entry_manifests_equivalent(
+            source_manifests, item.entries
+        ):
             return f"staging source keys or content changed: {path}"
     return None
 

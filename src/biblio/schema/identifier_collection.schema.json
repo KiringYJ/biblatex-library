@@ -25,7 +25,8 @@
           "jfm": {"$ref": "#/$defs/identifierValue"},
           "oclc": {"$ref": "#/$defs/identifierValue"},
           "hdl": {"$ref": "#/$defs/identifierValue"},
-          "acmdl_doi": {"$ref": "#/$defs/identifierValue"}
+          "acmdl_doi": {"$ref": "#/$defs/identifierValue"},
+          "containerpart": {"$ref": "#/$defs/identifierValue"}
         },
         "additionalProperties": {"$ref": "#/$defs/identifierValue"}
       },
@@ -42,7 +43,8 @@
           "jfm": {"$ref": "#/$defs/alternateValues"},
           "oclc": {"$ref": "#/$defs/alternateValues"},
           "hdl": {"$ref": "#/$defs/alternateValues"},
-          "acmdl_doi": {"$ref": "#/$defs/alternateValues"}
+          "acmdl_doi": {"$ref": "#/$defs/alternateValues"},
+          "containerpart": {"$ref": "#/$defs/alternateValues"}
         },
         "additionalProperties": {
           "$ref": "#/$defs/alternateValues"

@@ -7,6 +7,7 @@ from .identifier_collection import (
     SUPPORTED_IDENTIFIER_KIND_SET,
     IdentifierCollection,
     IdentifierRecord,
+    containerpart_identifier_from_entry,
     identifier_equality_token,
     identifiers_from_entry,
     isbn_is_container_metadata,
@@ -65,11 +66,27 @@ class WorkspaceAggregate:
                     f"record '{canonical_key}' must not use its container ISBN "
                     "as the contribution main identifier"
                 )
+            containerparts = record.inventory_values("containerpart")
+            if containerparts:
+                expected = containerpart_identifier_from_entry(entry)
+                if expected is None:
+                    issues.append(
+                        f"record '{canonical_key}' cannot derive its containerpart identifier "
+                        "from canonical container and locator metadata"
+                    )
+                elif containerparts != (expected,):
+                    issues.append(
+                        f"record '{canonical_key}' containerpart identifier must equal '{expected}'"
+                    )
             try:
                 projected = identifiers_from_entry(entry)
             except ValueError as error:
                 issues.append(str(error))
                 continue
+            if record.main_identifier == "containerpart" and projected:
+                issues.append(
+                    f"record '{canonical_key}' must use containerpart only as a fallback identity"
+                )
             for kind, value in projected.items():
                 inventory = record.inventory_values(kind)
                 try:

@@ -205,6 +205,53 @@ def test_contained_contribution_rejects_container_isbn_as_main_identifier() -> N
         aggregate.validate()
 
 
+def test_validates_containerpart_against_container_and_locator_metadata() -> None:
+    identity = "isbn13=9784254110999;chapter=3"
+    key = f"shoji-2004-{_hash(identity)}"
+    aggregate = WorkspaceAggregate(
+        _bibliography(
+            f"@incollection{{{key},isbn={{978-4-254-11099-9}},chapter={{3}},pages={{185--326}}}}\n"
+        ),
+        {key: IdentifierRecord("containerpart", {"containerpart": identity})},
+        (key,),
+    )
+
+    aggregate.validate()
+
+
+def test_rejects_containerpart_that_disagrees_with_part_locator() -> None:
+    identity = "isbn13=9784254110999;chapter=4"
+    key = f"shoji-2004-{_hash(identity)}"
+    aggregate = WorkspaceAggregate(
+        _bibliography(f"@incollection{{{key},isbn={{9784254110999}},chapter={{3}}}}\n"),
+        {key: IdentifierRecord("containerpart", {"containerpart": identity})},
+        (key,),
+    )
+
+    with pytest.raises(ValueError, match="containerpart identifier must equal"):
+        aggregate.validate()
+
+
+def test_rejects_duplicate_containerpart_identity_across_records() -> None:
+    identity = "isbn13=9784254110999;chapter=3"
+    first_key = f"alpha-2004-{_hash(identity)}"
+    second_key = f"beta-2004-{_hash(identity)}"
+    aggregate = WorkspaceAggregate(
+        _bibliography(
+            f"@incollection{{{first_key},isbn={{9784254110999}},chapter={{3}}}}\n"
+            f"@incollection{{{second_key},isbn={{9784254110999}},chapter={{3}}}}\n"
+        ),
+        {
+            first_key: IdentifierRecord("containerpart", {"containerpart": identity}),
+            second_key: IdentifierRecord("containerpart", {"containerpart": identity}),
+        },
+        (first_key, second_key),
+    )
+
+    with pytest.raises(ValueError, match="identifier 'containerpart'.*collides"):
+        aggregate.validate()
+
+
 @pytest.mark.parametrize(
     "record",
     [

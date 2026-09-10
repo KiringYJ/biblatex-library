@@ -15,6 +15,7 @@ from .generate import citekey_stem
 from .identifier_collection import (
     SUPPORTED_IDENTIFIER_KIND_SET,
     IdentifierRecord,
+    containerpart_identifier_from_entry,
     identifier_equality_token,
     identifiers_from_entry,
     isbn_is_container_metadata,
@@ -45,6 +46,7 @@ MAIN_IDENTIFIER_PRIORITY = (
     "hdl",
     "acmdl_doi",
     "url",
+    "containerpart",
 )
 
 
@@ -128,6 +130,14 @@ def select_main_identifier(identifiers: dict[str, str]) -> tuple[str, str]:
     raise ValueError("entry has no supported identifier for deterministic citekey generation")
 
 
+def _identifiers_for_new_entry(entry: Entry) -> dict[str, str]:
+    identifiers = identifiers_from_entry(entry)
+    if identifiers:
+        return identifiers
+    containerpart = containerpart_identifier_from_entry(entry)
+    return {"containerpart": containerpart} if containerpart is not None else {}
+
+
 def _field_value(fields: dict[str, Field], name: str) -> str | None:
     field = fields.get(name)
     return str(field.value) if field is not None else None
@@ -161,7 +171,7 @@ def prepare_entries(
         entry = deepcopy(staged)
         _field_map(entry)
         if identifier_records is None:
-            kind, identifier = select_main_identifier(identifiers_from_entry(entry))
+            kind, identifier = select_main_identifier(_identifiers_for_new_entry(entry))
         else:
             record = identifier_records.get(staged.key)
             if record is None:
@@ -261,7 +271,7 @@ def _automatic_identifier_records(
     }
     records: dict[str, IdentifierRecord] = {}
     for entry in entries:
-        identifiers = identifiers_from_entry(entry)
+        identifiers = _identifiers_for_new_entry(entry)
         if entry.key in arxiv_preferred and "arxiv" in identifiers:
             main = "arxiv"
         else:
@@ -300,6 +310,24 @@ def _validate_template_record(
             raise ValueError(
                 f"staging template entry '{entry.key}' must not include its container ISBN "
                 "in the contribution identifier inventory"
+            )
+    containerparts = record.inventory_values("containerpart")
+    if containerparts:
+        expected = containerpart_identifier_from_entry(entry)
+        if expected is None:
+            raise ValueError(
+                f"staging template entry '{entry.key}' cannot derive its containerpart "
+                "identifier from canonical container and locator metadata"
+            )
+        if containerparts != (expected,):
+            raise ValueError(
+                f"staging template entry '{entry.key}' containerpart identifier must equal "
+                f"'{expected}'"
+            )
+        if record.main_identifier == "containerpart" and identifiers_from_entry(entry):
+            raise ValueError(
+                f"staging template entry '{entry.key}' must use containerpart only as a "
+                "fallback identity"
             )
     main_value = record.identifiers.get(record.main_identifier)
     if main_value is None or not main_value:

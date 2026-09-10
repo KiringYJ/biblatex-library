@@ -83,6 +83,11 @@ migration-away commands are retired.
   contribution's identifier: preserve the BibLaTeX field, but do not project
   it into identifier JSON, select it as `main_identifier`, reconcile it, or
   treat a shared legacy container ISBN as a cross-contribution collision.
+- A contained contribution without a supported contribution-level identifier
+  may use a JSON-only `containerpart` fallback derived from exactly one valid
+  container ISBN and a canonical chapter or numeric page locator. Treat it as
+  repository-local identity, keep its component grammar strict, and never add
+  author or title text as identity input.
 - Promotion makes the publisher DOI key canonical, retains prior keys as
   direct aliases with complete `key_history`, and preserves the order slot.
 - Hard removal deletes the active record from all three artifacts. Consumer

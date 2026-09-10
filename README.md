@@ -23,12 +23,13 @@ future CSL-backed design could replace the bibliographic-metadata layer, but
 it would still need to preserve exact identifier provenance, citekey history,
 and chronological ordering.
 
-The current engine recognizes eleven identifier kinds: `doi`, `isbn13`,
+The current engine recognizes twelve identifier kinds: `doi`, `isbn13`,
 `arxiv`, `url`, `mrnumber`, `zbl`, `zbmath`, `jfm`, `oclc`, `hdl`, and
-`acmdl_doi`. The JSON codec and schema preserve an unknown kind so future data
+`acmdl_doi`, plus the repository-local `containerpart`. The JSON codec and
+schema preserve an unknown kind so future data
 is not discarded, but workspace validation reports it as unsupported and
 mutation commands fail closed until the engine gains an explicit comparison
-and projection rule for that kind. JSON-only values of the eleven supported
+and validation rule for that kind. JSON-only values of the twelve supported
 kinds are valid and remain part of the complete inventory.
 
 ## Principal consumer
@@ -212,14 +213,36 @@ default selections match the eventual candidate. Existing companions are
 preserved unless `--overwrite` is explicit.
 
 The default priority is `doi`, `isbn13`, `mrnumber`, `arxiv`, `zbmath`, `zbl`,
-`jfm`, `oclc`, `hdl`, `acmdl_doi`, then `url`. When a DOI is only the matching
-arXiv-issued `10.48550/arXiv...` form, the arXiv eprint remains the default main
-identifier. The redundant DOI and exact derived links are omitted from both
-the normalized BibLaTeX and generated identifier JSON. A distinct publisher
-DOI retains normal DOI priority. An ISBN on a contained contribution such as
-`@inbook`, `@incollection`, `@inproceedings`, or `@inreference` is container
-metadata: it remains in the BibLaTeX entry but is omitted from the contribution's
-identifier inventory and cannot be selected as its `main_identifier`.
+`jfm`, `oclc`, `hdl`, `acmdl_doi`, `url`, then `containerpart`. When a DOI is
+only the matching arXiv-issued `10.48550/arXiv...` form, the arXiv eprint remains
+the default main identifier. The redundant DOI and exact derived links are
+omitted from both the normalized BibLaTeX and generated identifier JSON. A
+distinct publisher DOI retains normal DOI priority. An ISBN on a contained
+contribution such as `@inbook`, `@incollection`, `@inproceedings`, or
+`@inreference` is container metadata: it remains in the BibLaTeX entry but is
+omitted from the contribution's identifier inventory and cannot be selected as
+its `main_identifier`.
+
+When a contained contribution has no supported contribution-level identifier,
+`template` and `add` may derive a repository-local `containerpart` identity from
+one valid container ISBN and a structural locator. A positive integer `chapter`
+is preferred; otherwise a simple positive numeric page or page range is used.
+For example:
+
+```json
+{
+  "main_identifier": "containerpart",
+  "identifiers": {
+    "containerpart": "isbn13=9784254110999;chapter=3"
+  }
+}
+```
+
+The value uses canonical ISBN-13 digits and a fixed component order. It is
+JSON-only and repository-local: it is not projected into BibLaTeX and must not
+be presented as a DOI, ISBN, URL, or registry-assigned identifier. Author and
+title text are deliberately excluded. Unsupported ISBNs, locators, or component
+forms remain errors rather than metadata-based guesses.
 
 ### Add and consume staging files
 

@@ -1,13 +1,20 @@
 """Exact identifier inventory models, codecs, and BibLaTeX projections."""
 
 import json
+import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from urllib.parse import urlsplit
 
 from bibtexparser.model import Entry, Field
 
-from .identifiers import isbn_comparison_token, legacy_doi_comparison_token
+from .identifiers import (
+    extract_isbn_digits,
+    is_valid_isbn13,
+    isbn13_digits_from_isbn10,
+    isbn_comparison_token,
+    legacy_doi_comparison_token,
+)
 
 SUPPORTED_IDENTIFIER_KINDS = (
     "doi",
@@ -21,6 +28,7 @@ SUPPORTED_IDENTIFIER_KINDS = (
     "oclc",
     "hdl",
     "acmdl_doi",
+    "containerpart",
 )
 SUPPORTED_IDENTIFIER_KIND_SET = frozenset(SUPPORTED_IDENTIFIER_KINDS)
 
@@ -39,6 +47,13 @@ CONTAINED_CONTRIBUTION_ENTRY_TYPES = frozenset(
         "suppbook",
         "suppcollection",
     }
+)
+_BARE_SINGLE_ISBN = re.compile(r"[0-9]+(?:[- ][0-9]+)*(?:[- ]?[Xx])?")
+_POSITIVE_INTEGER = re.compile(r"[1-9][0-9]*")
+_NUMERIC_PAGES = re.compile(r"([1-9][0-9]*)(?:-{1,2}([1-9][0-9]*))?")
+_CONTAINERPART = re.compile(
+    r"isbn13=(978[0-9]{10}|979[0-9]{10});"
+    r"(?:chapter=([1-9][0-9]*)|pages=([1-9][0-9]*(?:-[1-9][0-9]*)?))"
 )
 
 
@@ -245,6 +260,16 @@ def identifier_equality_token(kind: str, value: str) -> str:
         if token[:6].casefold() == "arxiv:":
             token = token[6:].strip()
         return token.casefold()
+    if kind == "containerpart":
+        match = _CONTAINERPART.fullmatch(value)
+        if match is None or not is_valid_isbn13(match.group(1)):
+            raise ValueError("identifier must use canonical containerpart form")
+        pages = match.group(3)
+        if pages is not None and "-" in pages:
+            start, end = pages.split("-", 1)
+            if int(end) < int(start):
+                raise ValueError("containerpart page range must not be descending")
+        return value
     if kind == "mrnumber":
         return token[2:] if token[:2].casefold() == "mr" else token
     if kind in {"zbl", "jfm", "oclc"}:
@@ -280,10 +305,56 @@ def isbn_is_container_metadata(entry: Entry) -> bool:
     return entry.entry_type.casefold() in CONTAINED_CONTRIBUTION_ENTRY_TYPES
 
 
+def _canonical_single_isbn13(value: str | None) -> str | None:
+    if value is None:
+        return None
+    candidate = value.strip()
+    if _BARE_SINGLE_ISBN.fullmatch(candidate) is None:
+        return None
+    digits = extract_isbn_digits(candidate)
+    converted = isbn13_digits_from_isbn10(digits)
+    if converted is not None:
+        return converted
+    if digits.startswith(("978", "979")) and is_valid_isbn13(digits):
+        return digits
+    return None
+
+
+def containerpart_identifier_from_entry(entry: Entry) -> str | None:
+    """Derive a canonical repository-local identity for one contained contribution."""
+    if not isbn_is_container_metadata(entry):
+        return None
+    isbn13 = _canonical_single_isbn13(_single_field(entry, "isbn"))
+    if isbn13 is None:
+        return None
+
+    chapter = _single_field(entry, "chapter")
+    if chapter is not None:
+        chapter = chapter.strip()
+        if _POSITIVE_INTEGER.fullmatch(chapter) is None:
+            return None
+        return f"isbn13={isbn13};chapter={chapter}"
+
+    pages = _single_field(entry, "pages")
+    if pages is None:
+        return None
+    pages = pages.strip()
+    match = _NUMERIC_PAGES.fullmatch(pages)
+    if match is None:
+        return None
+    start, end = match.groups()
+    if end is not None and int(end) < int(start):
+        return None
+    canonical_pages = start if end is None else f"{start}-{end}"
+    return f"isbn13={isbn13};pages={canonical_pages}"
+
+
 def identifiers_from_entry(entry: Entry) -> dict[str, str]:
-    """Project all eleven supported identifier kinds from one BibLaTeX entry."""
+    """Project supported BibLaTeX identifiers, excluding JSON-only identities."""
     result: dict[str, str] = {}
     for kind in SUPPORTED_IDENTIFIER_KINDS:
+        if kind == "containerpart":
+            continue
         if kind == "isbn13":
             value = None if isbn_is_container_metadata(entry) else _single_field(entry, "isbn")
         elif kind == "arxiv":

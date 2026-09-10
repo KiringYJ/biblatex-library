@@ -11,6 +11,7 @@ from bibtexparser.model import Entry
 from biblio.identifier_collection import (
     IdentifierRecord,
     KeyHistory,
+    containerpart_identifier_from_entry,
     identifier_equality_token,
     identifiers_from_entry,
     parse_add_order,
@@ -85,9 +86,14 @@ def test_optional_alternates_and_history_preserve_exact_values() -> None:
         ("hdl", " 20.500/Case ", "20.500/Case"),
         ("url", " https://example.test/A ", "https://example.test/A"),
         ("acmdl_doi", "DOI:10.1145/ABC", "10.1145/abc"),
+        (
+            "containerpart",
+            "isbn13=9784254110999;chapter=3",
+            "isbn13=9784254110999;chapter=3",
+        ),
     ],
 )
-def test_all_eleven_identifier_equality_rules(kind: str, left: str, right: str) -> None:
+def test_all_twelve_identifier_equality_rules(kind: str, left: str, right: str) -> None:
     assert identifier_equality_token(kind, left) == identifier_equality_token(kind, right)
 
 
@@ -139,6 +145,15 @@ def test_container_isbn_is_not_projected_for_contained_contributions(
     assert entry.fields_dict["isbn"].value == "978-0-306-40615-7"
 
 
+def test_containerpart_is_json_only_and_not_projected_from_biblatex() -> None:
+    entry = _entry(
+        "@incollection{one,containerpart={isbn13=9784254110999;chapter=3},"
+        "isbn={9784254110999},chapter={3}}"
+    )
+
+    assert identifiers_from_entry(entry) == {}
+
+
 @pytest.mark.parametrize(
     "entry_type",
     [
@@ -156,6 +171,39 @@ def test_isbn_is_projected_for_container_records(entry_type: str) -> None:
     entry = _entry(f"@{entry_type}{{one,isbn={{978-0-306-40615-7}}}}")
 
     assert identifiers_from_entry(entry) == {"isbn13": "978-0-306-40615-7"}
+
+
+def test_derives_containerpart_from_canonical_container_and_chapter() -> None:
+    entry = _entry("@incollection{one,isbn={978-4-254-11099-9},chapter={3},pages={185--326}}")
+
+    assert containerpart_identifier_from_entry(entry) == "isbn13=9784254110999;chapter=3"
+
+
+def test_derives_containerpart_from_pages_only_when_chapter_is_absent() -> None:
+    entry = _entry("@incollection{one,isbn={9784254110999},pages={185--326}}")
+
+    assert containerpart_identifier_from_entry(entry) == "isbn13=9784254110999;pages=185-326"
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "@book{one,isbn={9784254110999},chapter={3}}",
+        "@incollection{one,isbn={9784254110999}}",
+        "@incollection{one,isbn={9784254110999},chapter={03}}",
+        "@incollection{one,isbn={9784254110999},pages={xiii--20}}",
+        "@incollection{one,isbn={9784254110999, 9780387979267},chapter={3}}",
+    ],
+)
+def test_containerpart_derivation_rejects_unsupported_or_insufficient_inputs(
+    source: str,
+) -> None:
+    assert containerpart_identifier_from_entry(_entry(source)) is None
+
+
+def test_containerpart_comparison_rejects_noncanonical_values() -> None:
+    with pytest.raises(ValueError, match="canonical containerpart"):
+        identifier_equality_token("containerpart", "isbn13=978-4-254-11099-9;chapter=3")
 
 
 def test_spaced_arxiv_marker_is_projected_as_arxiv() -> None:

@@ -32,6 +32,7 @@ def test_schema_supports_legacy_records_and_optional_extensions() -> None:
         "oclc",
         "hdl",
         "acmdl_doi",
+        "containerpart",
     }
     assert schema["$defs"]["alternateValues"] == {
         "type": "array",

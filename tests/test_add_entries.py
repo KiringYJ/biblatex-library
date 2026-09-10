@@ -123,6 +123,18 @@ def test_extended_primary_identifiers_have_stable_fallback_priority(field: str) 
     assert prepared[0].key == f"doe-2020-{expected}"
 
 
+def test_prepare_uses_containerpart_when_contribution_has_no_external_identifier() -> None:
+    entry = bibtexparser.parse_string(
+        "@incollection{x,author={Shoji, Toshiaki},date={2004},isbn={9784254110999},chapter={3}}"
+    ).entries[0]
+
+    prepared = prepare_entries((entry,))
+
+    identity = "isbn13=9784254110999;chapter=3"
+    expected = hashlib.sha256(identity.encode()).hexdigest()[:8]
+    assert prepared[0].key == f"shoji-2004-{expected}"
+
+
 def test_lifecycle_add_appends_without_reordering_existing_blocks() -> None:
     bibliography = _bibliography("@book{old-2020-00000000,title={Old}}\n@comment{tail}\n")
     comment = bibliography.blocks[1]

@@ -681,20 +681,60 @@ def test_add_rejects_reviewed_container_isbn_as_contribution_identifier(
         commands.add(paths, staged, dry_run=True)
 
 
-def test_template_rejects_container_isbn_as_only_contribution_identifier(
+def test_template_and_add_use_containerpart_when_contribution_has_no_external_identifier(
     tmp_path: Path,
 ) -> None:
+    paths = _workspace(tmp_path)
     staged = tmp_path / "chapter.bib"
+    identity = "isbn13=9784254110999;chapter=3"
+    expected_key = _key("shoji-2004", identity)
     staged.write_text(
-        "@incollection{temporary,author={Doe, Jane},date={2020},title={Chapter},"
-        "booktitle={Collected Work},isbn={978-0-387-97926-7}}\n",
+        "@incollection{temporary,author={Shoji, Toshiaki},date={2004},title={Chapter},"
+        "booktitle={Collected Work},chapter={3},pages={185--326},"
+        "isbn={978-4-254-11099-9}}\n",
         encoding="utf-8",
     )
 
-    with pytest.raises(ValueError, match="no supported identifier"):
-        commands.template(staged)
+    commands.template(staged)
+    companion = parse_identifier_collection(staged.with_suffix(".json").read_bytes())
 
-    assert not staged.with_suffix(".json").exists()
+    assert companion["temporary"] == IdentifierRecord("containerpart", {"containerpart": identity})
+
+    result = commands.add(paths, staged)
+
+    assert result.added_keys == (expected_key,)
+    bibliography = BibliographyCodec.parse_bytes(paths.bibliography.read_bytes())
+    entry = bibliography.resolve(expected_key)
+    assert entry.fields_dict["isbn"].value == "978-4-254-11099-9"
+    assert entry.fields_dict["pages"].value == "185--326"
+    assert parse_identifier_collection(paths.identifiers.read_bytes())[expected_key] == (
+        IdentifierRecord("containerpart", {"containerpart": identity})
+    )
+    assert commands.validate(paths).valid
+
+
+def test_same_author_year_container_contributions_get_distinct_local_keys(
+    tmp_path: Path,
+) -> None:
+    paths = _workspace(tmp_path)
+    staged = tmp_path / "chapters.bib"
+    staged.write_text(
+        "@incollection{first,author={Shoji, Toshiaki},date={2004},title={First},"
+        "booktitle={Collected Work},chapter={3},isbn={9784254110999}}\n"
+        "@incollection{second,author={Shoji, Toshiaki},date={2004},title={Second},"
+        "booktitle={Collected Work},chapter={4},isbn={9784254110999}}\n",
+        encoding="utf-8",
+    )
+
+    result = commands.add(paths, staged)
+
+    first_identity = "isbn13=9784254110999;chapter=3"
+    second_identity = "isbn13=9784254110999;chapter=4"
+    assert result.added_keys == (
+        _key("shoji-2004", first_identity),
+        _key("shoji-2004", second_identity),
+    )
+    assert commands.validate(paths).valid
 
 
 def test_add_normalizes_mr_pair_and_text_without_touching_identifiers(tmp_path: Path) -> None:

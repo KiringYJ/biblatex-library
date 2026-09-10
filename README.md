@@ -216,7 +216,10 @@ The default priority is `doi`, `isbn13`, `mrnumber`, `arxiv`, `zbmath`, `zbl`,
 arXiv-issued `10.48550/arXiv...` form, the arXiv eprint remains the default main
 identifier. The redundant DOI and exact derived links are omitted from both
 the normalized BibLaTeX and generated identifier JSON. A distinct publisher
-DOI retains normal DOI priority.
+DOI retains normal DOI priority. An ISBN on a contained contribution such as
+`@inbook`, `@incollection`, `@inproceedings`, or `@inreference` is container
+metadata: it remains in the BibLaTeX entry but is omitted from the contribution's
+identifier inventory and cannot be selected as its `main_identifier`.
 
 ### Add and consume staging files
 
@@ -368,6 +371,10 @@ JSON inventory, it appends the exact `.bib` value to
 `identifier_collection.json`. If the identifier kind already has a different
 primary value, the missing exact value is appended to
 `identifier_alternates`.
+
+Container ISBNs on contained contributions are not identifier projections, so
+`reconcile` does not copy them into the contribution record or treat a shared
+container ISBN as a collision between contributions.
 
 The operation never overwrites or deletes an inventory value, changes
 `main_identifier`, changes citekey/hash provenance, modifies `library.bib`, or

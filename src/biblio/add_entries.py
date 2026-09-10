@@ -17,6 +17,7 @@ from .identifier_collection import (
     IdentifierRecord,
     identifier_equality_token,
     identifiers_from_entry,
+    isbn_is_container_metadata,
     parse_identifier_collection,
     serialize_identifier_collection,
 )
@@ -269,7 +270,12 @@ def _automatic_identifier_records(
     return records
 
 
-def _validate_template_record(entry: Entry, record: IdentifierRecord) -> None:
+def _validate_template_record(
+    entry: Entry,
+    record: IdentifierRecord,
+    *,
+    allow_legacy_container_isbn: bool = False,
+) -> None:
     if record.key_history:
         raise ValueError(f"staging template entry '{entry.key}' must not contain key_history")
     kinds = {
@@ -283,6 +289,18 @@ def _validate_template_record(entry: Entry, record: IdentifierRecord) -> None:
             f"staging template entry '{entry.key}' has unsupported identifier kinds: "
             f"{sorted(unknown)}"
         )
+    has_isbn = "isbn13" in record.identifiers or "isbn13" in record.identifier_alternates
+    if isbn_is_container_metadata(entry) and has_isbn:
+        if record.main_identifier == "isbn13":
+            raise ValueError(
+                f"staging template entry '{entry.key}' must not treat its container ISBN "
+                "as the contribution main identifier"
+            )
+        if not allow_legacy_container_isbn:
+            raise ValueError(
+                f"staging template entry '{entry.key}' must not include its container ISBN "
+                "in the contribution identifier inventory"
+            )
     main_value = record.identifiers.get(record.main_identifier)
     if main_value is None or not main_value:
         raise ValueError(
@@ -314,7 +332,11 @@ def _validate_template_record(entry: Entry, record: IdentifierRecord) -> None:
 
 
 def _identifier_records(
-    entries: Sequence[Entry], template_data: bytes | None, normalization: NormalizeResult
+    entries: Sequence[Entry],
+    template_data: bytes | None,
+    normalization: NormalizeResult,
+    *,
+    allow_legacy_container_isbn: bool = False,
 ) -> dict[str, IdentifierRecord]:
     if template_data is None:
         return _automatic_identifier_records(entries, normalization)
@@ -326,7 +348,11 @@ def _identifier_records(
             f"template={sorted(records)}, bibliography={sorted(entry_keys)}"
         )
     for entry in entries:
-        _validate_template_record(entry, records[entry.key])
+        _validate_template_record(
+            entry,
+            records[entry.key],
+            allow_legacy_container_isbn=allow_legacy_container_isbn,
+        )
     return records
 
 
@@ -368,6 +394,8 @@ def prepare_identifier_template(path: Path, data: bytes) -> PreparedIdentifierTe
 def prepare_staged_sources(
     sources: Iterable[tuple[Path, bytes]],
     templates: Mapping[Path, tuple[Path, bytes]] | None = None,
+    *,
+    allow_legacy_container_isbn: bool = False,
 ) -> PreparedStaging:
     """Normalize, canonicalize, and key exact source bytes for one add transaction."""
     files: list[PreparedStagedFile] = []
@@ -384,7 +412,10 @@ def prepare_staged_sources(
         )
         template = templates.get(path) if templates is not None else None
         records_by_key = _identifier_records(
-            normalized, template[1] if template is not None else None, normalization
+            normalized,
+            template[1] if template is not None else None,
+            normalization,
+            allow_legacy_container_isbn=allow_legacy_container_isbn,
         )
         inventory = normalize_identifier_inventory(
             Bibliography(normalized, IdentityIndex(normalized)),

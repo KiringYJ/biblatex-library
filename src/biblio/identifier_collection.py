@@ -24,6 +24,23 @@ SUPPORTED_IDENTIFIER_KINDS = (
 )
 SUPPORTED_IDENTIFIER_KIND_SET = frozenset(SUPPORTED_IDENTIFIER_KINDS)
 
+# These entry types describe contributions whose ``isbn`` field belongs to the
+# containing book, collection, reference work, or proceedings.  The legacy
+# ``conference`` alias is resolved to ``inproceedings`` by Biber, but it must be
+# handled here because biblio projects identifiers before Biber runs.
+CONTAINED_CONTRIBUTION_ENTRY_TYPES = frozenset(
+    {
+        "bookinbook",
+        "conference",
+        "inbook",
+        "incollection",
+        "inproceedings",
+        "inreference",
+        "suppbook",
+        "suppcollection",
+    }
+)
+
 
 @dataclass(frozen=True, slots=True)
 class KeyHistory:
@@ -258,12 +275,17 @@ def _acm_url_identifier(url: str | None) -> str | None:
     return candidate or None
 
 
+def isbn_is_container_metadata(entry: Entry) -> bool:
+    """Return whether an ISBN on *entry* describes its containing publication."""
+    return entry.entry_type.casefold() in CONTAINED_CONTRIBUTION_ENTRY_TYPES
+
+
 def identifiers_from_entry(entry: Entry) -> dict[str, str]:
     """Project all eleven supported identifier kinds from one BibLaTeX entry."""
     result: dict[str, str] = {}
     for kind in SUPPORTED_IDENTIFIER_KINDS:
         if kind == "isbn13":
-            value = _single_field(entry, "isbn")
+            value = None if isbn_is_container_metadata(entry) else _single_field(entry, "isbn")
         elif kind == "arxiv":
             eprint = _single_field(entry, "eprint")
             eprinttype = _single_field(entry, "eprinttype")

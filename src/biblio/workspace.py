@@ -9,6 +9,7 @@ from .identifier_collection import (
     IdentifierRecord,
     identifier_equality_token,
     identifiers_from_entry,
+    isbn_is_container_metadata,
 )
 from .identifiers import hash_exact_legacy_identifier
 
@@ -59,6 +60,11 @@ class WorkspaceAggregate:
             entry = self.bibliography.resolve(canonical_key)
             aliases = self.bibliography.aliases_for(canonical_key)
             issues.extend(self._history_issues(canonical_key, aliases, record))
+            if isbn_is_container_metadata(entry) and record.main_identifier == "isbn13":
+                issues.append(
+                    f"record '{canonical_key}' must not use its container ISBN "
+                    "as the contribution main identifier"
+                )
             try:
                 projected = identifiers_from_entry(entry)
             except ValueError as error:
@@ -163,8 +169,15 @@ class WorkspaceAggregate:
         issues: list[str] = []
         global_tokens: dict[tuple[str, str], tuple[str, str]] = {}
         for canonical_key, record in self.identifiers.items():
+            entry = (
+                self.bibliography.resolve(canonical_key)
+                if canonical_key in self.bibliography.identity_index.canonical_keys
+                else None
+            )
             kinds = dict.fromkeys((*record.identifiers, *record.identifier_alternates))
             for kind in kinds:
+                if kind == "isbn13" and entry is not None and isbn_is_container_metadata(entry):
+                    continue
                 local_tokens: dict[str, str] = {}
                 for exact_value in record.inventory_values(kind):
                     try:

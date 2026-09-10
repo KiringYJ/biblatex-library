@@ -79,6 +79,10 @@ migration-away commands are retired.
 - Every identifier projected into `.bib` has a kind-equivalent JSON value.
   Additional JSON-only identifiers are preserved except proven redundant
   DOI/URL values removed by their corresponding normalization actions.
+- An ISBN on a contained contribution is container metadata, not the
+  contribution's identifier: preserve the BibLaTeX field, but do not project
+  it into identifier JSON, select it as `main_identifier`, reconcile it, or
+  treat a shared legacy container ISBN as a cross-contribution collision.
 - Promotion makes the publisher DOI key canonical, retains prior keys as
   direct aliases with complete `key_history`, and preserves the order slot.
 - Hard removal deletes the active record from all three artifacts. Consumer

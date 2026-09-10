@@ -23,6 +23,7 @@ from .add_entries import (
 )
 from .audit import audit_bibliography
 from .identifier_collection import (
+    CONTAINED_CONTRIBUTION_ENTRY_TYPES,
     IdentifierRecord,
     identifiers_from_entry,
     parse_add_order,
@@ -243,11 +244,31 @@ def _normalize_manifest_field_line_endings(manifest: _EntryManifest) -> _EntryMa
     return replace(manifest, fields=normalized_fields)
 
 
+def _normalize_manifest_container_isbn(manifest: _EntryManifest) -> _EntryManifest:
+    """Ignore the retired contribution-ISBN projection in receipt comparisons."""
+    if (
+        manifest.entry_type.casefold() not in CONTAINED_CONTRIBUTION_ENTRY_TYPES
+        or manifest.main_identifier == "isbn13"
+    ):
+        return manifest
+    return replace(
+        manifest,
+        identifiers=tuple(item for item in manifest.identifiers if item[0] != "isbn13"),
+        identifier_alternates=tuple(
+            item for item in manifest.identifier_alternates if item[0] != "isbn13"
+        ),
+    )
+
+
+def _normalize_manifest_for_comparison(manifest: _EntryManifest) -> _EntryManifest:
+    return _normalize_manifest_container_isbn(_normalize_manifest_field_line_endings(manifest))
+
+
 def _entry_manifests_equivalent(
     left: tuple[_EntryManifest, ...], right: tuple[_EntryManifest, ...]
 ) -> bool:
-    return tuple(_normalize_manifest_field_line_endings(item) for item in left) == tuple(
-        _normalize_manifest_field_line_endings(item) for item in right
+    return tuple(_normalize_manifest_for_comparison(item) for item in left) == tuple(
+        _normalize_manifest_for_comparison(item) for item in right
     )
 
 
@@ -679,7 +700,11 @@ def _prove_receipt_item(
             else None
         )
         try:
-            prepared = prepare_staged_sources(((path, bibliography_data),), templates)
+            prepared = prepare_staged_sources(
+                ((path, bibliography_data),),
+                templates,
+                allow_legacy_container_isbn=True,
+            )
             source_manifests = tuple(
                 _entry_manifest(entry, record)
                 for file in prepared.files

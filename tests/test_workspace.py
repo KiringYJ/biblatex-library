@@ -171,6 +171,40 @@ def test_isbn13_projection_preserves_isbn10_hash_provenance() -> None:
     assert aggregate.identifiers[key].identifiers["isbn13"] == exact_isbn10
 
 
+def test_shared_legacy_container_isbn_does_not_collide_across_contributions() -> None:
+    first_doi = "10.1000/first"
+    second_doi = "10.1000/second"
+    shared_isbn = "978-0-306-40615-7"
+    first_key = f"first-{_hash(first_doi)}"
+    second_key = f"second-{_hash(second_doi)}"
+    aggregate = WorkspaceAggregate(
+        _bibliography(
+            f"@incollection{{{first_key},doi={{{first_doi}}},isbn={{{shared_isbn}}}}}\n"
+            f"@incollection{{{second_key},doi={{{second_doi}}},isbn={{{shared_isbn}}}}}\n"
+        ),
+        {
+            first_key: IdentifierRecord("doi", {"doi": first_doi, "isbn13": shared_isbn}),
+            second_key: IdentifierRecord("doi", {"doi": second_doi, "isbn13": shared_isbn}),
+        },
+        (first_key, second_key),
+    )
+
+    aggregate.validate()
+
+
+def test_contained_contribution_rejects_container_isbn_as_main_identifier() -> None:
+    isbn = "978-0-306-40615-7"
+    key = f"chapter-{_hash(isbn)}"
+    aggregate = WorkspaceAggregate(
+        _bibliography(f"@incollection{{{key},isbn={{{isbn}}}}}\n"),
+        {key: IdentifierRecord("isbn13", {"isbn13": isbn})},
+        (key,),
+    )
+
+    with pytest.raises(ValueError, match="container ISBN.*main identifier"):
+        aggregate.validate()
+
+
 @pytest.mark.parametrize(
     "record",
     [

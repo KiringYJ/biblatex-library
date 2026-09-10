@@ -8,7 +8,9 @@ from pathlib import Path
 
 import bibtexparser
 import pytest
+from bibtexparser.model import Entry
 
+from biblio import add_entries as add_entries_module
 from biblio import commands
 from biblio.add_entries import prepare_entries, prepare_staged_sources, select_main_identifier
 from biblio.identifier_collection import (
@@ -625,6 +627,74 @@ def test_template_and_add_preserve_reviewed_isbn_provenance(tmp_path: Path) -> N
     stored_record = parse_identifier_collection(paths.identifiers.read_bytes())[expected_key]
     assert stored_record.identifiers["isbn13"] == reviewed_isbn
     assert commands.validate(paths).valid
+
+
+def test_template_and_add_keep_shared_container_isbn_out_of_contribution_inventory(
+    tmp_path: Path,
+) -> None:
+    paths = _workspace(tmp_path)
+    staged = tmp_path / "chapters.bib"
+    shared_isbn = "978-0-387-97926-7"
+    staged.write_text(
+        "@incollection{first,author={Alpha, Alice},date={2020},title={First},"
+        f"booktitle={{Collected Work}},doi={{10.1000/first}},isbn={{{shared_isbn}}}}}\n"
+        "@incollection{second,author={Beta, Bob},date={2020},title={Second},"
+        f"booktitle={{Collected Work}},doi={{10.1000/second}},isbn={{{shared_isbn}}}}}\n",
+        encoding="utf-8",
+    )
+
+    commands.template(staged)
+    companion = parse_identifier_collection(staged.with_suffix(".json").read_bytes())
+
+    assert companion["first"].identifiers == {"doi": "10.1000/first"}
+    assert companion["second"].identifiers == {"doi": "10.1000/second"}
+
+    result = commands.add(paths, staged)
+
+    assert len(result.added_keys) == 2
+    bibliography = BibliographyCodec.parse_bytes(paths.bibliography.read_bytes())
+    records = parse_identifier_collection(paths.identifiers.read_bytes())
+    for key in result.added_keys:
+        assert bibliography.resolve(key).fields_dict["isbn"].value == shared_isbn
+        assert "isbn13" not in records[key].identifiers
+        assert records[key].main_identifier == "doi"
+    assert commands.validate(paths).valid
+
+
+def test_add_rejects_reviewed_container_isbn_as_contribution_identifier(
+    tmp_path: Path,
+) -> None:
+    paths = _workspace(tmp_path)
+    staged = tmp_path / "chapter.bib"
+    staged.write_text(
+        "@incollection{temporary,author={Doe, Jane},date={2020},title={Chapter},"
+        "booktitle={Collected Work},doi={10.1000/chapter},isbn={978-0-387-97926-7}}\n",
+        encoding="utf-8",
+    )
+    commands.template(staged)
+    companion_path = staged.with_suffix(".json")
+    records = parse_identifier_collection(companion_path.read_bytes())
+    records["temporary"].identifiers["isbn13"] = "978-0-387-97926-7"
+    companion_path.write_bytes(serialize_identifier_collection(records))
+
+    with pytest.raises(ValueError, match="container ISBN.*identifier inventory"):
+        commands.add(paths, staged, dry_run=True)
+
+
+def test_template_rejects_container_isbn_as_only_contribution_identifier(
+    tmp_path: Path,
+) -> None:
+    staged = tmp_path / "chapter.bib"
+    staged.write_text(
+        "@incollection{temporary,author={Doe, Jane},date={2020},title={Chapter},"
+        "booktitle={Collected Work},isbn={978-0-387-97926-7}}\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="no supported identifier"):
+        commands.template(staged)
+
+    assert not staged.with_suffix(".json").exists()
 
 
 def test_add_normalizes_mr_pair_and_text_without_touching_identifiers(tmp_path: Path) -> None:
@@ -1284,6 +1354,55 @@ def test_partial_cleanup_rewrites_receipt_for_only_remaining_file(
     assert resumed.consumed_paths == (second,)
     assert not second.exists()
     assert not (staging / commands._RECEIPT_NAME).exists()
+
+
+def test_pending_receipt_accepts_retired_container_isbn_projection(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    paths = _workspace(tmp_path)
+    staged = tmp_path / "chapter.bib"
+    shared_isbn = "978-0-387-97926-7"
+    staged.write_text(
+        "@incollection{temporary,author={Doe, Jane},date={2020},title={Chapter},"
+        "booktitle={Collected Work},doi={10.1000/chapter},"
+        f"isbn={{{shared_isbn}}}}}\n",
+        encoding="utf-8",
+    )
+    current_projection = identifiers_from_entry
+
+    def legacy_projection(entry: Entry) -> dict[str, str]:
+        projected = current_projection(entry)
+        isbn = entry.fields_dict.get("isbn")
+        if isbn is not None:
+            projected["isbn13"] = str(isbn.value)
+        return projected
+
+    monkeypatch.setattr(add_entries_module, "identifiers_from_entry", legacy_projection)
+    monkeypatch.setattr(commands, "identifiers_from_entry", legacy_projection)
+    original_unlink = Path.unlink
+
+    def retain_staging(path: Path, missing_ok: bool = False) -> None:
+        if path == staged:
+            raise OSError("injected legacy cleanup interruption")
+        original_unlink(path, missing_ok=missing_ok)
+
+    monkeypatch.setattr(Path, "unlink", retain_staging)
+    first = commands.add(paths, staged)
+
+    assert first.commit is not None
+    assert first.commit.outcome is CommitOutcome.COMMITTED_VERIFIED
+    assert staged.exists()
+    assert (tmp_path / commands._RECEIPT_NAME).exists()
+
+    monkeypatch.setattr(add_entries_module, "identifiers_from_entry", current_projection)
+    monkeypatch.setattr(commands, "identifiers_from_entry", current_projection)
+    monkeypatch.setattr(Path, "unlink", original_unlink)
+    resumed = commands.add(paths, staged)
+
+    assert resumed.added_keys == first.added_keys
+    assert resumed.consumed_paths == (staged,)
+    assert not staged.exists()
+    assert not (tmp_path / commands._RECEIPT_NAME).exists()
 
 
 def test_add_never_consumes_workspace_artifact_as_staging(tmp_path: Path) -> None:

@@ -87,6 +87,22 @@ def test_equivalent_projection_is_noop_and_preserves_exact_inventory() -> None:
     assert aggregate.identifiers[key].identifiers["isbn13"] == exact_isbn10
 
 
+def test_container_isbn_is_not_reconciled_for_contained_contribution() -> None:
+    doi = "10.1000/chapter"
+    key = f"doe-2024-{_hash(doi)}"
+    aggregate = WorkspaceAggregate(
+        _bibliography(f"@incollection{{{key},doi={{{doi}}},isbn={{978-0-387-97926-7}}}}\n"),
+        {key: IdentifierRecord("doi", {"doi": doi})},
+        (key,),
+    )
+
+    result = reconcile_identifier_inventory(aggregate)
+
+    assert result.additions == ()
+    assert aggregate.identifiers[key].identifiers == {"doi": doi}
+    aggregate.validate()
+
+
 def test_collision_aborts_without_mutating_input() -> None:
     first_doi = "10.1000/first"
     second_doi = "10.1000/second"

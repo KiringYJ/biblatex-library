@@ -93,7 +93,7 @@ def test_all_eleven_identifier_equality_rules(kind: str, left: str, right: str) 
 
 def test_extracts_all_supported_identifiers_and_keeps_acm_url_as_url() -> None:
     entry = _entry(
-        """@article{one,
+        """@book{one,
         doi={10.1000/PUBLISHER}, isbn={978-0-306-40615-7},
         eprint={2101.00001v2}, eprinttype={arxiv}, mrnumber={MR0001234},
         zbl={1234.5}, zbmath={00001234}, jfm={JFM 42.1}, oclc={ocn123},
@@ -115,6 +115,47 @@ def test_extracts_all_supported_identifiers_and_keeps_acm_url_as_url() -> None:
         "hdl": "20.500/Case",
         "acmdl_doi": "10.1145/ABC",
     }
+
+
+@pytest.mark.parametrize(
+    "entry_type",
+    [
+        "bookinbook",
+        "conference",
+        "inbook",
+        "incollection",
+        "inproceedings",
+        "inreference",
+        "suppbook",
+        "suppcollection",
+    ],
+)
+def test_container_isbn_is_not_projected_for_contained_contributions(
+    entry_type: str,
+) -> None:
+    entry = _entry(f"@{entry_type}{{one,doi={{10.1000/chapter}},isbn={{978-0-306-40615-7}}}}")
+
+    assert identifiers_from_entry(entry) == {"doi": "10.1000/chapter"}
+    assert entry.fields_dict["isbn"].value == "978-0-306-40615-7"
+
+
+@pytest.mark.parametrize(
+    "entry_type",
+    [
+        "book",
+        "collection",
+        "proceedings",
+        "reference",
+        "mvbook",
+        "mvcollection",
+        "mvproceedings",
+        "mvreference",
+    ],
+)
+def test_isbn_is_projected_for_container_records(entry_type: str) -> None:
+    entry = _entry(f"@{entry_type}{{one,isbn={{978-0-306-40615-7}}}}")
+
+    assert identifiers_from_entry(entry) == {"isbn13": "978-0-306-40615-7"}
 
 
 def test_spaced_arxiv_marker_is_projected_as_arxiv() -> None:

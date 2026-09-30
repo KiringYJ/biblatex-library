@@ -7,6 +7,10 @@ description: Prepare, verify, stage, and create atomic one-logical-change git co
 
 # Commit Workflow
 
+## Dispatch
+
+Use the tier, delivery boundary, and escalation rule for `commit-workflow` in `AI_AGENT_GUIDE.md`'s **Skill Model and Reasoning Routing** table, and resolve the tier through the active platform binding.
+
 ## Workflow
 
 1. Read `.agents/prompts/commit-workflow.md` if present.

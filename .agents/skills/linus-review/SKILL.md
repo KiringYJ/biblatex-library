@@ -7,6 +7,10 @@ description: Run a strict Linus-style code review focused on correctness, backwa
 
 # Linus Review
 
+## Dispatch
+
+Use the tier, delivery boundary, and escalation rule for `linus-review` in `AI_AGENT_GUIDE.md`'s **Skill Model and Reasoning Routing** table, and resolve the tier through the active platform binding.
+
 ## Workflow
 
 1. Read `.agents/prompts/linus-review.md` if present.

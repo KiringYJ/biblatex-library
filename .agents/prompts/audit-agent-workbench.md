@@ -14,6 +14,9 @@ Do not modify files in audit mode. Inspect and report only.
    - Exists.
    - Contains the managed metadata marker with `agent-workbench: managed`.
    - References the selected profile and source.
+   - Matches byte for byte the file that the current sync prompt's **AI_AGENT_GUIDE.md generation** rules compose from the selected modules and the guide's existing manual blocks, with the workbench manifest, profiles, modules, and template read at the `guide` scope's recorded `resolvedCommit`. A difference that appears only against a newer workbench source means a sync is pending.
+   - Reports a mismatch as composition drift and uses the guide's `lastAppliedOutputChecksum` in the ledger to explain it: a matching checksum means the last sync predates or misapplied the composition rules (`WARN`); a different one means the guide was edited afterwards (`FAIL`), so check for unmarked content before a sync discards it.
+   - Reports the composition as unverified (`WARN`) when the recorded commit is unavailable, and states whether the guide still matches `lastAppliedOutputChecksum`. Without a ledger record, compares against the current workbench source and reports a mismatch as `WARN`. Reports unbalanced or nested manual-block markers as `FAIL` instead of comparing.
    - Does not contain obvious unmarked project-specific content that should live in `AI_AGENT_PROJECT.md`.
 
 2. `AI_AGENT_PROJECT.md`
@@ -91,6 +94,11 @@ Do not modify files in audit mode. Inspect and report only.
    - `main` is the authoritative source for shared agent/editor configuration; normal clones do not depend on an auxiliary branch or restore step.
    - `.git/info/exclude` and `.gitignore` do not hide managed project-wide paths. Personal, machine-local, generated, cached, or secret-bearing files may remain ignored.
    - If a legacy `workspace-config` branch exists, report whether it contains content missing from `main`. Missing content is a migration failure; a fully superseded branch is cleanup debt and must not be deleted in audit mode.
+
+14. Platform routing bindings
+   - When the Claude target is enabled, `.claude/rules/agent-routing.md`, and `.claude/agents/<name>.md` for each registered `templates/claude-agents/<name>.md.tpl`, exist and match their workbench templates byte for byte.
+   - When the Codex target is enabled, `.codex/agent-routing.md` exists and matches its workbench template byte for byte.
+   - The **Skill Model and Reasoning Routing** section of `AI_AGENT_GUIDE.md` names tiers only; runtime model identifiers and effort values appear only in the bindings.
 
 ## Output
 

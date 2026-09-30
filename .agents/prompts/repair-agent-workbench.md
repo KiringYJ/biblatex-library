@@ -15,6 +15,8 @@ You may create or repair only:
 - `GEMINI.md`
 - `opencode.json`
 - `.codex/config.toml`
+- `.codex/agent-routing.md` when `targets.codex: true`
+- `.claude/rules/agent-routing.md`, and `.claude/agents/<name>.md` for each registered `templates/claude-agents/<name>.md.tpl`, when `targets.claude: true`
 - `.agent-workbench.yaml`
 - `.agent-workbench.lock.json`
 - `.agents/prompts/<registered-prompt>.md`
@@ -32,8 +34,8 @@ Do not create or refresh a separate workspace configuration branch. Do not stage
 1. Inspect the repository and current instruction files.
 2. Read `.agent-workbench.yaml`; if missing or unusable, recreate it from `templates/agent-workbench.yaml.tpl` using `profile: base` unless the user requested another profile. Keep it as human-owned desired configuration only. If it selects the retired `workspace-config` module, replace that identifier with `repository-workspace`; there is no compatibility alias.
 3. Resolve profile and modules using `manifest.yaml` and `profiles/*.yaml`.
-4. Recreate `AI_AGENT_GUIDE.md` from selected modules.
-5. Preserve every existing `AI_AGENT_GUIDE.md` manual block exactly:
+4. Recreate `AI_AGENT_GUIDE.md` from the selected modules and existing manual blocks, composed as the sync prompt's **AI_AGENT_GUIDE.md generation** section specifies.
+5. Preserve every existing `AI_AGENT_GUIDE.md` manual block exactly, markers included:
    - `<!-- agent-workbench:manual-begin -->`
    - `<!-- agent-workbench:manual-end -->`
 6. Create `AI_AGENT_PROJECT.md` only if missing. If it exists, do not rewrite it.
@@ -45,13 +47,16 @@ Do not create or refresh a separate workspace configuration branch. Do not stage
 9. Merge `.codex/config.toml` conservatively:
    - Preserve unrelated settings and comments when practical.
    - Add `project_doc_max_bytes = 65536` only if absent.
-10. Repair `.agent-workbench.lock.json` provenance ledger:
+10. Repair platform routing bindings for enabled targets:
+   - Recreate missing bindings from their templates, as the sync prompt describes.
+   - Replace an existing binding only when it carries the `agent-workbench: managed platform-binding` marker; report unmarked files as conflicts.
+11. Repair `.agent-workbench.lock.json` provenance ledger:
    - If missing in a repo that has generated workbench artifacts, run the same legacy infer-and-warn classification used by sync before rebuilding the baseline.
    - If malformed, report the parse/schema problem and ask whether to rebuild the baseline, run legacy infer-and-warn, or abort.
    - Never delete downstream artifacts while repairing the ledger unless the user explicitly confirms deletion after seeing the classified candidates.
    - Recreate the ledger only with normalized repository-relative paths inside allowed managed outputs.
    - Migrate schema version 1 ledgers only after portable outputs are reconciled. When available, use `skills/sync-agent-workbench/scripts/migrate_lockfile.rb` with the expected source repo/branch/requested ref to verify source identity, registered destinations, and exact current bytes; recompute workflow checksums and resource manifests; preserve unrelated records and retained evidence; and write a schema version 2 candidate to a new sibling temporary path. Inspect and parse the candidate before atomically replacing the live ledger. Never finalize migration from a mismatched source, stale adapter checksums, or an unmatched/duplicate legacy record.
-11. Repair portable workflows:
+12. Repair portable workflows:
    - Read registered `portable_prompts` and `portable_skills` directly from `manifest.yaml`.
    - Copy registered `portable_prompts` into `.agents/prompts/`.
    - Copy registered `portable_skills`, including their registered resources, into `.agents/skills/`.
@@ -62,7 +67,7 @@ Do not create or refresh a separate workspace configuration branch. Do not stage
    - Do not create other vendor-specific mirrors unless the user explicitly requests them.
    - Classify stale or removed artifacts as confirmed upstream removal, confirmed removal with local edits, suspected legacy removal, deselected by local config, source changed / migration required, or local unmanaged before suggesting cleanup.
    - Preserve `retainedRemovals` when rewriting `.agent-workbench.lock.json`.
-12. Repair repository-tracking hygiene:
+13. Repair repository-tracking hygiene:
    - Treat core agent-workbench managed files as project-wide configuration in normal branch history.
    - Remove only exact `.git/info/exclude` or `.gitignore` entries that hide those managed paths; preserve unrelated ignore rules and genuinely local files.
    - Leave created or repaired managed files visible in normal Git status. Do not stage or commit them unless the user requested that Git action.

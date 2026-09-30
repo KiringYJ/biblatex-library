@@ -1,13 +1,13 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-08-13T13:10:57Z",
+  "generatedAt": "2026-09-30T23:06:12Z",
   "source": {
     "repo": "KiringYJ/agent-workbench",
     "branch": "main",
     "requestedRef": "main",
-    "resolvedCommit": "fee7c8ecf1f6f592ecb97a9200a4b42b9976b96c"
+    "resolvedCommit": "1135b30b8f220fbb24f83516fd6f03d3c27b2786"
   },
-  "manifestDigest": "sha256:86577bccc139a3395fe7585d21465f6264ca51f77ee79186ea5b38ddccdb2263",
+  "manifestDigest": "sha256:eb064cf62aa7e01de592996eb69f836e4581f0bc6138ebd21d152e78fc251f28",
   "profile": "python",
   "syncMode": "full",
   "resolvedModules": [
@@ -32,24 +32,24 @@
   },
   "scopes": {
     "guide": {
-      "resolvedCommit": "fee7c8ecf1f6f592ecb97a9200a4b42b9976b96c",
-      "manifestDigest": "sha256:86577bccc139a3395fe7585d21465f6264ca51f77ee79186ea5b38ddccdb2263",
-      "lastReconciledAt": "2026-08-13T13:10:57Z"
+      "resolvedCommit": "1135b30b8f220fbb24f83516fd6f03d3c27b2786",
+      "manifestDigest": "sha256:eb064cf62aa7e01de592996eb69f836e4581f0bc6138ebd21d152e78fc251f28",
+      "lastReconciledAt": "2026-09-30T23:06:12Z"
     },
     "entrypoints": {
-      "resolvedCommit": "fee7c8ecf1f6f592ecb97a9200a4b42b9976b96c",
-      "manifestDigest": "sha256:86577bccc139a3395fe7585d21465f6264ca51f77ee79186ea5b38ddccdb2263",
-      "lastReconciledAt": "2026-08-13T13:10:57Z"
+      "resolvedCommit": "1135b30b8f220fbb24f83516fd6f03d3c27b2786",
+      "manifestDigest": "sha256:eb064cf62aa7e01de592996eb69f836e4581f0bc6138ebd21d152e78fc251f28",
+      "lastReconciledAt": "2026-09-30T23:06:12Z"
     },
     "portable_prompts": {
-      "resolvedCommit": "fee7c8ecf1f6f592ecb97a9200a4b42b9976b96c",
-      "manifestDigest": "sha256:86577bccc139a3395fe7585d21465f6264ca51f77ee79186ea5b38ddccdb2263",
-      "lastReconciledAt": "2026-08-13T13:10:57Z"
+      "resolvedCommit": "1135b30b8f220fbb24f83516fd6f03d3c27b2786",
+      "manifestDigest": "sha256:eb064cf62aa7e01de592996eb69f836e4581f0bc6138ebd21d152e78fc251f28",
+      "lastReconciledAt": "2026-09-30T23:06:12Z"
     },
     "portable_skills": {
-      "resolvedCommit": "fee7c8ecf1f6f592ecb97a9200a4b42b9976b96c",
-      "manifestDigest": "sha256:86577bccc139a3395fe7585d21465f6264ca51f77ee79186ea5b38ddccdb2263",
-      "lastReconciledAt": "2026-08-13T13:10:57Z"
+      "resolvedCommit": "1135b30b8f220fbb24f83516fd6f03d3c27b2786",
+      "manifestDigest": "sha256:eb064cf62aa7e01de592996eb69f836e4581f0bc6138ebd21d152e78fc251f28",
+      "lastReconciledAt": "2026-09-30T23:06:12Z"
     }
   },
   "installedArtifacts": [
@@ -60,9 +60,46 @@
       "name": "AI_AGENT_GUIDE",
       "sourcePath": "templates/AI_AGENT_GUIDE.md.tpl",
       "outputPath": "AI_AGENT_GUIDE.md",
-      "sourceChecksum": "sha256:5f00531e44b5312d701ce73a5bba6cd728e2a9e017e7a45c583763d974c4c860",
-      "lastAppliedOutputChecksum": "sha256:9b8f3e4ccb1340be6646a92b1bc193c7f0844d1b5dd384747f23d1711af70988",
-      "resourceManifest": [],
+      "sourceChecksum": "sha256:15c765fdb2074ed57ed9d863a120f2f236a467e7ee542e16110b4a69294e6d00",
+      "lastAppliedOutputChecksum": "sha256:362090428bf358a729de62e24ac301228bac57f55565a20a58460db5ba43e702",
+      "resourceManifest": [
+        {
+          "sourcePath": "guide/base.md",
+          "sourceChecksum": "sha256:7e4d877fe216d73338ec3b1e8623299a7e23e78b56c59aaaf81628dac59839e8"
+        },
+        {
+          "sourcePath": "guide/prompting.md",
+          "sourceChecksum": "sha256:f62926c9cf87db9f7a0341d6338abe19540dd5308b834ae4185a7f3e9694b0b7"
+        },
+        {
+          "sourcePath": "guide/git.md",
+          "sourceChecksum": "sha256:44c8207bd5914161c15f7494d14197bb042ebc8639e0f16224718c559f68bf40"
+        },
+        {
+          "sourcePath": "guide/repository-workspace.md",
+          "sourceChecksum": "sha256:437871586f3d69b1ce3d608add9e20200acef39e3d129945e40453b3ca2c08ea"
+        },
+        {
+          "sourcePath": "guide/security.md",
+          "sourceChecksum": "sha256:b411efdf94ca37adf4b2bef8c6898f9e2b02fd6be0b046ede8e922e19a26862d"
+        },
+        {
+          "sourcePath": "guide/testing.md",
+          "sourceChecksum": "sha256:c731723aab3d702eb8f0de0b272059fd3fcb9cf57dd45072596a68b3f40a916a"
+        },
+        {
+          "sourcePath": "guide/review.md",
+          "sourceChecksum": "sha256:866d3b778a6e1ffba8914f427adfe61f3e70352ffe429204603aa4d9c648e939"
+        },
+        {
+          "sourcePath": "guide/workflows.md",
+          "sourceChecksum": "sha256:81e63708d0167525e1f71e4a6892439dd19765b9e700cb964fd025f01498b377"
+        },
+        {
+          "sourcePath": "guide/languages/python.md",
+          "sourceChecksum": "sha256:db60f6ba3884b9e84b67bafcad738214c4e84ad69b8b7ed6b184b358be3598d5"
+        }
+      ],
       "profile": "python",
       "managed": true,
       "markerVersion": "agent-workbench: managed"
@@ -133,14 +170,112 @@
       "managed": true
     },
     {
+      "id": "platform_binding:.claude/rules/agent-routing.md",
+      "kind": "platform_binding",
+      "scope": "entrypoints",
+      "name": ".claude/rules/agent-routing.md",
+      "sourcePath": "templates/claude.agent-routing.md.tpl",
+      "outputPath": ".claude/rules/agent-routing.md",
+      "sourceChecksum": "sha256:75a5a2a5ce5219798105f3149d004f1fa81892150e3519ffb673b6b03891a361",
+      "lastAppliedOutputChecksum": "sha256:75a5a2a5ce5219798105f3149d004f1fa81892150e3519ffb673b6b03891a361",
+      "resourceManifest": [],
+      "profile": "python",
+      "managed": true,
+      "markerVersion": "agent-workbench: managed platform-binding"
+    },
+    {
+      "id": "platform_binding:.claude/agents/tier-critical-proof.md",
+      "kind": "platform_binding",
+      "scope": "entrypoints",
+      "name": ".claude/agents/tier-critical-proof.md",
+      "sourcePath": "templates/claude-agents/tier-critical-proof.md.tpl",
+      "outputPath": ".claude/agents/tier-critical-proof.md",
+      "sourceChecksum": "sha256:de5e894eb5430b265ac91d4d4b01e3498ccbedc00d2503ce955324b30b1de678",
+      "lastAppliedOutputChecksum": "sha256:de5e894eb5430b265ac91d4d4b01e3498ccbedc00d2503ce955324b30b1de678",
+      "resourceManifest": [],
+      "profile": "python",
+      "managed": true,
+      "markerVersion": "agent-workbench: managed platform-binding"
+    },
+    {
+      "id": "platform_binding:.claude/agents/tier-mixed.md",
+      "kind": "platform_binding",
+      "scope": "entrypoints",
+      "name": ".claude/agents/tier-mixed.md",
+      "sourcePath": "templates/claude-agents/tier-mixed.md.tpl",
+      "outputPath": ".claude/agents/tier-mixed.md",
+      "sourceChecksum": "sha256:bbbca1b7c2ce3e0968fe39ec57376b73da6295d04b950fe464c5c80ef77cd268",
+      "lastAppliedOutputChecksum": "sha256:bbbca1b7c2ce3e0968fe39ec57376b73da6295d04b950fe464c5c80ef77cd268",
+      "resourceManifest": [],
+      "profile": "python",
+      "managed": true,
+      "markerVersion": "agent-workbench: managed platform-binding"
+    },
+    {
+      "id": "platform_binding:.claude/agents/tier-peripheral.md",
+      "kind": "platform_binding",
+      "scope": "entrypoints",
+      "name": ".claude/agents/tier-peripheral.md",
+      "sourcePath": "templates/claude-agents/tier-peripheral.md.tpl",
+      "outputPath": ".claude/agents/tier-peripheral.md",
+      "sourceChecksum": "sha256:96f897cf2ab41ceadabb8d9855ca0dc627784c75ab3e49b74c4a133060e9b679",
+      "lastAppliedOutputChecksum": "sha256:96f897cf2ab41ceadabb8d9855ca0dc627784c75ab3e49b74c4a133060e9b679",
+      "resourceManifest": [],
+      "profile": "python",
+      "managed": true,
+      "markerVersion": "agent-workbench: managed platform-binding"
+    },
+    {
+      "id": "platform_binding:.claude/agents/tier-research-math.md",
+      "kind": "platform_binding",
+      "scope": "entrypoints",
+      "name": ".claude/agents/tier-research-math.md",
+      "sourcePath": "templates/claude-agents/tier-research-math.md.tpl",
+      "outputPath": ".claude/agents/tier-research-math.md",
+      "sourceChecksum": "sha256:6197a87c2255e3f1406fea16e1b6869472354da687dcfca15f6e765152fe38f2",
+      "lastAppliedOutputChecksum": "sha256:6197a87c2255e3f1406fea16e1b6869472354da687dcfca15f6e765152fe38f2",
+      "resourceManifest": [],
+      "profile": "python",
+      "managed": true,
+      "markerVersion": "agent-workbench: managed platform-binding"
+    },
+    {
+      "id": "platform_binding:.claude/agents/tier-technical.md",
+      "kind": "platform_binding",
+      "scope": "entrypoints",
+      "name": ".claude/agents/tier-technical.md",
+      "sourcePath": "templates/claude-agents/tier-technical.md.tpl",
+      "outputPath": ".claude/agents/tier-technical.md",
+      "sourceChecksum": "sha256:350d7d22cef199c8240ea0c3b03a69d818f2661dbf5b428321bc981799958164",
+      "lastAppliedOutputChecksum": "sha256:350d7d22cef199c8240ea0c3b03a69d818f2661dbf5b428321bc981799958164",
+      "resourceManifest": [],
+      "profile": "python",
+      "managed": true,
+      "markerVersion": "agent-workbench: managed platform-binding"
+    },
+    {
+      "id": "platform_binding:.codex/agent-routing.md",
+      "kind": "platform_binding",
+      "scope": "entrypoints",
+      "name": ".codex/agent-routing.md",
+      "sourcePath": "templates/codex.agent-routing.md.tpl",
+      "outputPath": ".codex/agent-routing.md",
+      "sourceChecksum": "sha256:d51110e2c18f9888f001ffa9874d3fabe5da34c5d6036dc1b573451239755dbd",
+      "lastAppliedOutputChecksum": "sha256:d51110e2c18f9888f001ffa9874d3fabe5da34c5d6036dc1b573451239755dbd",
+      "resourceManifest": [],
+      "profile": "python",
+      "managed": true,
+      "markerVersion": "agent-workbench: managed platform-binding"
+    },
+    {
       "id": "portable_prompt:sync-agent-workbench",
       "kind": "portable_prompt",
       "scope": "portable_prompts",
       "name": "sync-agent-workbench",
       "sourcePath": "prompts/sync-agent-workbench.md",
       "outputPath": ".agents/prompts/sync-agent-workbench.md",
-      "sourceChecksum": "sha256:2c4fee8c0eaed6a979b78a5ef8b5a7f32093384499d18c14596433020d7b9b44",
-      "lastAppliedOutputChecksum": "sha256:2c4fee8c0eaed6a979b78a5ef8b5a7f32093384499d18c14596433020d7b9b44",
+      "sourceChecksum": "sha256:bf0c1e0f19dd02eff315120c628f86a96013a1400c25e9a0d321c9dadf4d7478",
+      "lastAppliedOutputChecksum": "sha256:bf0c1e0f19dd02eff315120c628f86a96013a1400c25e9a0d321c9dadf4d7478",
       "resourceManifest": [],
       "profile": "python",
       "managed": true,
@@ -153,8 +288,8 @@
       "name": "audit-agent-workbench",
       "sourcePath": "prompts/audit-agent-workbench.md",
       "outputPath": ".agents/prompts/audit-agent-workbench.md",
-      "sourceChecksum": "sha256:cd0bbb324939f03eed01f8e8d9f6210000c8944a8be6849424fe99e65b39da50",
-      "lastAppliedOutputChecksum": "sha256:cd0bbb324939f03eed01f8e8d9f6210000c8944a8be6849424fe99e65b39da50",
+      "sourceChecksum": "sha256:48831945fb4c5b839437eed15fdf9f060ecc0e118b1c74943f79d3556b822266",
+      "lastAppliedOutputChecksum": "sha256:48831945fb4c5b839437eed15fdf9f060ecc0e118b1c74943f79d3556b822266",
       "resourceManifest": [],
       "profile": "python",
       "managed": true,
@@ -167,8 +302,8 @@
       "name": "repair-agent-workbench",
       "sourcePath": "prompts/repair-agent-workbench.md",
       "outputPath": ".agents/prompts/repair-agent-workbench.md",
-      "sourceChecksum": "sha256:8e323846211f4730b78c1e24199a1bbb7bf8097a9fcb6f284b8ed037af4489c1",
-      "lastAppliedOutputChecksum": "sha256:8e323846211f4730b78c1e24199a1bbb7bf8097a9fcb6f284b8ed037af4489c1",
+      "sourceChecksum": "sha256:0c87be903c66b5f8a90121727db204141a2d02358b8d715d5061b05f0b07387c",
+      "lastAppliedOutputChecksum": "sha256:0c87be903c66b5f8a90121727db204141a2d02358b8d715d5061b05f0b07387c",
       "resourceManifest": [],
       "profile": "python",
       "managed": true,
@@ -181,8 +316,8 @@
       "name": "loop-until-done",
       "sourcePath": "prompts/loop-until-done.md",
       "outputPath": ".agents/prompts/loop-until-done.md",
-      "sourceChecksum": "sha256:5aabe99845e1688994bd8b1204514b2bb99042db87dc6d8667b0b004d23d4734",
-      "lastAppliedOutputChecksum": "sha256:5aabe99845e1688994bd8b1204514b2bb99042db87dc6d8667b0b004d23d4734",
+      "sourceChecksum": "sha256:115d19eab9aef45667187c6f755306db4326afab5bb41269504779f238facf43",
+      "lastAppliedOutputChecksum": "sha256:115d19eab9aef45667187c6f755306db4326afab5bb41269504779f238facf43",
       "resourceManifest": [],
       "profile": "python",
       "managed": true,
@@ -251,8 +386,8 @@
       "name": "sync-agent-workbench",
       "sourcePath": "skills/sync-agent-workbench/SKILL.md",
       "outputPath": ".agents/skills/sync-agent-workbench/SKILL.md",
-      "sourceChecksum": "sha256:8028b190c65d874ad6f9fe62c9fe184bce154dee9284f1024ed55ffc263ab631",
-      "lastAppliedOutputChecksum": "sha256:8028b190c65d874ad6f9fe62c9fe184bce154dee9284f1024ed55ffc263ab631",
+      "sourceChecksum": "sha256:15c7bd0871147e6a7fecf161f47d0637e8999ecee48d2b42248213fea897c12d",
+      "lastAppliedOutputChecksum": "sha256:15c7bd0871147e6a7fecf161f47d0637e8999ecee48d2b42248213fea897c12d",
       "resourceManifest": [
         {
           "path": "scripts/migrate_lockfile.rb",
@@ -276,8 +411,8 @@
       "name": "sync-agent-workbench",
       "sourcePath": "skills/sync-agent-workbench/SKILL.md",
       "outputPath": ".claude/skills/sync-agent-workbench/SKILL.md",
-      "sourceChecksum": "sha256:8028b190c65d874ad6f9fe62c9fe184bce154dee9284f1024ed55ffc263ab631",
-      "lastAppliedOutputChecksum": "sha256:8028b190c65d874ad6f9fe62c9fe184bce154dee9284f1024ed55ffc263ab631",
+      "sourceChecksum": "sha256:15c7bd0871147e6a7fecf161f47d0637e8999ecee48d2b42248213fea897c12d",
+      "lastAppliedOutputChecksum": "sha256:15c7bd0871147e6a7fecf161f47d0637e8999ecee48d2b42248213fea897c12d",
       "resourceManifest": [
         {
           "path": "scripts/migrate_lockfile.rb",
@@ -301,8 +436,8 @@
       "name": "loop-until-done",
       "sourcePath": "skills/loop-until-done/SKILL.md",
       "outputPath": ".agents/skills/loop-until-done/SKILL.md",
-      "sourceChecksum": "sha256:76023db1f6a49944bb4ef9fa5f54f474bc95f097b9292fb1aa19dfea63dff10c",
-      "lastAppliedOutputChecksum": "sha256:76023db1f6a49944bb4ef9fa5f54f474bc95f097b9292fb1aa19dfea63dff10c",
+      "sourceChecksum": "sha256:e683c49850ee456829bb6403e20f9d5f212fafd509ca120206cfaab6e751e55a",
+      "lastAppliedOutputChecksum": "sha256:e683c49850ee456829bb6403e20f9d5f212fafd509ca120206cfaab6e751e55a",
       "resourceManifest": [],
       "profile": "python",
       "managed": true,
@@ -315,8 +450,8 @@
       "name": "loop-until-done",
       "sourcePath": "skills/loop-until-done/SKILL.md",
       "outputPath": ".claude/skills/loop-until-done/SKILL.md",
-      "sourceChecksum": "sha256:76023db1f6a49944bb4ef9fa5f54f474bc95f097b9292fb1aa19dfea63dff10c",
-      "lastAppliedOutputChecksum": "sha256:76023db1f6a49944bb4ef9fa5f54f474bc95f097b9292fb1aa19dfea63dff10c",
+      "sourceChecksum": "sha256:e683c49850ee456829bb6403e20f9d5f212fafd509ca120206cfaab6e751e55a",
+      "lastAppliedOutputChecksum": "sha256:e683c49850ee456829bb6403e20f9d5f212fafd509ca120206cfaab6e751e55a",
       "resourceManifest": [],
       "profile": "python",
       "managed": true,
@@ -329,8 +464,8 @@
       "name": "guardrail-authoring",
       "sourcePath": "skills/guardrail-authoring/SKILL.md",
       "outputPath": ".agents/skills/guardrail-authoring/SKILL.md",
-      "sourceChecksum": "sha256:35fe26c13d58966ee56de527debdd4072b13386ba6aafb25fbb43118c2feccd0",
-      "lastAppliedOutputChecksum": "sha256:35fe26c13d58966ee56de527debdd4072b13386ba6aafb25fbb43118c2feccd0",
+      "sourceChecksum": "sha256:78fe6497ffb1776e8fc866b525db14c7af65433a0e13fc58be0c45fb4a2cb79c",
+      "lastAppliedOutputChecksum": "sha256:78fe6497ffb1776e8fc866b525db14c7af65433a0e13fc58be0c45fb4a2cb79c",
       "resourceManifest": [],
       "profile": "python",
       "managed": true,
@@ -343,8 +478,8 @@
       "name": "guardrail-authoring",
       "sourcePath": "skills/guardrail-authoring/SKILL.md",
       "outputPath": ".claude/skills/guardrail-authoring/SKILL.md",
-      "sourceChecksum": "sha256:35fe26c13d58966ee56de527debdd4072b13386ba6aafb25fbb43118c2feccd0",
-      "lastAppliedOutputChecksum": "sha256:35fe26c13d58966ee56de527debdd4072b13386ba6aafb25fbb43118c2feccd0",
+      "sourceChecksum": "sha256:78fe6497ffb1776e8fc866b525db14c7af65433a0e13fc58be0c45fb4a2cb79c",
+      "lastAppliedOutputChecksum": "sha256:78fe6497ffb1776e8fc866b525db14c7af65433a0e13fc58be0c45fb4a2cb79c",
       "resourceManifest": [],
       "profile": "python",
       "managed": true,
@@ -357,8 +492,8 @@
       "name": "skill-authoring",
       "sourcePath": "skills/skill-authoring/SKILL.md",
       "outputPath": ".agents/skills/skill-authoring/SKILL.md",
-      "sourceChecksum": "sha256:98e732b5dab71293a9607ab0b8cdaf62b2eed189db6ecd8ee0f508cf1d9cc302",
-      "lastAppliedOutputChecksum": "sha256:98e732b5dab71293a9607ab0b8cdaf62b2eed189db6ecd8ee0f508cf1d9cc302",
+      "sourceChecksum": "sha256:12ad794d47218740a01aac6435f056877cff578df7e029108c0dbe1936ce13e2",
+      "lastAppliedOutputChecksum": "sha256:12ad794d47218740a01aac6435f056877cff578df7e029108c0dbe1936ce13e2",
       "resourceManifest": [],
       "profile": "python",
       "managed": true,
@@ -371,8 +506,8 @@
       "name": "skill-authoring",
       "sourcePath": "skills/skill-authoring/SKILL.md",
       "outputPath": ".claude/skills/skill-authoring/SKILL.md",
-      "sourceChecksum": "sha256:98e732b5dab71293a9607ab0b8cdaf62b2eed189db6ecd8ee0f508cf1d9cc302",
-      "lastAppliedOutputChecksum": "sha256:98e732b5dab71293a9607ab0b8cdaf62b2eed189db6ecd8ee0f508cf1d9cc302",
+      "sourceChecksum": "sha256:12ad794d47218740a01aac6435f056877cff578df7e029108c0dbe1936ce13e2",
+      "lastAppliedOutputChecksum": "sha256:12ad794d47218740a01aac6435f056877cff578df7e029108c0dbe1936ce13e2",
       "resourceManifest": [],
       "profile": "python",
       "managed": true,
@@ -385,8 +520,8 @@
       "name": "commit-workflow",
       "sourcePath": "skills/commit-workflow/SKILL.md",
       "outputPath": ".agents/skills/commit-workflow/SKILL.md",
-      "sourceChecksum": "sha256:417e15933f00da25abb9673b41c6e564f69fc983d815ac503a7e1d5d0e9cd1dd",
-      "lastAppliedOutputChecksum": "sha256:417e15933f00da25abb9673b41c6e564f69fc983d815ac503a7e1d5d0e9cd1dd",
+      "sourceChecksum": "sha256:a4f9b3bbb42c5dfb9cfe5b0b54fd322e09b8d03abbaffd552e014f9b489437a1",
+      "lastAppliedOutputChecksum": "sha256:a4f9b3bbb42c5dfb9cfe5b0b54fd322e09b8d03abbaffd552e014f9b489437a1",
       "resourceManifest": [],
       "profile": "python",
       "managed": true,
@@ -399,8 +534,8 @@
       "name": "commit-workflow",
       "sourcePath": "skills/commit-workflow/SKILL.md",
       "outputPath": ".claude/skills/commit-workflow/SKILL.md",
-      "sourceChecksum": "sha256:417e15933f00da25abb9673b41c6e564f69fc983d815ac503a7e1d5d0e9cd1dd",
-      "lastAppliedOutputChecksum": "sha256:417e15933f00da25abb9673b41c6e564f69fc983d815ac503a7e1d5d0e9cd1dd",
+      "sourceChecksum": "sha256:a4f9b3bbb42c5dfb9cfe5b0b54fd322e09b8d03abbaffd552e014f9b489437a1",
+      "lastAppliedOutputChecksum": "sha256:a4f9b3bbb42c5dfb9cfe5b0b54fd322e09b8d03abbaffd552e014f9b489437a1",
       "resourceManifest": [],
       "profile": "python",
       "managed": true,
@@ -413,8 +548,8 @@
       "name": "linus-review",
       "sourcePath": "skills/linus-review/SKILL.md",
       "outputPath": ".agents/skills/linus-review/SKILL.md",
-      "sourceChecksum": "sha256:4c4ceb70e18c99014c75d1b95d9aea48807c2010c43e44767da3e67cfcea2438",
-      "lastAppliedOutputChecksum": "sha256:4c4ceb70e18c99014c75d1b95d9aea48807c2010c43e44767da3e67cfcea2438",
+      "sourceChecksum": "sha256:e4e51ae790d7047f354dbe7b45a4079bbb901a20f580a85b0cafe556977da271",
+      "lastAppliedOutputChecksum": "sha256:e4e51ae790d7047f354dbe7b45a4079bbb901a20f580a85b0cafe556977da271",
       "resourceManifest": [],
       "profile": "python",
       "managed": true,
@@ -427,8 +562,64 @@
       "name": "linus-review",
       "sourcePath": "skills/linus-review/SKILL.md",
       "outputPath": ".claude/skills/linus-review/SKILL.md",
-      "sourceChecksum": "sha256:4c4ceb70e18c99014c75d1b95d9aea48807c2010c43e44767da3e67cfcea2438",
-      "lastAppliedOutputChecksum": "sha256:4c4ceb70e18c99014c75d1b95d9aea48807c2010c43e44767da3e67cfcea2438",
+      "sourceChecksum": "sha256:e4e51ae790d7047f354dbe7b45a4079bbb901a20f580a85b0cafe556977da271",
+      "lastAppliedOutputChecksum": "sha256:e4e51ae790d7047f354dbe7b45a4079bbb901a20f580a85b0cafe556977da271",
+      "resourceManifest": [],
+      "profile": "python",
+      "managed": true,
+      "markerVersion": "agent-workbench: managed portable-skill"
+    },
+    {
+      "id": "portable_skill:integrate-chatgpt-conversation",
+      "kind": "portable_skill",
+      "scope": "portable_skills",
+      "name": "integrate-chatgpt-conversation",
+      "sourcePath": "skills/integrate-chatgpt-conversation/SKILL.md",
+      "outputPath": ".agents/skills/integrate-chatgpt-conversation/SKILL.md",
+      "sourceChecksum": "sha256:8f6571c85768e813e2ab785bf094dee5024d20f5a0d3f9b7b7143b5f4d240aef",
+      "lastAppliedOutputChecksum": "sha256:8f6571c85768e813e2ab785bf094dee5024d20f5a0d3f9b7b7143b5f4d240aef",
+      "resourceManifest": [],
+      "profile": "python",
+      "managed": true,
+      "markerVersion": "agent-workbench: managed portable-skill"
+    },
+    {
+      "id": "portable_skill:integrate-chatgpt-conversation:claude",
+      "kind": "portable_skill",
+      "scope": "portable_skills",
+      "name": "integrate-chatgpt-conversation",
+      "sourcePath": "skills/integrate-chatgpt-conversation/SKILL.md",
+      "outputPath": ".claude/skills/integrate-chatgpt-conversation/SKILL.md",
+      "sourceChecksum": "sha256:8f6571c85768e813e2ab785bf094dee5024d20f5a0d3f9b7b7143b5f4d240aef",
+      "lastAppliedOutputChecksum": "sha256:8f6571c85768e813e2ab785bf094dee5024d20f5a0d3f9b7b7143b5f4d240aef",
+      "resourceManifest": [],
+      "profile": "python",
+      "managed": true,
+      "markerVersion": "agent-workbench: managed portable-skill"
+    },
+    {
+      "id": "portable_skill:math-pdf-reader",
+      "kind": "portable_skill",
+      "scope": "portable_skills",
+      "name": "math-pdf-reader",
+      "sourcePath": "skills/math-pdf-reader/SKILL.md",
+      "outputPath": ".agents/skills/math-pdf-reader/SKILL.md",
+      "sourceChecksum": "sha256:f28bd1b86ee26f671516ced6da0e081e0a48a6112f639b14b0d9f3e844b69eec",
+      "lastAppliedOutputChecksum": "sha256:f28bd1b86ee26f671516ced6da0e081e0a48a6112f639b14b0d9f3e844b69eec",
+      "resourceManifest": [],
+      "profile": "python",
+      "managed": true,
+      "markerVersion": "agent-workbench: managed portable-skill"
+    },
+    {
+      "id": "portable_skill:math-pdf-reader:claude",
+      "kind": "portable_skill",
+      "scope": "portable_skills",
+      "name": "math-pdf-reader",
+      "sourcePath": "skills/math-pdf-reader/SKILL.md",
+      "outputPath": ".claude/skills/math-pdf-reader/SKILL.md",
+      "sourceChecksum": "sha256:f28bd1b86ee26f671516ced6da0e081e0a48a6112f639b14b0d9f3e844b69eec",
+      "lastAppliedOutputChecksum": "sha256:f28bd1b86ee26f671516ced6da0e081e0a48a6112f639b14b0d9f3e844b69eec",
       "resourceManifest": [],
       "profile": "python",
       "managed": true,

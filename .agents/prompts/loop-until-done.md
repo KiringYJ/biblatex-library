@@ -35,7 +35,7 @@ For each iteration:
 
 Stop immediately when:
 
-- The user cancels or changes the task.
+- The user cancels the task or replaces it with an incompatible objective. Incorporate corrections, added constraints, and side questions while continuing the active task.
 - Continuing requires destructive, irreversible, production-affecting, credential-gated, or scope-changing action not already authorized.
 - The completion criteria are impossible or ambiguous enough that further work would be guesswork.
 

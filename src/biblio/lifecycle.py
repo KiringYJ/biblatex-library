@@ -33,7 +33,9 @@ from .results import (
 )
 from .workspace import WorkspaceAggregate
 
-_PREPRINT_FIELDS = frozenset({"eprint", "eprinttype", "eprintclass", "archiveprefix"})
+_PREPRINT_FIELDS = frozenset(
+    {"eprint", "eprinttype", "eprintclass", "archiveprefix", "primaryclass"}
+)
 
 
 def add(bibliography: Bibliography, entries: Sequence[Entry]) -> AddResult:
@@ -121,6 +123,9 @@ def _merge_fields(
                 normalized.append(Field(field.key, eprint))
             elif name == "eprinttype":
                 normalized.append(Field(field.key, "hexagon"))
+            elif name == "primaryclass":
+                if "eprintclass" not in merged_by_name:
+                    normalized.append(Field("eprintclass", field.value))
             elif name != "url" or not matches_hexagon_url(str(field.value), eprint):
                 normalized.append(field)
         merged = normalized
@@ -141,8 +146,14 @@ def _validate_preprint_fields(fields: dict[str, Field], provider: str, owner: st
     value = str(eprint.value)
     if provider == "hexagon":
         hexagon_comparison_token(value)
-        if "eprintclass" in fields:
-            raise ValueError(f"{owner} must not supply eprintclass for Hexagon")
+        primaryclass = fields.get("primaryclass")
+        eprintclass = fields.get("eprintclass")
+        if (
+            primaryclass is not None
+            and eprintclass is not None
+            and str(primaryclass.value) != str(eprintclass.value)
+        ):
+            raise ValueError(f"{owner} has conflicting primaryclass and eprintclass")
     return value
 
 

@@ -374,6 +374,12 @@ versioned identifier. Only `@misc` becomes `@online`; other explicit entry
 types stay unchanged. No URL is generated. Matching landing URLs are redundant;
 independent URLs, PDF paths, queries, and fragments remain available.
 
+Supplied `eprintclass` values such as `math.NT` are accepted for both arXiv and
+Hexagon and retained verbatim through intake, normalization, and promotion.
+The legacy `primaryclass` alias migrates to `eprintclass` when the target is
+absent or equal; conflicting aliases remain for review. Classification is
+metadata, not identifier input, and the engine does not infer a subject class.
+
 For example, a Hexagon export is normalized before citekey creation
 to these fields:
 

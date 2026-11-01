@@ -246,7 +246,7 @@ def _hexagon_bibliography(
 
 
 def test_hexagon_workspace_promotion_preserves_exact_identity_and_order(tmp_path: Path) -> None:
-    bibliography = _hexagon_bibliography(tmp_path)
+    bibliography = _hexagon_bibliography(tmp_path, "eprintclass={math.NT},")
     old_key = tuple(bibliography)[0].key
     exact = "hexagon:2610.00311v2"
     url = "https://hexagonmath.org/2610.00311v2"
@@ -261,6 +261,7 @@ def test_hexagon_workspace_promotion_preserves_exact_identity_and_order(tmp_path
     assert promoted.entry_type == "article"
     assert promoted.fields_dict["eprint"].value == "2610.00311"
     assert promoted.fields_dict["eprinttype"].value == "hexagon"
+    assert promoted.fields_dict["eprintclass"].value == "math.NT"
     assert "url" not in promoted.fields_dict
     assert aggregate.add_order == (result.new_key,)
     record = aggregate.identifiers[result.new_key]
@@ -281,12 +282,13 @@ def test_hexagon_promotion_accepts_same_provider_payload_updates(tmp_path: Path)
     result = promote(
         bibliography,
         old_key,
-        _published(tmp_path, "eprint={2610.00311v3},eprinttype={Hexagon},"),
+        _published(tmp_path, "eprint={2610.00311v3},eprinttype={Hexagon},eprintclass={math.NT},"),
         "10.1000/published",
     )
     promoted = bibliography.resolve(result.new_key)
     assert promoted.fields_dict["eprint"].value == "2610.00311"
     assert promoted.fields_dict["eprinttype"].value == "hexagon"
+    assert promoted.fields_dict["eprintclass"].value == "math.NT"
     assert "url" not in promoted.fields_dict
 
 
@@ -322,7 +324,11 @@ def test_hexagon_promotion_preserves_nonmatching_payload_url(tmp_path: Path, url
         ("hexagon", "eprint={},", "requires a nonempty eprint"),
         ("hexagon", "archiveprefix={arxiv},", "conflicting archiveprefix"),
         ("arxiv", "archiveprefix={hexagon},", "conflicting archiveprefix"),
-        ("hexagon", "eprintclass={math.NT},", "must not supply eprintclass"),
+        (
+            "hexagon",
+            "primaryclass={math.NT},eprintclass={math.AG},",
+            "conflicting primaryclass",
+        ),
     ],
 )
 def test_promotion_rejects_invalid_preprint_payload_without_mutation(
@@ -342,7 +348,7 @@ def test_promotion_rejects_invalid_preprint_payload_without_mutation(
     ("fields", "exact"),
     [
         ("archiveprefix={arxiv},", "2610.00311v2"),
-        ("eprintclass={math.NT},", "2610.00311v2"),
+        ("eprintclass={math.NT},primaryclass={math.AG},", "2610.00311v2"),
         ("", "2613.00311v2"),
         ("", "2610.00311v0"),
         ("", ""),

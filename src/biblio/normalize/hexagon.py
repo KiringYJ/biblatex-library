@@ -42,6 +42,8 @@ def normalize_hexagon_fields(bibliography: Bibliography) -> HexagonNormalization
         eprint, imported = values
         entry_deltas: list[FieldDelta] = []
         updates = {"eprint": eprint, "eprinttype": "hexagon"}
+        if "primaryclass" in fields and "eprintclass" not in fields:
+            updates["eprintclass"] = str(fields["primaryclass"].value)
         for name, value in updates.items():
             existing = fields.get(name)
             before = str(existing.value) if existing is not None else None
@@ -52,7 +54,11 @@ def normalize_hexagon_fields(bibliography: Bibliography) -> HexagonNormalization
             else:
                 existing.value = value
             entry_deltas.append(FieldDelta(entry.key, name, before, value))
-        for name in ("archiveprefix", *(("key", "howpublished") if imported else ())):
+        for name in (
+            "archiveprefix",
+            "primaryclass",
+            *(("key", "howpublished") if imported else ()),
+        ):
             existing = fields.get(name)
             if existing is not None:
                 entry.fields.remove(existing)
@@ -93,7 +99,12 @@ def explicit_hexagon_eprint(entry: Entry) -> str | None:
         if name in fields
     ]
     eprint = fields.get("eprint")
-    if not types or any(value != "hexagon" for value in types) or eprint is None:
+    if (
+        not types
+        or any(value != "hexagon" for value in types)
+        or eprint is None
+        or _class_alias_conflict(fields)
+    ):
         return None
     value = str(eprint.value)
     try:
@@ -113,6 +124,14 @@ def _fields(entry: Entry) -> dict[str, Field]:
     return fields
 
 
+def _class_alias_conflict(fields: dict[str, Field]) -> bool:
+    return (
+        "primaryclass" in fields
+        and "eprintclass" in fields
+        and str(fields["primaryclass"].value) != str(fields["eprintclass"].value)
+    )
+
+
 def _normalization_values(entry: Entry, fields: dict[str, Field]) -> tuple[str, bool] | None:
     types = [
         str(fields[name].value).strip().casefold()
@@ -126,8 +145,8 @@ def _normalization_values(entry: Entry, fields: dict[str, Field]) -> tuple[str, 
         return None
     if any(value != "hexagon" for value in types):
         raise ValueError("eprinttype:conflict")
-    if "eprintclass" in fields or "primaryclass" in fields:
-        raise ValueError("eprintclass:unsupported")
+    if _class_alias_conflict(fields):
+        raise ValueError("primaryclass->eprintclass:conflict")
     exported: str | None = None
     if imported:
         if not howpublished.startswith(_EXPORT_PREFIX):

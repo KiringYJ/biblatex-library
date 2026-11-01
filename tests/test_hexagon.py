@@ -114,6 +114,78 @@ def test_export_template_dry_run_add_and_validation(tmp_path: Path, with_templat
     assert not commands.normalize(paths, "all").changes.changed
 
 
+@pytest.mark.parametrize("with_template", [False, True])
+@pytest.mark.parametrize("class_field", ["eprintclass", "EPRINTCLASS", "primaryclass"])
+def test_import_preserves_hexagon_subject_classification(
+    tmp_path: Path, with_template: bool, class_field: str
+) -> None:
+    paths = _workspace(tmp_path)
+    staged = tmp_path / "classified.bib"
+    source = HEXAGON_EXPORT.replace("year={2026}", f"year={{2026}},{class_field}={{math.NT}}")
+    staged.write_text(source, encoding="utf-8")
+    if with_template:
+        commands.template(staged)
+        records = parse_identifier_collection(staged.with_suffix(".json").read_bytes())
+        assert tuple(records.values()) == (IdentifierRecord("hexagon", {"hexagon": HEXAGON_ID}),)
+
+    preview = commands.add(paths, staged, dry_run=True)
+
+    assert staged.read_text(encoding="utf-8") == source
+    assert paths.bibliography.read_bytes() == b""
+    assert not preview.normalization_diagnostics
+
+    result = commands.add(paths, staged)
+    key = f"unknown-2026-{hashlib.sha256(HEXAGON_ID.encode()).hexdigest()[:8]}"
+    assert result.added_keys == (key,)
+    entry = BibliographyCodec.parse_bytes(paths.bibliography.read_bytes()).resolve(key)
+    fields = {item.key.casefold(): str(item.value) for item in entry.fields}
+    assert entry.entry_type == "online"
+    assert fields["eprintclass"] == "math.NT"
+    assert fields["eprint"] == HEXAGON_ID
+    assert "primaryclass" not in fields
+    assert "url" not in fields
+    assert parse_identifier_collection(paths.identifiers.read_bytes())[key] == IdentifierRecord(
+        "hexagon", {"hexagon": HEXAGON_ID}
+    )
+    assert commands.validate(paths).valid
+    assert not commands.normalize(paths, "all").changes.changed
+
+
+@pytest.mark.parametrize("action", ["all", "hexagon-fields"])
+def test_conflicting_hexagon_class_aliases_preserve_the_entry(action: str) -> None:
+    bibliography = _bibliography(
+        "@misc{temporary,eprinttype={hexagon},eprint={2610.00311v2},"
+        "primaryclass={math.NT},EPRINTCLASS={math.AG},url={https://hexagonmath.org/2610.00311v2}}"
+    )
+    before = BibliographyCodec.serialize(bibliography)
+
+    result = normalize_bibliography(bibliography, action)
+
+    assert not result.changes.changed
+    assert BibliographyCodec.serialize(bibliography) == before
+    assert any("manual-review" in diagnostic for diagnostic in result.diagnostics)
+
+
+@pytest.mark.parametrize("has_canonical_class", [False, True])
+def test_hexagon_fields_migrates_a_matching_class_alias_without_reinterpreting_it(
+    has_canonical_class: bool,
+) -> None:
+    canonical = ",EPRINTCLASS={ math.NT }" if has_canonical_class else ""
+    bibliography = _bibliography(
+        "@misc{temporary,eprinttype={hexagon},eprint={2610.00311v2},"
+        f"PRIMARYCLASS={{ math.NT }}{canonical}}}"
+    )
+
+    normalize_bibliography(bibliography, "hexagon-fields")
+
+    entry = next(iter(bibliography))
+    assert entry.entry_type == "online"
+    fields = {item.key.casefold(): str(item.value) for item in entry.fields}
+    assert fields["eprintclass"] == " math.NT "
+    assert "PRIMARYCLASS" not in entry.fields_dict
+    assert not normalize_bibliography(bibliography, "hexagon-fields").changes.changed
+
+
 def test_reviewed_identifier_and_author_selection_remain_authoritative(tmp_path: Path) -> None:
     paths = _workspace(tmp_path)
     staged = tmp_path / "reviewed.bib"

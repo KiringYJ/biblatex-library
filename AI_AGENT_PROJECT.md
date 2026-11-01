@@ -136,6 +136,12 @@ migration-away commands are retired.
   remain provenance. URL inventory cleanup uses the usual provenance and
   alternate guards. Reject incoming work IDs already present in legacy Hexagon
   inventory, including other versions; do not collapse historical hash inputs.
+- Accept supplied `eprintclass` metadata for arXiv and Hexagon. Preserve class
+  values verbatim through intake, normalization, and promotion; never infer a
+  subject class or include it in identifier JSON or citekey hashes. Hexagon
+  supports the `primaryclass` alias under the same no-overwrite rule: migrate
+  only when `eprintclass` is absent or equal, and reject conflicting classes
+  before intake or promotion writes.
 - Both journal-field and book-pagination migration require a nonempty
   `mrnumber`, `mrclass`, or `mrreviewer` field in the entry, using the shared
   `normalize/mr.py` predicate. Do not infer this from similar names, URLs,

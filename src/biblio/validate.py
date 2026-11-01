@@ -3,6 +3,7 @@
 import re
 
 from .bibliography import Bibliography
+from .identifiers import hexagon_comparison_token
 from .results import ValidateResult
 
 _GENERATED_CITEKEY = re.compile(r"^[a-z]+-(?:[0-9]{4}|unknown)-[0-9a-f]{8}$")
@@ -37,5 +38,21 @@ def validate_bibliography(bibliography: Bibliography) -> ValidateResult:
             issues.append(f"entry '{entry.key}' declares arXiv without a nonempty eprint")
         if "eprintclass" in fields and eprinttype.strip().casefold() != "arxiv":
             issues.append(f"entry '{entry.key}' has eprintclass without eprinttype=arxiv")
+        types = [
+            fields[name].strip().casefold()
+            for name in ("eprinttype", "archiveprefix")
+            if name in fields
+        ]
+        if "hexagon" in types:
+            if any(value != "hexagon" for value in types):
+                issues.append(f"entry '{entry.key}' has conflicting Hexagon eprint aliases")
+            eprint = fields.get("eprint", "")
+            if not eprint.strip():
+                issues.append(f"entry '{entry.key}' declares Hexagon without a nonempty eprint")
+            else:
+                try:
+                    hexagon_comparison_token(eprint)
+                except ValueError as error:
+                    issues.append(f"entry '{entry.key}' has an invalid Hexagon eprint: {error}")
 
     return ValidateResult(valid=not issues, issues=tuple(issues))

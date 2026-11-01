@@ -24,6 +24,7 @@ def test_schema_supports_legacy_records_and_optional_extensions() -> None:
         "doi",
         "isbn13",
         "arxiv",
+        "hexagon",
         "url",
         "mrnumber",
         "zbl",

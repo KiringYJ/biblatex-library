@@ -24,6 +24,7 @@ from .identifier_collection import (
 )
 from .identifiers import (
     CanonicalDoi,
+    canonicalize_hexagon_identifier,
     canonicalize_new_doi,
     hash_canonical_new_doi,
     hash_exact_legacy_identifier,
@@ -32,13 +33,14 @@ from .identifiers import (
 )
 from .normalize.inventory import normalize_identifier_inventory
 from .normalize.pipeline import ALL, merge_changes, normalize_bibliography
-from .results import ChangeSet, NormalizeResult
+from .results import ChangeSet, FieldDelta, NormalizeResult
 
 MAIN_IDENTIFIER_PRIORITY = (
     "doi",
     "isbn13",
     "mrnumber",
     "arxiv",
+    "hexagon",
     "zbmath",
     "zbl",
     "jfm",
@@ -136,6 +138,28 @@ def _identifiers_for_new_entry(entry: Entry) -> dict[str, str]:
         return identifiers
     containerpart = containerpart_identifier_from_entry(entry)
     return {"containerpart": containerpart} if containerpart is not None else {}
+
+
+def validate_hexagon_intake(
+    existing: Mapping[str, IdentifierRecord], additions: Iterable[tuple[str, IdentifierRecord]]
+) -> None:
+    """Reject incoming work IDs already owned by a record with any Hexagon version."""
+    owners: dict[str, str] = {}
+    for key, record in existing.items():
+        for value in record.inventory_values("hexagon"):
+            owners.setdefault(canonicalize_hexagon_identifier(value), key)
+    for key, record in additions:
+        tokens = dict.fromkeys(
+            canonicalize_hexagon_identifier(value) for value in record.inventory_values("hexagon")
+        )
+        for token in tokens:
+            owner = owners.get(token)
+            if owner is not None and owner != key:
+                raise ValueError(
+                    f"identifier 'hexagon' work '{token}' in record '{key}' "
+                    f"collides with record '{owner}'"
+                )
+            owners[token] = key
 
 
 def _field_value(fields: dict[str, Field], name: str) -> str | None:
@@ -365,9 +389,9 @@ def _identifier_records(
     normalization: NormalizeResult,
     *,
     allow_legacy_container_isbn: bool = False,
-) -> dict[str, IdentifierRecord]:
+) -> tuple[dict[str, IdentifierRecord], ChangeSet]:
     if template_data is None:
-        return _automatic_identifier_records(entries, normalization)
+        return _automatic_identifier_records(entries, normalization), ChangeSet()
     records = parse_identifier_collection(template_data)
     entry_keys = tuple(entry.key for entry in entries)
     if set(records) != set(entry_keys):
@@ -375,13 +399,51 @@ def _identifier_records(
             "staging template keys must exactly match bibliography entry keys: "
             f"template={sorted(records)}, bibliography={sorted(entry_keys)}"
         )
+    deltas: list[FieldDelta] = []
     for entry in entries:
+        record = records[entry.key]
+        if (
+            "hexagon" in record.identifier_alternates
+            and not record.identifier_alternates["hexagon"]
+        ):
+            raise ValueError(
+                f"staging template entry '{entry.key}' has an empty Hexagon alternate list"
+            )
+        values = record.inventory_values("hexagon")
+        if values:
+            if "hexagon" not in record.identifiers:
+                raise ValueError(
+                    f"staging template entry '{entry.key}' Hexagon alternates lack a primary"
+                )
+            if len(set(values)) != len(values):
+                raise ValueError(
+                    f"staging template entry '{entry.key}' repeats an exact Hexagon identifier"
+                )
+            canonical = tuple(
+                dict.fromkeys(canonicalize_hexagon_identifier(value) for value in values)
+            )
+            record.identifiers["hexagon"] = canonical[0]
+            if canonical[1:]:
+                record.identifier_alternates["hexagon"] = canonical[1:]
+            else:
+                record.identifier_alternates.pop("hexagon", None)
+            for index, old in enumerate(values):
+                new = canonical[index] if index < len(canonical) else None
+                if old != new:
+                    name = (
+                        "identifiers.hexagon"
+                        if index == 0
+                        else f"identifier_alternates.hexagon[{index - 1}]"
+                    )
+                    deltas.append(FieldDelta(entry.key, name, old, new))
         _validate_template_record(
             entry,
-            records[entry.key],
+            record,
             allow_legacy_container_isbn=allow_legacy_container_isbn,
         )
-    return records
+    return records, ChangeSet(
+        tuple(dict.fromkeys(delta.canonical_key for delta in deltas)), tuple(deltas)
+    )
 
 
 def _rekey_normalization_changes(
@@ -439,7 +501,7 @@ def prepare_staged_sources(
             _canonicalized_normalized_entries(path, data)
         )
         template = templates.get(path) if templates is not None else None
-        records_by_key = _identifier_records(
+        records_by_key, record_changes = _identifier_records(
             normalized,
             template[1] if template is not None else None,
             normalization,
@@ -453,7 +515,7 @@ def prepare_staged_sources(
         )
         normalization = replace(
             normalization,
-            changes=merge_changes([normalization.changes, inventory.changes]),
+            changes=merge_changes([normalization.changes, record_changes, inventory.changes]),
             diagnostics=(*normalization.diagnostics, *inventory.diagnostics),
         )
         prepared = prepare_entries(normalized, records_by_key)

@@ -27,6 +27,7 @@ def test_only_bounded_representation_actions_are_registered() -> None:
     assert NORMALIZATION_ACTIONS == (
         "year-to-date",
         "eprint-fields",
+        "hexagon-fields",
         "latex-accents",
         "name-spacing",
         "journal-fields",

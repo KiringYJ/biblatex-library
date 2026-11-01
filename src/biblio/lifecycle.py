@@ -15,10 +15,13 @@ from .identifier_collection import (
 )
 from .identifiers import (
     CanonicalDoi,
+    canonicalize_hexagon_identifier,
     hash_canonical_new_doi,
+    hexagon_comparison_token,
     is_derived_arxiv_doi,
     legacy_doi_comparison_token,
 )
+from .normalize.hexagon import matches_hexagon_url
 from .results import (
     AddResult,
     AliasDelta,
@@ -30,7 +33,7 @@ from .results import (
 )
 from .workspace import WorkspaceAggregate
 
-_ARXIV_FIELDS = frozenset({"eprint", "eprinttype", "eprintclass"})
+_PREPRINT_FIELDS = frozenset({"eprint", "eprinttype", "eprintclass", "archiveprefix"})
 
 
 def add(bibliography: Bibliography, entries: Sequence[Entry]) -> AddResult:
@@ -73,7 +76,9 @@ def _clone_field(field: Field) -> Field:
     return Field(field.key, field.value)
 
 
-def _merge_fields(current: Entry, published: Entry, canonical_doi: str) -> list[Field]:
+def _merge_fields(
+    current: Entry, published: Entry, canonical_doi: str, provider: str
+) -> list[Field]:
     _fields_by_name(current.fields, owner=f"entry '{current.key}'")
     published_by_name = _fields_by_name(published.fields, owner="published payload")
 
@@ -104,26 +109,52 @@ def _merge_fields(current: Entry, published: Entry, canonical_doi: str) -> list[
         merged.append(doi_field)
 
     merged_by_name = _fields_by_name(merged, owner="promoted entry")
-    if any(name in published_by_name for name in _ARXIV_FIELDS):
-        eprint = merged_by_name.get("eprint")
-        eprinttype = merged_by_name.get("eprinttype")
-        if eprint is None or not str(eprint.value).strip():
-            raise ValueError("published arXiv metadata update requires a nonempty eprint")
-        if eprinttype is None or str(eprinttype.value).strip().casefold() != "arxiv":
-            raise ValueError("published arXiv metadata update requires eprinttype=arxiv")
+    if any(name in published_by_name for name in _PREPRINT_FIELDS):
+        label = "arXiv" if provider == "arxiv" else "Hexagon"
+        _validate_preprint_fields(merged_by_name, provider, f"published {label} metadata update")
+    if provider == "hexagon":
+        eprint = canonicalize_hexagon_identifier(str(merged_by_name["eprint"].value))
+        normalized: list[Field] = []
+        for field in merged:
+            name = field.key.casefold()
+            if name == "eprint":
+                normalized.append(Field(field.key, eprint))
+            elif name == "eprinttype":
+                normalized.append(Field(field.key, "hexagon"))
+            elif name != "url" or not matches_hexagon_url(str(field.value), eprint):
+                normalized.append(field)
+        merged = normalized
 
     return merged
 
 
-def _entry_arxiv_eprint(entry: Entry) -> str:
-    fields = _fields_by_name(entry.fields, owner=f"entry '{entry.key}'")
+def _validate_preprint_fields(fields: dict[str, Field], provider: str, owner: str) -> str:
     eprint = fields.get("eprint")
     eprinttype = fields.get("eprinttype")
     if eprint is None or not str(eprint.value).strip():
-        raise ValueError(f"entry '{entry.key}' is not an arXiv record with a nonempty eprint")
-    if eprinttype is None or str(eprinttype.value).strip().casefold() != "arxiv":
-        raise ValueError(f"entry '{entry.key}' is not an arXiv record with eprinttype=arxiv")
-    return str(eprint.value)
+        raise ValueError(f"{owner} requires a nonempty eprint")
+    if eprinttype is None or str(eprinttype.value).strip().casefold() != provider:
+        raise ValueError(f"{owner} requires eprinttype={provider}")
+    archiveprefix = fields.get("archiveprefix")
+    if archiveprefix is not None and str(archiveprefix.value).strip().casefold() != provider:
+        raise ValueError(f"{owner} has conflicting archiveprefix")
+    value = str(eprint.value)
+    if provider == "hexagon":
+        hexagon_comparison_token(value)
+        if "eprintclass" in fields:
+            raise ValueError(f"{owner} must not supply eprintclass for Hexagon")
+    return value
+
+
+def _entry_preprint_eprint(entry: Entry) -> tuple[str, str]:
+    fields = _fields_by_name(entry.fields, owner=f"entry '{entry.key}'")
+    marker = fields.get("eprinttype")
+    provider = str(marker.value).strip().casefold() if marker is not None else ""
+    if provider not in {"arxiv", "hexagon"}:
+        raise ValueError(f"entry '{entry.key}' is not an arXiv record or Hexagon record")
+    label = "arXiv" if provider == "arxiv" else "Hexagon"
+    value = _validate_preprint_fields(fields, provider, f"entry '{entry.key}' {label} record")
+    return provider, value
 
 
 def _field_value(fields: dict[str, Field], name: str) -> str | None:
@@ -184,20 +215,20 @@ def promote(
     stripped_doi_query: bool = False,
     stripped_doi_fragment: bool = False,
 ) -> PromoteResult:
-    """Promote one arXiv record using one validated published-entry payload."""
+    """Promote one arXiv or Hexagon record using a published-entry payload."""
     current = bibliography.resolve(identity)
-    source_eprint = _entry_arxiv_eprint(current)
-    if is_derived_arxiv_doi(canonical_doi, source_eprint):
+    provider, source_eprint = _entry_preprint_eprint(current)
+    if provider == "arxiv" and is_derived_arxiv_doi(canonical_doi, source_eprint):
         raise ValueError("promotion requires a publisher DOI, not the matching derived arXiv DOI")
 
     collision = _canonical_doi_collides(bibliography, current, canonical_doi)
     if collision is not None:
         raise ValueError(f"canonical DOI '{canonical_doi}' already belongs to '{collision}'")
 
-    merged_fields = _merge_fields(current, published, canonical_doi)
+    merged_fields = _merge_fields(current, published, canonical_doi, provider)
     merged_by_name = _fields_by_name(merged_fields, owner="promoted entry")
     effective_eprint = merged_by_name["eprint"]
-    if is_derived_arxiv_doi(canonical_doi, str(effective_eprint.value)):
+    if provider == "arxiv" and is_derived_arxiv_doi(canonical_doi, str(effective_eprint.value)):
         raise ValueError("promotion requires a publisher DOI, not the matching derived arXiv DOI")
     aliases = tuple(dict.fromkeys((current.key, *bibliography.aliases_for(current.key))))
     merged_fields.append(Field("ids", ", ".join(aliases)))

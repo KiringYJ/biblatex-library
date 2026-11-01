@@ -1,6 +1,7 @@
-"""Tests for pure arXiv-to-publication lifecycle behavior."""
+"""Tests for pure preprint-to-publication lifecycle behavior."""
 
 import hashlib
+from copy import deepcopy
 from pathlib import Path
 
 import bibtexparser
@@ -8,7 +9,9 @@ import pytest
 from bibtexparser.model import Entry
 
 from biblio.bibliography import Bibliography, IdentityIndex
-from biblio.lifecycle import promote
+from biblio.identifier_collection import IdentifierRecord, KeyHistory
+from biblio.lifecycle import promote, promote_in_workspace
+from biblio.workspace import WorkspaceAggregate
 
 
 def _parse(tmp_path: Path, source: str, name: str = "source.bib") -> bibtexparser.Library:
@@ -227,3 +230,129 @@ def test_promote_requires_arxiv_source_record(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="is not an arXiv record"):
         promote(bibliography, "plain", _published(tmp_path), "10.1000/published")
+
+
+def _hexagon_bibliography(
+    tmp_path: Path, fields: str = "", *, exact: str = "hexagon:2610.00311v2"
+) -> Bibliography:
+    suffix = hashlib.sha256(exact.encode()).hexdigest()[:8]
+    library = _parse(
+        tmp_path,
+        f"@online{{unknown-2026-{suffix},title={{Preprint}},date={{2026}},"
+        f"eprint={{{exact}}},eprinttype={{hexagon}},"
+        f"url={{https://hexagonmath.org/2610.00311v2}},{fields}}}",
+    )
+    return Bibliography(library.blocks, IdentityIndex(library.entries))
+
+
+def test_hexagon_workspace_promotion_preserves_exact_identity_and_order(tmp_path: Path) -> None:
+    bibliography = _hexagon_bibliography(tmp_path)
+    old_key = tuple(bibliography)[0].key
+    exact = "hexagon:2610.00311v2"
+    url = "https://hexagonmath.org/2610.00311v2"
+    aggregate = WorkspaceAggregate(
+        bibliography,
+        {old_key: IdentifierRecord("hexagon", {"hexagon": exact, "url": url})},
+        (old_key,),
+    )
+    result = promote_in_workspace(aggregate, old_key, _published(tmp_path), "10.1000/published")
+
+    promoted = aggregate.bibliography.resolve(old_key)
+    assert promoted.entry_type == "article"
+    assert promoted.fields_dict["eprint"].value == "2610.00311"
+    assert promoted.fields_dict["eprinttype"].value == "hexagon"
+    assert "url" not in promoted.fields_dict
+    assert aggregate.add_order == (result.new_key,)
+    record = aggregate.identifiers[result.new_key]
+    assert record.main_identifier == "doi"
+    assert record.identifiers == {"hexagon": exact, "url": url, "doi": "10.1000/published"}
+    assert record.identifier_alternates == {"hexagon": ("2610.00311",)}
+    assert old_key.endswith(hashlib.sha256(exact.encode()).hexdigest()[:8])
+    assert record.key_history == (
+        KeyHistory(old_key, "hexagon", exact),
+        KeyHistory(result.new_key, "doi", "10.1000/published"),
+    )
+    aggregate.validate()
+
+
+def test_hexagon_promotion_accepts_same_provider_payload_updates(tmp_path: Path) -> None:
+    bibliography = _hexagon_bibliography(tmp_path)
+    old_key = tuple(bibliography)[0].key
+    result = promote(
+        bibliography,
+        old_key,
+        _published(tmp_path, "eprint={2610.00311v3},eprinttype={Hexagon},"),
+        "10.1000/published",
+    )
+    promoted = bibliography.resolve(result.new_key)
+    assert promoted.fields_dict["eprint"].value == "2610.00311"
+    assert promoted.fields_dict["eprinttype"].value == "hexagon"
+    assert "url" not in promoted.fields_dict
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://example.test/paper",
+        "https://hexagonmath.org/2610.00312",
+        "https://hexagonmath.org/2610.00311?download=1",
+        "https://hexagonmath.org/2610.00311.pdf",
+    ],
+)
+def test_hexagon_promotion_preserves_nonmatching_payload_url(tmp_path: Path, url: str) -> None:
+    bibliography = _hexagon_bibliography(tmp_path)
+    old_key = tuple(bibliography)[0].key
+    result = promote(
+        bibliography,
+        old_key,
+        _published(tmp_path, f"url={{{url}}},"),
+        "10.1000/published",
+    )
+    promoted = bibliography.resolve(result.new_key)
+    assert promoted.fields_dict["url"].value == url
+    assert promoted.fields_dict["eprint"].value == "2610.00311"
+
+
+@pytest.mark.parametrize(
+    ("source_provider", "fields", "message"),
+    [
+        ("hexagon", "eprinttype={arxiv},", "requires eprinttype=hexagon"),
+        ("arxiv", "eprinttype={hexagon},", "requires eprinttype=arxiv"),
+        ("hexagon", "eprint={2613.00311v2},", "Hexagon YYMM"),
+        ("hexagon", "eprint={},", "requires a nonempty eprint"),
+        ("hexagon", "archiveprefix={arxiv},", "conflicting archiveprefix"),
+        ("arxiv", "archiveprefix={hexagon},", "conflicting archiveprefix"),
+        ("hexagon", "eprintclass={math.NT},", "must not supply eprintclass"),
+    ],
+)
+def test_promotion_rejects_invalid_preprint_payload_without_mutation(
+    tmp_path: Path, source_provider: str, fields: str, message: str
+) -> None:
+    bibliography = (
+        _hexagon_bibliography(tmp_path) if source_provider == "hexagon" else _bibliography(tmp_path)
+    )
+    current = next(entry for entry in bibliography if "eprint" in entry.fields_dict)
+    before = deepcopy(bibliography.blocks)
+    with pytest.raises(ValueError, match=message):
+        promote(bibliography, current.key, _published(tmp_path, fields), "10.1000/published")
+    assert bibliography.blocks == before
+
+
+@pytest.mark.parametrize(
+    ("fields", "exact"),
+    [
+        ("archiveprefix={arxiv},", "2610.00311v2"),
+        ("eprintclass={math.NT},", "2610.00311v2"),
+        ("", "2613.00311v2"),
+        ("", "2610.00311v0"),
+        ("", ""),
+    ],
+)
+def test_hexagon_promotion_rejects_invalid_source_without_mutation(
+    tmp_path: Path, fields: str, exact: str
+) -> None:
+    bibliography = _hexagon_bibliography(tmp_path, fields, exact=exact)
+    before = deepcopy(bibliography.blocks)
+    with pytest.raises(ValueError):
+        promote(bibliography, tuple(bibliography)[0].key, _published(tmp_path), "10.1000/published")
+    assert bibliography.blocks == before

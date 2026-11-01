@@ -13,6 +13,7 @@ _ASCII_LOWERCASE_TRANSLATION = str.maketrans(_ASCII_UPPERCASE, _ASCII_LOWERCASE)
 _INVALID_PERCENT_ESCAPE = re.compile(r"%(?![0-9A-Fa-f]{2})")
 _DERIVED_ARXIV_DOI_PREFIX = "10.48550/arxiv."
 _ISBN_DIGIT_PATTERN = re.compile(r"[\dXx]")
+_HEXAGON_IDENTIFIER = re.compile(r"[0-9]{2}(?:0[1-9]|1[0-2])\.[0-9]{5}(?:v[1-9][0-9]*)?")
 
 
 @dataclass(frozen=True, slots=True)
@@ -90,6 +91,21 @@ def canonicalize_new_doi(raw: str) -> CanonicalDoi:
 def legacy_doi_comparison_token(raw: str) -> str:
     """Return a comparison token without modifying the exact legacy value."""
     return _canonicalize_doi(raw).value
+
+
+def hexagon_comparison_token(raw: str) -> str:
+    """Validate a Hexagon ID for comparison without changing its exact stored value."""
+    token = raw.strip()
+    if token[:8].casefold() == "hexagon:":
+        token = token[8:].strip()
+    if _HEXAGON_IDENTIFIER.fullmatch(token) is None:
+        raise ValueError("identifier must use Hexagon YYMM.NNNNN[vN] form")
+    return token
+
+
+def canonicalize_hexagon_identifier(raw: str) -> str:
+    """Return the version-free Hexagon work ID used for new bibliography metadata."""
+    return hexagon_comparison_token(raw).split("v", 1)[0]
 
 
 def hash_exact_legacy_identifier(exact_value: str) -> str:

@@ -20,6 +20,7 @@ from .add_entries import (
     prepare_staged_sources,
     replace_doi,
     select_main_identifier,
+    validate_hexagon_intake,
 )
 from .audit import audit_bibliography
 from .identifier_collection import (
@@ -33,7 +34,13 @@ from .identifier_collection import (
 )
 from .identifiers import canonicalize_new_doi
 from .normalize.inventory import normalize_identifier_inventory
-from .normalize.pipeline import ARXIV_DOI, TRIVIAL_URL, merge_changes, normalize_bibliography
+from .normalize.pipeline import (
+    ARXIV_DOI,
+    HEXAGON_FIELDS,
+    TRIVIAL_URL,
+    merge_changes,
+    normalize_bibliography,
+)
 from .normalize.pipeline import NORMALIZATION_ACTIONS as NORMALIZATION_ACTIONS
 from .reconcile import reconcile_identifier_inventory
 from .results import (
@@ -41,6 +48,7 @@ from .results import (
     AuditResult,
     ChangeSet,
     CommitOutcome,
+    FieldDelta,
     NormalizeResult,
     PromoteResult,
     ReconcileResult,
@@ -996,6 +1004,7 @@ def add(
             )
         )
 
+        validate_hexagon_intake(aggregate.identifiers, prepared_batch.identifier_records)
         domain_result = lifecycle.add(aggregate.bibliography, prepared)
         for key, record in prepared_batch.identifier_records:
             aggregate.identifiers[key] = record
@@ -1095,7 +1104,7 @@ def normalize(
     lock_backend: LockBackend | None = None,
     fault_hook: FaultHook = _noop_fault_hook,
 ) -> NormalizeResult:
-    """Normalize bibliography and redundant identifiers without changing keys or order."""
+    """Normalize bibliography and derived identifiers without changing keys or order."""
     with WorkspaceTransaction(
         paths, f"normalize:{action}", lock_backend=lock_backend, fault_hook=fault_hook
     ) as transaction:
@@ -1108,10 +1117,35 @@ def normalize(
             aggregate.identifiers,
             remove_urls=TRIVIAL_URL in result.actions,
             remove_arxiv_dois=ARXIV_DOI in result.actions,
+            remove_hexagon_urls=HEXAGON_FIELDS in result.actions,
+        )
+        # Input validation proved the original projections complete. Hexagon
+        # conversion can introduce a version-free eprint; retain that new
+        # projections without changing any existing exact key input.
+        reconciliation = (
+            reconcile_identifier_inventory(aggregate)
+            if HEXAGON_FIELDS in result.actions
+            else ReconcileResult()
+        )
+        projection_deltas: list[FieldDelta] = []
+        for addition in reconciliation.additions:
+            name = f"identifiers.{addition.kind}"
+            if addition.added_as == "alternate":
+                alternates = aggregate.identifiers[addition.canonical_key].identifier_alternates
+                index = len(alternates[addition.kind]) - 1
+                name = f"identifier_alternates.{addition.kind}[{index}]"
+            projection_deltas.append(
+                FieldDelta(addition.canonical_key, name, None, addition.exact_value)
+            )
+        inventory_changes = merge_changes(
+            [
+                inventory.changes,
+                ChangeSet(reconciliation.changes.changed_keys, tuple(projection_deltas)),
+            ]
         )
         result = replace(
             result,
-            changes=merge_changes([result.changes, inventory.changes]),
+            changes=merge_changes([result.changes, inventory_changes]),
             diagnostics=(*result.diagnostics, *inventory.diagnostics),
         )
         _require_valid(aggregate)
@@ -1124,7 +1158,7 @@ def normalize(
                 if bibliography_changed
                 else transaction.snapshot.bibliography.data,
                 identifiers=None
-                if inventory.changes.changed
+                if inventory_changes.changed
                 else transaction.snapshot.identifiers.data,
                 add_order=transaction.snapshot.add_order.data,
             )
@@ -1197,7 +1231,7 @@ def promote(
     lock_backend: LockBackend | None = None,
     fault_hook: FaultHook = _noop_fault_hook,
 ) -> PromoteResult:
-    """Promote one arXiv record across all three workspace artifacts."""
+    """Promote one arXiv or Hexagon record across all three workspace artifacts."""
     raw_published, raw_doi = _published_payload(published_path)
     canonical = canonicalize_new_doi(raw_doi)
     published = replace_doi(raw_published, canonical)

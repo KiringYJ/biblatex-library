@@ -9,6 +9,7 @@ from .accents import normalize_latex_accents
 from .dates import rename_year_to_date_fields
 from .doi import normalize_arxiv_dois
 from .eprint import normalize_eprint_fields
+from .hexagon import normalize_hexagon_fields
 from .isbn import normalize_isbn_fields
 from .journal import normalize_journal_fields
 from .names import normalize_name_spacing
@@ -17,6 +18,7 @@ from .url import normalize_trivial_urls
 
 YEAR_TO_DATE = "year-to-date"
 EPRINT_FIELDS = "eprint-fields"
+HEXAGON_FIELDS = "hexagon-fields"
 LATEX_ACCENTS = "latex-accents"
 NAME_SPACING = "name-spacing"
 JOURNAL_FIELDS = "journal-fields"
@@ -29,6 +31,7 @@ ALL = "all"
 NORMALIZATION_ACTIONS = (
     YEAR_TO_DATE,
     EPRINT_FIELDS,
+    HEXAGON_FIELDS,
     LATEX_ACCENTS,
     NAME_SPACING,
     JOURNAL_FIELDS,
@@ -96,6 +99,12 @@ def _run_action(bibliography: Bibliography, action: str) -> _ActionResult:
         report = normalize_isbn_fields(bibliography)
         diagnostics = tuple(
             f"{action}:invalid:{key}:{value}" for key, value in report.invalid.items()
+        )
+        return _ActionResult(report.changes, diagnostics)
+    if action == HEXAGON_FIELDS:
+        report = normalize_hexagon_fields(bibliography)
+        diagnostics = tuple(
+            f"{action}:manual-review:{key}:{reason}" for key, reason in report.conflicts
         )
         return _ActionResult(report.changes, diagnostics)
     if action == TRIVIAL_URL:

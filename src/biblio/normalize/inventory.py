@@ -11,6 +11,7 @@ from biblio.identifier_collection import (
 from biblio.results import ChangeSet, FieldDelta
 
 from .doi import matches_arxiv_doi
+from .hexagon import matches_hexagon_url
 from .url import matches_arxiv_url, matches_doi_url
 
 
@@ -28,6 +29,7 @@ def normalize_identifier_inventory(
     *,
     remove_urls: bool,
     remove_arxiv_dois: bool,
+    remove_hexagon_urls: bool = False,
 ) -> InventoryNormalizationReport:
     """Remove proven redundancies, protecting main/history and remaining projections."""
     changed_keys: list[str] = []
@@ -37,24 +39,34 @@ def normalize_identifier_inventory(
         record = records[entry.key]
         projected = identifiers_from_entry(entry)
         arxivs = record.inventory_values("arxiv")
+        hexagons = record.inventory_values("hexagon")
+        if "hexagon" in projected:
+            hexagons = (*hexagons, projected["hexagon"])
         dois = record.inventory_values("doi")
         protected = {
             (record.main_identifier, record.identifiers[record.main_identifier]),
             *((item.main_identifier, item.identifier) for item in record.key_history),
         }
         changed = False
-        for kind, enabled in (("url", remove_urls), ("doi", remove_arxiv_dois)):
+        for kind, enabled in (
+            ("url", remove_urls or remove_hexagon_urls),
+            ("doi", remove_arxiv_dois),
+        ):
             if not enabled or kind not in record.identifiers:
                 continue
             values = record.inventory_values(kind)
             removable: set[str] = set()
             for value in values:
-                redundant = (
-                    any(matches_arxiv_doi(value, arxiv) for arxiv in arxivs)
-                    if kind == "doi"
-                    else any(matches_doi_url(value, doi) for doi in dois)
-                    or any(matches_arxiv_url(value, arxiv) for arxiv in arxivs)
-                )
+                if kind == "doi":
+                    redundant = any(matches_arxiv_doi(value, arxiv) for arxiv in arxivs)
+                else:
+                    redundant = any(matches_hexagon_url(value, hexagon) for hexagon in hexagons)
+                    if remove_urls:
+                        redundant = (
+                            redundant
+                            or any(matches_doi_url(value, doi) for doi in dois)
+                            or any(matches_arxiv_url(value, arxiv) for arxiv in arxivs)
+                        )
                 if not redundant:
                     continue
                 if (kind, value) in protected:

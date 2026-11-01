@@ -78,6 +78,7 @@ def test_optional_alternates_and_history_preserve_exact_values() -> None:
         ("doi", "HTTPS://DOI.ORG/10.1000/ABC", "10.1000/abc"),
         ("isbn13", "978-0-306-40615-7", "9780306406157"),
         ("arxiv", "arXiv:2101.00001V2", "2101.00001v2"),
+        ("hexagon", " HEXAGON:2610.00311v2 ", "2610.00311v2"),
         ("mrnumber", "MR0001234", "0001234"),
         ("zbl", " ZBL 1 ", "zbl 1"),
         ("zbmath", " 00001234 ", "00001234"),
@@ -93,7 +94,7 @@ def test_optional_alternates_and_history_preserve_exact_values() -> None:
         ),
     ],
 )
-def test_all_twelve_identifier_equality_rules(kind: str, left: str, right: str) -> None:
+def test_supported_identifier_equality_rules(kind: str, left: str, right: str) -> None:
     assert identifier_equality_token(kind, left) == identifier_equality_token(kind, right)
 
 

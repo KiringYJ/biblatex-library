@@ -2,6 +2,7 @@
 
 import bibtexparser
 import pytest
+from bibtexparser.model import Field
 
 from biblio.bibliography import Bibliography, IdentityIndex
 from biblio.identifier_collection import IdentifierRecord, KeyHistory
@@ -130,3 +131,129 @@ def test_cleanup_does_not_orphan_or_promote_distinct_alternates(redundant_primar
         assert record.identifier_alternates == {}
         assert report.changes.changed
     aggregate.validate()
+
+
+@pytest.mark.parametrize("hexagon_only", [False, True])
+def test_hexagon_url_cleanup_preserves_exact_versioned_identity(hexagon_only: bool) -> None:
+    exact = "hexagon:2610.00311v2"
+    record = IdentifierRecord(
+        "hexagon", {"hexagon": exact, "url": "https://hexagonmath.org/2610.00311v3"}
+    )
+    aggregate = _workspace(record)
+    report = normalize_identifier_inventory(
+        aggregate.bibliography,
+        aggregate.identifiers,
+        remove_urls=not hexagon_only,
+        remove_arxiv_dois=False,
+        remove_hexagon_urls=hexagon_only,
+    )
+    assert report.changes.changed
+    assert record.identifiers == {"hexagon": exact}
+    aggregate.validate()
+
+
+@pytest.mark.parametrize("protection", ["main", "history"])
+def test_hexagon_url_hash_inputs_are_protected(protection: str) -> None:
+    exact = "2610.00311v2"
+    url = "https://hexagonmath.org/2610.00311v2"
+    if protection == "main":
+        record = IdentifierRecord("url", {"hexagon": exact, "url": url})
+        aggregate = _workspace(record)
+    else:
+        key = "one-" + hash_exact_legacy_identifier(exact)
+        alias = "old-" + hash_exact_legacy_identifier(url)
+        record = IdentifierRecord(
+            "hexagon",
+            {"hexagon": exact, "url": url},
+            key_history=(KeyHistory(key, "hexagon", exact), KeyHistory(alias, "url", url)),
+        )
+        aggregate = _workspace(record, alias=alias)
+    report = normalize_identifier_inventory(
+        aggregate.bibliography,
+        aggregate.identifiers,
+        remove_urls=False,
+        remove_arxiv_dois=False,
+        remove_hexagon_urls=True,
+    )
+    assert not report.changes.changed
+    assert record.identifiers["url"] == url
+    assert any("key-provenance" in diagnostic for diagnostic in report.diagnostics)
+    aggregate.validate()
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://hexagonmath.org/2610.00312",
+        "https://hexagonmath.org/2610.00311?download=1",
+        "https://hexagonmath.org/2610.00311#page=2",
+        "https://hexagonmath.org:443/2610.00311",
+        "https://user@hexagonmath.org/2610.00311",
+        "https://hexagonmath.org/2610.00311.pdf",
+        "https://example.test/2610.00311",
+        "https://doi.org/10.1000/published",
+        "https://arxiv.org/abs/2509.01002",
+    ],
+)
+def test_hexagon_only_cleanup_preserves_nonmatching_and_other_provider_urls(url: str) -> None:
+    record = IdentifierRecord(
+        "hexagon",
+        {"hexagon": "2610.00311", "url": url, "doi": "10.1000/published", "arxiv": "2509.01002"},
+    )
+    aggregate = _workspace(record)
+    report = normalize_identifier_inventory(
+        aggregate.bibliography,
+        aggregate.identifiers,
+        remove_urls=False,
+        remove_arxiv_dois=False,
+        remove_hexagon_urls=True,
+    )
+    assert not report.changes.changed
+    assert record.identifiers["url"] == url
+    aggregate.validate()
+
+
+@pytest.mark.parametrize("redundant_primary", [False, True])
+def test_hexagon_url_cleanup_preserves_primary_when_independent_alternates_remain(
+    redundant_primary: bool,
+) -> None:
+    redundant = "https://hexagonmath.org/2610.00311v2"
+    independent = "https://example.test/paper"
+    primary, alternate = (redundant, independent) if redundant_primary else (independent, redundant)
+    record = IdentifierRecord(
+        "hexagon", {"hexagon": "2610.00311v2", "url": primary}, {"url": (alternate,)}
+    )
+    aggregate = _workspace(record)
+    report = normalize_identifier_inventory(
+        aggregate.bibliography,
+        aggregate.identifiers,
+        remove_urls=True,
+        remove_arxiv_dois=False,
+    )
+    assert record.identifiers["url"] == primary
+    if redundant_primary:
+        assert not report.changes.changed
+        assert record.identifier_alternates == {"url": (independent,)}
+        assert any("remaining-alternates" in diagnostic for diagnostic in report.diagnostics)
+    else:
+        assert report.changes.changed
+        assert record.identifier_alternates == {}
+    aggregate.validate()
+
+
+def test_hexagon_url_cleanup_uses_surviving_projection_before_inventory_reconciliation() -> None:
+    record = IdentifierRecord(
+        "doi", {"doi": "10.1000/published", "url": "https://hexagonmath.org/2610.00311v2"}
+    )
+    aggregate = _workspace(record)
+    entry = tuple(aggregate.bibliography)[0]
+    entry.fields.extend([Field("eprinttype", "hexagon"), Field("eprint", "2610.00311")])
+    report = normalize_identifier_inventory(
+        aggregate.bibliography,
+        aggregate.identifiers,
+        remove_urls=False,
+        remove_arxiv_dois=False,
+        remove_hexagon_urls=True,
+    )
+    assert report.changes.changed
+    assert record.identifiers == {"doi": "10.1000/published"}

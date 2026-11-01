@@ -129,7 +129,9 @@ def _eprint_fields(entry: Entry) -> dict[str, Field]:
 
 
 def _alias_values_equal(source: str, old: str, new: str) -> bool:
-    return old == new or (source == "archiveprefix" and old.casefold() == new.casefold() == "arxiv")
+    return old == new or (
+        source == "archiveprefix" and old.casefold() == new.casefold() in {"arxiv", "hexagon"}
+    )
 
 
 def _rename_field(

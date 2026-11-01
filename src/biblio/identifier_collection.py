@@ -10,6 +10,7 @@ from bibtexparser.model import Entry, Field
 
 from .identifiers import (
     extract_isbn_digits,
+    hexagon_comparison_token,
     is_valid_isbn13,
     isbn13_digits_from_isbn10,
     isbn_comparison_token,
@@ -20,6 +21,7 @@ SUPPORTED_IDENTIFIER_KINDS = (
     "doi",
     "isbn13",
     "arxiv",
+    "hexagon",
     "url",
     "mrnumber",
     "zbl",
@@ -260,6 +262,8 @@ def identifier_equality_token(kind: str, value: str) -> str:
         if token[:6].casefold() == "arxiv:":
             token = token[6:].strip()
         return token.casefold()
+    if kind == "hexagon":
+        return hexagon_comparison_token(value)
     if kind == "containerpart":
         match = _CONTAINERPART.fullmatch(value)
         if match is None or not is_valid_isbn13(match.group(1)):
@@ -357,12 +361,23 @@ def identifiers_from_entry(entry: Entry) -> dict[str, str]:
             continue
         if kind == "isbn13":
             value = None if isbn_is_container_metadata(entry) else _single_field(entry, "isbn")
-        elif kind == "arxiv":
+        elif kind in {"arxiv", "hexagon"}:
             eprint = _single_field(entry, "eprint")
             eprinttype = _single_field(entry, "eprinttype")
             archiveprefix = _single_field(entry, "archiveprefix")
             marker = eprinttype if eprinttype is not None else archiveprefix
-            value = eprint if marker is not None and marker.strip().casefold() == "arxiv" else None
+            value = eprint if marker is not None and marker.strip().casefold() == kind else None
+            if kind == "hexagon" and any(
+                alias is not None and alias.strip().casefold() == kind
+                for alias in (eprinttype, archiveprefix)
+            ):
+                if any(
+                    alias is not None and alias.strip().casefold() != kind
+                    for alias in (eprinttype, archiveprefix)
+                ):
+                    raise ValueError(f"entry '{entry.key}' has conflicting Hexagon eprint aliases")
+                if value is not None:
+                    hexagon_comparison_token(value)
         elif kind == "acmdl_doi":
             direct = _single_field(entry, "acmdl_doi")
             from_url = _acm_url_identifier(_single_field(entry, "url"))

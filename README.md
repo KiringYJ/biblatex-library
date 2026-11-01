@@ -23,13 +23,13 @@ future CSL-backed design could replace the bibliographic-metadata layer, but
 it would still need to preserve exact identifier provenance, citekey history,
 and chronological ordering.
 
-The current engine recognizes twelve identifier kinds: `doi`, `isbn13`,
-`arxiv`, `url`, `mrnumber`, `zbl`, `zbmath`, `jfm`, `oclc`, `hdl`, and
+The current engine recognizes thirteen identifier kinds: `doi`, `isbn13`,
+`arxiv`, `hexagon`, `url`, `mrnumber`, `zbl`, `zbmath`, `jfm`, `oclc`, `hdl`, and
 `acmdl_doi`, plus the repository-local `containerpart`. The JSON codec and
 schema preserve an unknown kind so future data
 is not discarded, but workspace validation reports it as unsupported and
 mutation commands fail closed until the engine gains an explicit comparison
-and validation rule for that kind. JSON-only values of the twelve supported
+and validation rule for that kind. JSON-only values of the thirteen supported
 kinds are valid and remain part of the complete inventory.
 
 ## Principal consumer
@@ -212,7 +212,7 @@ in-memory normalization used by `add`, so the displayed identifier values and
 default selections match the eventual candidate. Existing companions are
 preserved unless `--overwrite` is explicit.
 
-The default priority is `doi`, `isbn13`, `mrnumber`, `arxiv`, `zbmath`, `zbl`,
+The default priority is `doi`, `isbn13`, `mrnumber`, `arxiv`, `hexagon`, `zbmath`, `zbl`,
 `jfm`, `oclc`, `hdl`, `acmdl_doi`, `url`, then `containerpart`. When a DOI is
 only the matching arXiv-issued `10.48550/arXiv...` form, the arXiv eprint remains
 the default main identifier. The redundant DOI and exact derived links are
@@ -296,6 +296,7 @@ stale or fabricated receipt.
 
 ```powershell
 biblio normalize --dry-run
+biblio normalize hexagon-fields
 biblio normalize trivial-url
 biblio normalize arxiv-doi
 ```
@@ -306,12 +307,13 @@ The default action is `all`. Only bounded representation changes are automatic:
 | --- | --- |
 | `year-to-date` | Rename an exact four-digit ASCII `year` when neither `date` nor `month` is present. Other year values remain for review. |
 | `eprint-fields` | Migrate the documented `archiveprefix`/`primaryclass` aliases and canonicalize the arXiv marker. Restore the arXiv import convention: `@misc` with an explicit arXiv type and nonempty `eprint` becomes `@online`. Preserve other entry types and conflicting metadata. |
+| `hexagon-fields` | Convert the explicit Hexagon export convention to `eprinttype=hexagon` and a version-free `eprint`. Convert Hexagon `@misc` to `@online`, remove matching redundant export fields and landing URLs, and preserve contributor notes and conflicting metadata. |
 | `latex-accents` | Convert complete supported accent and letter commands in text/name fields, preserving groups and unrelated text. In `mrreviewer` only, convert supported control-space tokens to ordinary spaces. Leave opaque identifiers and unsupported TeX contexts unchanged. |
 | `name-spacing` | Remove ordinary horizontal space before top-level name-part commas. Preserve braced/literal names, quoted parts, control spaces, and unsupported syntax; never reorder names. |
 | `journal-fields` | On MR-marked entries, treat a nonempty `journal` + `fjournal` pair as short title and full title respectively. Migrate both atomically to `shortjournal` + `journaltitle`; preserve the pair if either destination conflicts. |
 | `book-pagination` | On MR-marked `@book` entries, migrate a positive page count or canonical Roman-plus-Arabic extent from `pages` to `pagetotal` without changing its string. Require no `chapter`, only absent or `page` pagination units, and no conflicting total. Preserve ranges and other unsupported forms. |
 | `isbn` | Convert checksum-valid bare ISBN-10 values to contiguous ISBN-13 digits. Validate the entire comma-separated field before conversion or deduplication; preserve annotated, malformed, or invalid fields unchanged. Do not infer hyphenation. |
-| `trivial-url` | Remove a bare approved DOI resolver URL matching a DOI or the explicit arXiv eprint's derived DOI, and exact arXiv abstract links. Apply the same cleanup to JSON URLs. Preserve PDF selection, query strings, fragments, ports/userinfo, non-ASCII DOI case differences, and distinct identifiers. |
+| `trivial-url` | Remove a bare approved DOI resolver URL matching a DOI or the explicit arXiv eprint's derived DOI, exact arXiv abstract links, and exact Hexagon landing URLs for the same work. Apply the same cleanup to JSON URLs. Preserve PDF selection, query strings, fragments, ports/userinfo, non-ASCII DOI case differences, and distinct works. |
 | `arxiv-doi` | Remove a DOI derived from the matching explicit arXiv eprint, including its exact version. Prune redundant JSON DOI values too. Preserve publisher DOIs, mismatches, conflicting eprint aliases, and unsupported content. |
 
 Field names are matched case-insensitively. Duplicate fields are rejected
@@ -351,6 +353,58 @@ and other types are not reclassified. A URL alone, missing/blank eprint, or
 conflicting eprint aliases does not enable the conversion. `template` and
 `add` use this same rule; dry-run change reports show the entry-type change,
 and staging files themselves remain unchanged until normal verified cleanup.
+
+Hexagon exports have a separate bounded convention. On `@misc` or `@online`,
+`howpublished={Hexagon preprint hexagon:2610.00311v2}` supplies
+`eprint={2610.00311}` and `eprinttype={hexagon}`. A present `key` field and
+URL must identify the same work; version differences are ignored. Recognized
+URLs are exactly `https://hexagonmath.org/2610.00311` with an optional valid
+`vN` suffix. The matching `key`, `howpublished`, and `url` fields are removed.
+Other URL shapes, conflicting work identifiers, and unsupported
+export syntax remain for review. A URL or temporary citekey alone does not
+establish Hexagon identity.
+
+Explicit `eprinttype=hexagon` (or its `archiveprefix` alias) is also accepted,
+normalizing `eprint` to the version-free work ID. Supported input IDs use ASCII
+`YYMM.NNNNN` with an optional positive `vN` version and optional `hexagon:`
+prefix; both version and prefix are removed from the normalized field. New
+imports hash only the base ID, so different revisions produce the same
+identifier. Intake also rejects a work already present under a legacy
+versioned identifier. Only `@misc` becomes `@online`; other explicit entry
+types stay unchanged. No URL is generated. Matching landing URLs are redundant;
+independent URLs, PDF paths, queries, and fragments remain available.
+
+For example, a Hexagon export is normalized before citekey creation
+to these fields:
+
+```bibtex
+@online{temporary,
+  title = {On Landau--Siegel zeros},
+  date = {2026},
+  eprint = {2610.00311},
+  eprinttype = {hexagon},
+  note = {Contributors: Ben Green}
+}
+```
+
+`template` and `add` use the same deterministic conversion. Contributor notes
+are not converted into authors. Source lookup, contributor roles, author/title
+corrections, and publication matching remain AI or human review tasks. With no
+reviewed author, editor, or shorthand, the ordinary citekey name stem is
+`unknown`. An AI-reviewed `author` or identifier companion is honored by the
+existing intake workflow.
+Hexagon values in staging companions are canonicalized before hashing, so an
+older versioned companion produces the same base-ID key as a new template.
+
+When normalizing an existing workspace, newly introduced base-ID Hexagon
+projections are added to identifier JSON without replacing existing exact
+values, changing `main_identifier`, rekeying, or reordering. New values of an
+existing kind become alternates. Dry-run reports these additions, and a
+collision fails validation before any workspace write.
+Matching URLs are also removed from JSON unless an existing key/history hash,
+surviving projection, or remaining-alternate guard requires retention. Existing
+versioned hash inputs remain exact provenance; new default imports contain
+only the version-free Hexagon identifier.
 
 Both MR-specific rules require at least one nonempty `mrnumber`, `mrclass`, or
 `mrreviewer` field in the BibLaTeX entry itself. The pair alone, URLs, citekeys,
@@ -416,7 +470,7 @@ active record from `library.bib`, its exact identifier record, and its active
 chronology position. Git or another consumer-owned history system provides
 historical recovery for intentional removal.
 
-### Promote an arXiv record
+### Promote an arXiv or Hexagon record
 
 ```powershell
 biblio promote OLD_KEY published-record.bib --dry-run
@@ -424,12 +478,15 @@ biblio promote OLD_KEY published-record.bib
 ```
 
 The payload must contain exactly one published record and one publisher DOI.
-Promotion installs a DOI-derived canonical citekey, keeps the old arXiv key as
-a BibLaTeX `ids` alias, retains exact arXiv/DOI identifier provenance through
+Promotion installs a DOI-derived canonical citekey, keeps the old preprint key as
+a BibLaTeX `ids` alias, retains exact preprint/DOI identifier provenance through
 `identifier_alternates` and `key_history`, and preserves the record's
 chronological position. Existing documents may continue citing the old key.
 An arXiv-derived DOI such as `10.48550/arXiv...` is rejected as the publisher
 DOI.
+The source must carry an explicit arXiv or Hexagon eprint. Payload eprint
+updates must retain the source provider; promotion does not infer that two
+different repositories describe the same work.
 
 ### Recover a coordinated transaction
 

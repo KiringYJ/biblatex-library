@@ -123,6 +123,19 @@ migration-away commands are retired.
   Preserve all other entry types and the exact identifier. Conflicting aliases
   block the entire eprint transformation; duplicate eprint fields fail before
   mutation. Do not remove this accepted convention as generic type inference.
+- The separate `hexagon-fields` convention accepts explicit Hexagon eprints
+  and the bounded `@misc`/`@online` export wrapper
+  `howpublished={Hexagon preprint hexagon:YYMM.NNNNNvN}`. Require matching
+  work identifiers and an exact HTTPS landing URL when supplied; valid version
+  differences are irrelevant. Normalize eprints and staged Hexagon identifier
+  values to the base `YYMM.NNNNN` before new key derivation. Remove matching
+  landing URLs and redundant export `key`/`howpublished` fields; never generate
+  a URL or infer authors from contributor notes. Only `@misc` becomes `@online`.
+  Reconcile new base-ID projections while preserving existing exact main/hash
+  inputs, key history, canonical keys, and order. Existing versioned JSON values
+  remain provenance. URL inventory cleanup uses the usual provenance and
+  alternate guards. Reject incoming work IDs already present in legacy Hexagon
+  inventory, including other versions; do not collapse historical hash inputs.
 - Both journal-field and book-pagination migration require a nonempty
   `mrnumber`, `mrclass`, or `mrreviewer` field in the entry, using the shared
   `normalize/mr.py` predicate. Do not infer this from similar names, URLs,
@@ -209,17 +222,23 @@ biblio promote KEY PUBLISHED.bib [--dry-run]
 biblio recover [--status|--dry-run]
 ```
 
-Current normalization actions are `year-to-date`, `eprint-fields`,
+Current normalization actions are `year-to-date`, `eprint-fields`, `hexagon-fields`,
 `latex-accents`, `name-spacing`, `journal-fields`, `book-pagination`, `isbn`,
 `trivial-url`, and `arxiv-doi`, in that order. Text representation changes precede MR-pair comparison to keep
 `all` idempotent. The pipeline registry also supplies CLI choices through the
 commands service. Year conversion requires a bare ASCII four-digit year with
 no date/month; eprint aliases must not override conflicts, and only the explicit
-arXiv `@misc` import convention may change the entry type;
+arXiv and Hexagon `@misc` import conventions may change the entry type;
 DOI URL removal uses DOI-specific ASCII equivalence with component guards;
 arXiv URL removal requires an exact abstract link or a matching derived DOI
-resolver link. DOI/URL actions may also prune unreferenced JSON redundancies;
-other actions preserve identifier JSON bytes.
+resolver link. Hexagon URL removal requires an exact landing URL for the same
+base work. DOI/URL actions may also prune unreferenced JSON redundancies;
+`hexagon-fields` may add newly created projections and prune redundant Hexagon
+URLs; other actions preserve identifier JSON bytes.
+
+Publication promotion accepts explicit arXiv or Hexagon sources, preserves
+exact identifier provenance, and rejects source-provider switches in payloads.
+Hexagon promotion also writes a base eprint and omits matching landing URLs.
 
 `publisher-location` is retired and rejected. Audit may offer MR-pair,
 MR-book-extent, and name-spacing fixes only when the corresponding normalizer

@@ -317,7 +317,7 @@ def cmd_remove(args: argparse.Namespace) -> int:
 
 
 def cmd_promote(args: argparse.Namespace) -> int:
-    """Promote an arXiv record across all workspace artifacts."""
+    """Promote an arXiv or Hexagon record across all workspace artifacts."""
     try:
         result = commands.promote(
             workspace_paths(resolve_config(args)),
@@ -444,7 +444,7 @@ def create_parser() -> argparse.ArgumentParser:
     remove_parser.add_argument("--dry-run", action="store_true")
     remove_parser.set_defaults(handler=cmd_remove)
 
-    promote_parser = subparsers.add_parser("promote", help="Promote an arXiv record")
+    promote_parser = subparsers.add_parser("promote", help="Promote an arXiv or Hexagon record")
     promote_parser.add_argument("identity", metavar="KEY")
     promote_parser.add_argument("published", metavar="PUBLISHED.bib")
     promote_parser.add_argument("--dry-run", action="store_true")

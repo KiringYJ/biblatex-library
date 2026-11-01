@@ -1,4 +1,4 @@
-"""Normalization helpers for redundant DOI and exactly matched arXiv URLs."""
+"""Normalization helpers for redundant DOI and recognized preprint URLs."""
 
 import unicodedata
 from dataclasses import dataclass, field
@@ -10,6 +10,7 @@ from biblio.results import ChangeSet, FieldDelta
 
 from .doi import matches_arxiv_doi
 from .eprint import explicit_arxiv_eprint
+from .hexagon import explicit_hexagon_eprint, matches_hexagon_url
 
 _ARXIV_ABSTRACT_PREFIXES = (
     "https://arxiv.org/abs/",
@@ -28,10 +29,11 @@ class UrlNormalizationReport:
 
 
 def normalize_trivial_urls(bibliography: Bibliography) -> UrlNormalizationReport:
-    """Remove equivalent bare DOI resolver or exact typed arXiv abstract links.
+    """Remove equivalent bare DOI resolver or explicit preprint landing links.
 
     DOI comparison uses its defined ASCII case equivalence, without rewriting
-    stored identifiers. Keep extra URL components and exact arXiv versions.
+    stored identifiers. Keep extra URL components and exact arXiv versions;
+    Hexagon landing links match the version-free work identifier.
     """
     removed: list[str] = []
     deltas: list[FieldDelta] = []
@@ -47,6 +49,9 @@ def normalize_trivial_urls(bibliography: Bibliography) -> UrlNormalizationReport
         eprint = explicit_arxiv_eprint(entry)
         if not redundant and eprint is not None:
             redundant = matches_arxiv_url(url, eprint)
+        hexagon = explicit_hexagon_eprint(entry)
+        if not redundant and hexagon is not None:
+            redundant = matches_hexagon_url(url, hexagon)
         if redundant:
             entry.fields.remove(url_field)
             removed.append(entry.key)

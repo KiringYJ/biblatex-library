@@ -6,6 +6,11 @@ from collections.abc import Iterable
 from bibtexparser.model import Entry
 
 from .bibliography import Bibliography
+from .normalize.article_pagination import (
+    is_article_pagination_candidate,
+    is_mr_article_pagination,
+    parse_article_pagination,
+)
 from .normalize.journal import LEGACY_JOURNAL_FIELD_MAP
 from .normalize.mr import MR_FIELDS, has_mr_metadata
 from .normalize.names import NAME_FIELDS, normalize_name_value
@@ -31,6 +36,7 @@ def audit_bibliography(bibliography: Bibliography) -> AuditResult:
         findings.extend(_journal_field_findings(entry, fields))
         findings.extend(_issn_findings(entry, fields))
         findings.extend(_book_pagination_findings(entry, fields))
+        findings.extend(_article_pagination_findings(entry, fields))
         findings.extend(_edition_findings(entry, fields))
         findings.extend(_name_spacing_findings(entry, fields))
         findings.extend(_field_placement_findings(entry, fields))
@@ -170,6 +176,46 @@ def _book_pagination_findings(entry: Entry, fields: dict[str, str]) -> tuple[Aud
                 "marked MR book extent can be migrated exactly to pagetotal"
                 if can_migrate
                 else "book pages requires MR metadata, whole-book extent syntax, and no conflict"
+            ),
+        ),
+    )
+
+
+def _article_pagination_findings(entry: Entry, fields: dict[str, str]) -> tuple[AuditFinding, ...]:
+    if entry.entry_type.casefold() != "article" or "pages" not in fields:
+        return ()
+    pages = fields["pages"]
+    if not is_article_pagination_candidate(pages):
+        return ()
+    parsed = parse_article_pagination(pages)
+    eligible = is_mr_article_pagination(entry)
+    targets = {} if parsed is None else {"eid": parsed.eid}
+    if parsed is not None and parsed.pagetotal is not None:
+        targets["pagetotal"] = parsed.pagetotal
+    conflict = eligible and any(
+        name in fields and fields[name] != value for name, value in targets.items()
+    )
+    can_migrate = eligible and not conflict
+    participating = ("pages", *(name for name in ("eid", "pagetotal") if name in fields))
+    return (
+        AuditFinding(
+            code=(
+                "article-pagination-conflict"
+                if conflict
+                else "article-pages-locator"
+                if can_migrate
+                else "article-pages-review"
+            ),
+            canonical_keys=(entry.key,),
+            fields=participating,
+            values=tuple(fields[name] for name in participating),
+            fix_action="article-pagination" if can_migrate else None,
+            message=(
+                "marked MR article locator can be split into eid and optional pagetotal"
+                if can_migrate
+                else "article pagination conflicts with a structured field; verify sources"
+                if conflict
+                else "article pagination needs source review or verified MR scope; preserve values"
             ),
         ),
     )

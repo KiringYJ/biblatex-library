@@ -65,6 +65,26 @@ def test_second_all_run_is_an_explicit_noop() -> None:
     assert result.commit is None
 
 
+def test_all_structures_explicit_article_locators_and_defers_ambiguous_pairs() -> None:
+    bibliography = _bibliography(
+        "@article{explicit,title={X},mrnumber={MR1},pages={Paper No. 072, 48}}"
+        "@article{review,title={Y},mrnumber={MR2},pages={066001, 18}}"
+        "@article{range,title={Z},eid={38},pages={1--29}}"
+    )
+
+    result = normalize_bibliography(bibliography, "all")
+
+    assert result.changes.changed_keys == ("explicit",)
+    explicit = bibliography.resolve("explicit").fields_dict
+    assert explicit["eid"].value == "072"
+    assert explicit["pagetotal"].value == "48"
+    assert "pages" not in explicit
+    assert bibliography.resolve("review").fields_dict["pages"].value == "066001, 18"
+    assert bibliography.resolve("range").fields_dict["pages"].value == "1--29"
+    assert result.diagnostics == ("article-pagination:manual-review:review:unverified-mr-locator",)
+    assert not normalize_bibliography(bibliography, "all").changes.changed
+
+
 def test_single_action_does_not_apply_other_normalizers() -> None:
     bibliography = _bibliography("@book{one, year={2020}, isbn={0-387-97926-3}}\n")
 

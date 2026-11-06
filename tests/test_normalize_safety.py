@@ -32,6 +32,7 @@ def test_only_bounded_representation_actions_are_registered() -> None:
         "name-spacing",
         "journal-fields",
         "book-pagination",
+        "article-pagination",
         "isbn",
         "trivial-url",
         "arxiv-doi",

@@ -6,6 +6,7 @@ from biblio.bibliography import Bibliography
 from biblio.results import ChangeSet, NormalizeResult
 
 from .accents import normalize_latex_accents
+from .article_pagination import normalize_article_pagination
 from .dates import rename_year_to_date_fields
 from .doi import normalize_arxiv_dois
 from .eprint import normalize_eprint_fields
@@ -23,6 +24,7 @@ LATEX_ACCENTS = "latex-accents"
 NAME_SPACING = "name-spacing"
 JOURNAL_FIELDS = "journal-fields"
 BOOK_PAGINATION = "book-pagination"
+ARTICLE_PAGINATION = "article-pagination"
 ISBN = "isbn"
 TRIVIAL_URL = "trivial-url"
 ARXIV_DOI = "arxiv-doi"
@@ -36,6 +38,7 @@ NORMALIZATION_ACTIONS = (
     NAME_SPACING,
     JOURNAL_FIELDS,
     BOOK_PAGINATION,
+    ARTICLE_PAGINATION,
     ISBN,
     TRIVIAL_URL,
     ARXIV_DOI,
@@ -133,6 +136,13 @@ def _run_action(bibliography: Bibliography, action: str) -> _ActionResult:
         diagnostics = (
             *(f"{action}:manual-review:{key}:conflict" for key in report.conflicts),
             *(f"{action}:manual-review:{key}:unverified-mr-extent" for key in report.ambiguous),
+        )
+        return _ActionResult(report.changes, diagnostics)
+    if action == ARTICLE_PAGINATION:
+        report = normalize_article_pagination(bibliography)
+        diagnostics = (
+            *(f"{action}:manual-review:{key}:conflict" for key in report.conflicts),
+            *(f"{action}:manual-review:{key}:unverified-mr-locator" for key in report.ambiguous),
         )
         return _ActionResult(report.changes, diagnostics)
     raise ValueError(f"unknown normalization action '{action}'")

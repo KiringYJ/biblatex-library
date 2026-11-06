@@ -312,6 +312,7 @@ The default action is `all`. Only bounded representation changes are automatic:
 | `name-spacing` | Remove ordinary horizontal space before top-level name-part commas. Preserve braced/literal names, quoted parts, control spaces, and unsupported syntax; never reorder names. |
 | `journal-fields` | On MR-marked entries, treat a nonempty `journal` + `fjournal` pair as short title and full title respectively. Migrate both atomically to `shortjournal` + `journaltitle`; preserve the pair if either destination conflicts. |
 | `book-pagination` | On MR-marked `@book` entries, migrate a positive page count or canonical Roman-plus-Arabic extent from `pages` to `pagetotal` without changing its string. Require no `chapter`, only absent or `page` pagination units, and no conflicting total. Preserve ranges and other unsupported forms. |
+| `article-pagination` | On MR-marked `@article` entries, split a supported explicit `Paper No.`, `Paper`, `Art. ID`, or `Art.` locator into an exact-string `eid` and optional positive `pagetotal`. Require no `chapter`, absent or `page` pagination units, and absent or exactly matching targets. Leave ambiguous locators for human or agent source review. |
 | `isbn` | Convert checksum-valid bare ISBN-10 values to contiguous ISBN-13 digits. Validate the entire comma-separated field before conversion or deduplication; preserve annotated, malformed, or invalid fields unchanged. Do not infer hyphenation. |
 | `trivial-url` | Remove a bare approved DOI resolver URL matching a DOI or the explicit arXiv eprint's derived DOI, exact arXiv abstract links, and exact Hexagon landing URLs for the same work. Apply the same cleanup to JSON URLs. Preserve PDF selection, query strings, fragments, ports/userinfo, non-ASCII DOI case differences, and distinct works. |
 | `arxiv-doi` | Remove a DOI derived from the matching explicit arXiv eprint, including its exact version. Prune redundant JSON DOI values too. Preserve publisher DOIs, mismatches, conflicting eprint aliases, and unsupported content. |
@@ -319,7 +320,7 @@ The default action is `all`. Only bounded representation changes are automatic:
 Field names are matched case-insensitively. Duplicate fields are rejected
 before any normalization. Unsupported year/ISBN values, conflicting eprint
 aliases, unmarked/incomplete/conflicting journal pairs, and unsupported book
-extents produce diagnostics without guessing a repair. The text passes precede
+extents or candidate article locators produce diagnostics without guessing a repair. The text passes precede
 journal migration so compatible
 accent spellings do not defer migration until a second run. See the
 [BibLaTeX manual](https://mirrors.ctan.org/macros/latex/contrib/biblatex/doc/biblatex.pdf)
@@ -412,11 +413,11 @@ surviving projection, or remaining-alternate guard requires retention. Existing
 versioned hash inputs remain exact provenance; new default imports contain
 only the version-free Hexagon identifier.
 
-Both MR-specific rules require at least one nonempty `mrnumber`, `mrclass`, or
+The MR-specific journal and pagination rules require at least one nonempty `mrnumber`, `mrclass`, or
 `mrreviewer` field in the BibLaTeX entry itself. The pair alone, URLs, citekeys,
 similar field names, and JSON-only MR identifiers do not qualify. This is the
 accepted local MR-import convention, not independent verification of origin.
-Unmarked entries are never rewritten by these two actions. A lone `journal`
+Unmarked entries are never rewritten by these actions. A lone `journal`
 or `fjournal` is also left unchanged, even if a modern field has equal text.
 Text normalization does not evaluate arbitrary TeX: unsupported commands,
 math, comments, verbatim, malformed syntax, and token-sensitive unbraced wrapper
@@ -439,6 +440,50 @@ equivalent to the normalized ISBN.
 Normalization changes presentation metadata in `library.bib` while loading
 and validating the complete workspace. It preserves identifier-ledger and
 add-order bytes when their data is unchanged.
+
+### Structured article pagination
+
+The new article convention separates an article locator from its extent:
+
+```bibtex
+eid       = {151},
+pagetotal = {108},
+```
+
+For a marked MR article, `article-pagination` can produce these fields from
+`pages = {Paper No. 151, 108}` and remove that source field atomically.
+`number` remains the journal issue. An `eid` is bibliography metadata, not
+a global identifier: this action never changes identifier JSON, citekeys,
+aliases, or add order. It is included in `all` and incoming `add` normalization;
+`add` leaves existing entries untouched.
+
+| Classification | Examples | Handling |
+| --- | --- | --- |
+| Mechanical, within the MR article scope above | `Paper No. 072, 48`, `Paper No. e7, 65`, `Paper No. 3.26, 20`, `Paper 1.65, 14`, `Art. ID rnm075, 31`, `Art. 20, 9` | Split explicit labels into `eid` and `pagetotal`. Preserve the identifier's spelling, leading zeroes, and dots. |
+| Mechanical, identifier only | `Paper No. 73` | Write `eid` only; do not infer a total. Preserve any existing `pagetotal`. |
+| Human or agent source review | `066001, 18`, `035, 35 pp.`, `A15, 8`, `045, front matter+26`, `129, i, 152` | Preserve `pages`; bare pairs can also be page lists. Check the publisher or cited manifestation before supplying structured fields. |
+| Human or agent source review | Unsupported labeled syntax, missing MR markers, scoped pagination, or conflicting target fields | Preserve all source and target values. Resolve the evidence or conflict before editing; do not add a synthetic MR marker to force conversion. |
+| Already valid pagination | `108`, `1--108`, `3--45, 240`, `R1--R73`, or `eid={38}` together with `pages={1--29}` | Preserve the page locator and any `eid`; no review finding is raised solely for these forms. |
+
+The bounded automatic grammar accepts ASCII letter prefixes followed by digits
+and optional dot-separated digit components for identifiers. Labels are
+case-insensitive and whitespace may vary. A supplied total must be a positive
+ASCII integer, optionally followed by ` pp.`. Compound extents, arbitrary TeX,
+and unlabelled locators are not parsed automatically. A different or empty
+existing target blocks the entire entry conversion, including deletion of
+`pages`; matching targets are retained. Duplicate fields fail before any
+normalization mutation.
+
+`audit` advertises `fix_action=article-pagination` only for mechanically safe
+entries. `article-pages-review` and `article-pagination-conflict` findings have
+no automatic fix; normalization reports the corresponding manual-review
+diagnostics. These findings are review requests rather than evidence of an
+incorrect citation. Human or agent repairs require source evidence, must not
+invent page ranges or counts, and may supply verified structured fields directly.
+
+Consumers must support `pagetotal` on `@article` in their BibLaTeX data model and
+choose how to print it. Standard article drivers do not print that field.
+This engine owns neither the consumer's `.dbx` nor its bibliography style.
 
 ### Reconcile missing identifier projections
 

@@ -252,6 +252,29 @@ def test_clean_audit_is_an_explicit_success() -> None:
         ("book-pagination", "@book{x,pages={123},mrnumber={MR1},pagination={verse}}"),
         ("book-pagination", "@book{x,pages={123},mrnumber={MR1},pagetotal={456}}"),
         ("book-pagination", "@article{x,pages={123},mrnumber={MR1}}"),
+        ("article-pagination", "@article{x,pages={Paper No. 072, 48},mrnumber={MR1}}"),
+        ("article-pagination", "@article{x,pages={Paper No. 73},mrclass={53C}}"),
+        ("article-pagination", "@article{x,pages={Art. ID rnm075, 31},MRREVIEWER={Person}}"),
+        ("article-pagination", "@article{x,pages={Paper No. 38, 19}}"),
+        ("article-pagination", "@article{x,pages={Paper No. 38, 19},mrnumber={}}"),
+        ("article-pagination", "@article{x,pages={066001, 18},mrnumber={MR1}}"),
+        ("article-pagination", "@article{x,pages={045, front matter+26},mrnumber={MR1}}"),
+        ("article-pagination", "@article{x,pages={129, i, 152},mrnumber={MR1}}"),
+        (
+            "article-pagination",
+            "@article{x,pages={Paper No. 38, 19},mrnumber={MR1},eid={39}}",
+        ),
+        (
+            "article-pagination",
+            "@article{x,pages={Paper No. 38, 19},mrnumber={MR1},pagetotal={20}}",
+        ),
+        (
+            "article-pagination",
+            "@article{x,pages={Paper No. 38, 19},mrnumber={MR1},chapter={3}}",
+        ),
+        ("article-pagination", "@article{x,pages={3--45, 240},mrnumber={MR1}}"),
+        ("article-pagination", "@article{x,pages={1--29},eid={38},mrnumber={MR1}}"),
+        ("article-pagination", "@book{x,pages={Paper No. 38, 19},mrnumber={MR1}}"),
     ],
 )
 def test_audit_fix_suggestions_match_mr_normalizer_preconditions(action: str, source: str) -> None:
@@ -277,7 +300,48 @@ def test_duplicate_mr_markers_never_advertise_autofix() -> None:
         _bibliography(
             "@article{journal,journal={Short},fjournal={Full},mrnumber={},MRNUMBER={MR1}}"
             "@book{book,pages={123},mrnumber={},MRNUMBER={MR1}}"
+            "@article{article,pages={Paper No. 38, 19},mrnumber={},MRNUMBER={MR1}}"
         )
     )
 
     assert all(finding.fix_action is None for finding in result.findings)
+
+
+@pytest.mark.parametrize(
+    "pages, extra, code, action",
+    [
+        ("Paper No. 072, 48", "", "article-pages-locator", "article-pagination"),
+        ("Paper No. 73", ",pagetotal={42}", "article-pages-locator", "article-pagination"),
+        ("066001, 18", "", "article-pages-review", None),
+        ("045, front matter+26", "", "article-pages-review", None),
+        ("129, i, 152", "", "article-pages-review", None),
+        ("Paper No. 38, 19", ",eid={39}", "article-pagination-conflict", None),
+        ("Paper No. 38, 19", ",pagetotal={20}", "article-pagination-conflict", None),
+        ("Paper No. 38, 19", ",eid={}", "article-pagination-conflict", None),
+        ("Paper No. 38, 19", ",bookpagination={line}", "article-pages-review", None),
+    ],
+)
+def test_article_audit_separates_mechanical_fixes_from_source_review(
+    pages: str, extra: str, code: str, action: str | None
+) -> None:
+    bibliography = _bibliography(f"@article{{x,pages={{{pages}}},mrnumber={{MR1}}{extra}}}")
+    before = tuple((field.key, field.value) for field in bibliography.resolve("x").fields)
+
+    result = audit_bibliography(bibliography)
+
+    assert len(result.findings) == 1
+    finding = result.findings[0]
+    assert finding.code == code
+    assert finding.fix_action == action
+    assert finding.canonical_keys == ("x",)
+    assert finding.values[0] == pages
+    assert tuple((field.key, field.value) for field in bibliography.resolve("x").fields) == before
+
+
+@pytest.mark.parametrize("pages", ["108", "1--108", "3--45, 240", "R1--R73", "20--34, electronic"])
+def test_article_audit_preserves_valid_pagination_without_review_findings(pages: str) -> None:
+    result = audit_bibliography(
+        _bibliography(f"@article{{x,pages={{{pages}}},eid={{38}},mrnumber={{MR1}}}}")
+    )
+
+    assert result.clean

@@ -142,7 +142,7 @@ migration-away commands are retired.
   supports the `primaryclass` alias under the same no-overwrite rule: migrate
   only when `eprintclass` is absent or equal, and reject conflicting classes
   before intake or promotion writes.
-- Both journal-field and book-pagination migration require a nonempty
+- Journal-field, book-pagination, and article-pagination migration require a nonempty
   `mrnumber`, `mrclass`, or `mrreviewer` field in the entry, using the shared
   `normalize/mr.py` predicate. Do not infer this from similar names, URLs,
   citekeys, the journal pair alone, or JSON-only metadata. This is the accepted
@@ -155,6 +155,16 @@ migration-away commands are retired.
   absent or `page` pagination units, and a supported positive count or canonical
   Roman-plus-Arabic extent. Preserve the exact extent string; do not sum parts
   or reinterpret ranges. A differing `pagetotal` blocks the change.
+- Article-pagination migration additionally requires `@article`, no `chapter`,
+  absent or `page` pagination units, and a complete supported explicit `Paper No.`,
+  `Paper`, `Art. ID`, or `Art.` label. Split its exact ASCII letter/digit/dotted
+  identifier into `eid` and an optional positive Arabic count into `pagetotal`;
+  retain identifier spelling and leading zeroes. A differing or empty target
+  blocks the entire conversion. Identifier-only sources never infer a count.
+  Leave unlabelled pairs, front matter, compound extents, unsupported syntax,
+  and scope conflicts for human or agent source review without automatic fixes.
+  Preserve ordinary page ranges/lists and valid `eid` plus `pages` combinations.
+  This action never changes identifier JSON, citekeys, aliases, or add order.
 - Name/TeX normalization uses a bounded source-preserving grammar. Consume the
   parsed argument braces of recognized accent commands, but retain independent
   groups, case protection, formatting arguments, quoted/literal names, and opaque
@@ -229,7 +239,7 @@ biblio recover [--status|--dry-run]
 ```
 
 Current normalization actions are `year-to-date`, `eprint-fields`, `hexagon-fields`,
-`latex-accents`, `name-spacing`, `journal-fields`, `book-pagination`, `isbn`,
+`latex-accents`, `name-spacing`, `journal-fields`, `book-pagination`, `article-pagination`, `isbn`,
 `trivial-url`, and `arxiv-doi`, in that order. Text representation changes precede MR-pair comparison to keep
 `all` idempotent. The pipeline registry also supplies CLI choices through the
 commands service. Year conversion requires a bare ASCII four-digit year with
@@ -247,7 +257,7 @@ exact identifier provenance, and rejects source-provider switches in payloads.
 Hexagon promotion also writes a base eprint and omits matching landing URLs.
 
 `publisher-location` is retired and rejected. Audit may offer MR-pair,
-MR-book-extent, and name-spacing fixes only when the corresponding normalizer
+MR-book-extent, MR-article-locator, and name-spacing fixes only when the corresponding normalizer
 preconditions pass. Unmarked, scoped, or ambiguous inputs remain review-only.
 
 Preferred Conventional Commit scopes are `domain`, `storage`, `cli`, `config`,

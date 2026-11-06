@@ -402,6 +402,84 @@ def test_add_normalizes_incoming_entries_before_key_derivation_and_validates_can
     assert commands.validate(paths).valid
 
 
+def test_article_pagination_normalization_is_dry_run_safe_and_preserves_identity(
+    tmp_path: Path,
+) -> None:
+    explicit = _key("doe-2024", "10.1000/explicit")
+    review = _key("doe-2024", "10.1000/review")
+    paths = _workspace(
+        tmp_path,
+        f"@article{{{explicit},title={{X}},doi={{10.1000/explicit}},"
+        "mrnumber={MR1},pages={Paper No. 072, 48}}\n"
+        f"@article{{{review},title={{Y}},doi={{10.1000/review}},"
+        "mrnumber={MR2},pages={066001, 18}}\n",
+    )
+    before = _workspace_bytes(paths)
+
+    preview = commands.normalize(paths, "article-pagination", dry_run=True)
+
+    assert preview.changes.changed_keys == (explicit,)
+    assert _workspace_bytes(paths) == before
+    assert preview.diagnostics == (
+        f"article-pagination:manual-review:{review}:unverified-mr-locator",
+    )
+
+    result = commands.normalize(paths, "article-pagination")
+
+    assert result.commit is not None
+    bibliography = BibliographyCodec.parse_bytes(paths.bibliography.read_bytes())
+    assert tuple(entry.key for entry in bibliography) == (explicit, review)
+    fields = bibliography.resolve(explicit).fields_dict
+    assert fields["eid"].value == "072"
+    assert fields["pagetotal"].value == "48"
+    assert "pages" not in fields
+    assert bibliography.resolve(review).fields_dict["pages"].value == "066001, 18"
+    assert paths.identifiers.read_bytes() == before[1]
+    assert paths.add_order.read_bytes() == before[2]
+    assert commands.validate(paths).valid
+    assert not commands.normalize(paths, "article-pagination").changes.changed
+
+
+def test_add_structures_only_incoming_article_locators_without_rekeying_existing_entries(
+    tmp_path: Path,
+) -> None:
+    existing_key = _key("doe-2023", "10.1000/existing")
+    paths = _workspace(
+        tmp_path,
+        f"@article{{{existing_key},title={{Existing}},doi={{10.1000/existing}},"
+        "mrnumber={MR0},pages={Paper No. 38, 19}}\n",
+    )
+    staged = tmp_path / "article.bib"
+    _staged(staged, extra=",mrnumber={MR1},pages={Art. ID rnm075, 31}")
+    staging_bytes = staged.read_bytes()
+    before = _workspace_bytes(paths)
+
+    preview = commands.add(paths, staged, dry_run=True)
+
+    expected_key = _key("doe-2024", "10.1000/work")
+    assert preview.added_keys == (expected_key,)
+    assert "article-pagination" in preview.normalization_actions
+    assert {delta.field for delta in preview.changes.field_deltas} == {"pages", "eid", "pagetotal"}
+    assert all(delta.canonical_key == expected_key for delta in preview.changes.field_deltas)
+    assert _workspace_bytes(paths) == before
+    assert staged.read_bytes() == staging_bytes
+
+    result = commands.add(paths, staged)
+
+    assert result.added_keys == (expected_key,)
+    bibliography = BibliographyCodec.parse_bytes(paths.bibliography.read_bytes())
+    assert tuple(entry.key for entry in bibliography) == (existing_key, expected_key)
+    fields = bibliography.resolve(expected_key).fields_dict
+    assert fields["eid"].value == "rnm075"
+    assert fields["pagetotal"].value == "31"
+    assert "pages" not in fields
+    assert bibliography.resolve(existing_key).fields_dict["pages"].value == "Paper No. 38, 19"
+    records = parse_identifier_collection(paths.identifiers.read_bytes())
+    assert records[expected_key].main_identifier == "doi"
+    assert records[expected_key].identifiers == {"doi": "10.1000/work", "mrnumber": "MR1"}
+    assert commands.validate(paths).valid
+
+
 def test_arxiv_misc_template_add_restores_online_without_rewriting_staging(tmp_path: Path) -> None:
     paths = _workspace(tmp_path)
     staged = tmp_path / "arxiv.bib"
